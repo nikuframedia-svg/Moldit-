@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://incompol.pt/schemas/plan/v1",
+  "title": "Plan",
+  "description": "Plano de produção (candidate ou official)",
+  "type": "object",
+  "required": [
+    "plan_id",
+    "snapshot_hash",
+    "plan_hash",
+    "status",
+    "created_at",
+    "plan_params",
+    "operations",
+    "kpi_pack"
+  ],
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "snapshot_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 do snapshot canónico usado"
+    },
+    "plan_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 do plano canónico"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["CANDIDATE", "OFFICIAL"]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "plan_params": {
+      "type": "object",
+      "required": ["timebox_s", "seed"],
+      "properties": {
+        "timebox_s": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "freeze_window_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "objective_weights": {
+          "type": "object",
+          "properties": {
+            "tardiness": { "type": "number", "minimum": 0 },
+            "setup_count": { "type": "number", "minimum": 0 },
+            "setup_balance": { "type": "number", "minimum": 0 },
+            "churn": { "type": "number", "minimum": 0 },
+            "overtime_hours": { "type": "number", "minimum": 0 }
+          }
+        },
+        "modes": {
+          "type": "object",
+          "properties": {
+            "allow_operation_split_across_shifts": { "type": "boolean" },
+            "operator_capacity_model": {
+              "type": "string",
+              "enum": ["BUCKET_PER_SHIFT", "CONTINUOUS"]
+            }
+          }
+        }
+      }
+    },
+    "workorders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["workorder_id", "item_sku", "quantity", "due_date"],
+        "properties": {
+          "workorder_id": { "type": "string" },
+          "snapshot_id": { "type": "string" },
+          "customer_code": { "type": "string" },
+          "item_sku": { "type": "string" },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "due_date": { "type": "string", "format": "date-time" },
+          "day_bucket": { "type": "string", "format": "date" },
+          "routing_ref": { "type": "string" }
+        }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "workorder_id",
+          "item_sku",
+          "resource_code",
+          "start_time",
+          "end_time",
+          "quantity",
+          "is_setup",
+          "operators_required"
+        ],
+        "properties": {
+          "operation_id": { "type": "string" },
+          "workorder_id": { "type": "string" },
+          "item_sku": { "type": "string" },
+          "resource_code": { "type": "string" },
+          "tool_code": { "type": "string" },
+          "start_time": { "type": "string", "format": "date-time" },
+          "end_time": { "type": "string", "format": "date-time" },
+          "quantity": { "type": "integer", "minimum": 0 },
+          "is_setup": { "type": "boolean" },
+          "operators_required": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "kpi_pack": {
+      "type": "object",
+      "required": ["tardiness_total_days", "setup_count_total"],
+      "properties": {
+        "tardiness_total_days": {
+          "type": "number",
+          "minimum": 0
+        },
+        "setup_count_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "setup_count_by_shift": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "setup_balance_penalty": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "overtime_hours": {
+          "type": "number",
+          "minimum": 0
+        },
+        "churn_ops_moved": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "explain_trace": {
+      "type": "object",
+      "properties": {
+        "plan_id": { "type": "string" },
+        "snapshot_hash": { "type": "string" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "solver": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "seed": { "type": "integer" },
+            "timebox_s": { "type": "integer" }
+          }
+        },
+        "workorders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "workorder_id": { "type": "string" },
+              "priority_rule": { "type": "object" },
+              "assignments": { "type": "array" },
+              "constraints_checked": { "type": "array" },
+              "evidence_refs": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

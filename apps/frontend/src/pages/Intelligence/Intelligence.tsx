@@ -1,0 +1,13 @@
+import NikufraIntel from '../../features/intelligence/NikufraIntel';
+import useUIStore from '../../stores/useUIStore';
+
+function Intelligence() {
+  const panelOpen = useUIStore((s) => s.contextPanelOpen);
+  return (
+    <div style={{ marginRight: panelOpen ? 360 : 0, transition: 'margin-right 0.25s ease' }}>
+      <NikufraIntel />
+    </div>
+  );
+}
+
+export default Intelligence;

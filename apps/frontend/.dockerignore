@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+*.md
+.vscode
+.env
+.env.*
+src/__audit__
+src/**/*.test.ts
+src/**/*.test.tsx
+src/**/*.spec.ts
+src/**/*.spec.tsx
+
+# Keep incompol-plan tarballs (needed for Docker build)
+!incompol-plan-*.tgz

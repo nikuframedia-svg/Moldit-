@@ -1,0 +1,230 @@
+/* Reset e base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* ── PP1 Design System ── */
+
+  /* Backgrounds — 4-level hierarchy */
+  --bg-void: #0d0d0d;
+  --bg-base: #141414;
+  --bg-card: #141414;
+  --bg-raised: #1a1a1a;
+
+  /* Borders */
+  --border-subtle: #1f1f1f;
+  --border-default: #1f1f1f;
+  --border-hover: rgba(20, 184, 166, 0.3);
+  --border-active: rgba(20, 184, 166, 0.4);
+
+  /* Text — 4 levels */
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-ghost: #374151;
+
+  /* Accent — Teal */
+  --accent: #14b8a6;
+  --accent-hover: #0d9488;
+  --accent-bg: rgba(20, 184, 166, 0.1);
+  --accent-border: rgba(20, 184, 166, 0.25);
+  --accent-light: #2dd4bf;
+  --accent-dark: #0f766e;
+
+  /* Semantic colors */
+  --semantic-green: #22c55e;
+  --semantic-green-bg: rgba(34, 197, 94, 0.2);
+  --semantic-red: #ef4444;
+  --semantic-red-bg: rgba(239, 68, 68, 0.2);
+  --semantic-amber: #f59e0b;
+  --semantic-amber-bg: rgba(245, 158, 11, 0.2);
+  --semantic-blue: #3b82f6;
+  --semantic-blue-bg: rgba(59, 130, 246, 0.2);
+
+  /* Interactive surfaces */
+  --hover-overlay: rgba(255, 255, 255, 0.03);
+  --active-overlay: rgba(255, 255, 255, 0.06);
+  --selected-bg: rgba(20, 184, 166, 0.08);
+
+  /* Special — CTA */
+  --cta-bg: #e74c3c;
+  --cta-hover: #c0392b;
+
+  /* Icon circles */
+  --icon-circle-accent: rgba(20, 184, 166, 0.15);
+  --icon-circle-blue: rgba(59, 130, 246, 0.15);
+  --icon-circle-green: rgba(34, 197, 94, 0.15);
+  --icon-circle-amber: rgba(245, 158, 11, 0.15);
+
+  /* Notification badge */
+  --notif-bg: #ef4444;
+
+  /* Typography — font stacks */
+  --font-body: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+
+  /* Typography — semantic sizes */
+  --text-display: 48px;
+  --text-h1: 32px;
+  --text-h2: 24px;
+  --text-h3: 18px;
+  --text-metric: 36px;
+  --text-body: 14px;
+  --text-small: 12px;
+  --text-badge: 11px;
+
+  /* Legacy aliases (for existing code that uses old names) */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+
+  /* Spacing */
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+
+  /* Border radius */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-glow: 0 0 20px rgba(20, 184, 166, 0.15);
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  /* Z-index */
+  --z-sticky: 2;
+  --z-dropdown: 100;
+  --z-topbar: 100;
+  --z-focus-strip: 200;
+  --z-context-panel: 300;
+  --z-modal-backdrop: 900;
+  --z-modal: 900;
+  --z-command-palette: 950;
+  --z-toast: 960;
+
+  /* Grid density — overridden dynamically via gridDensityVars() */
+  --grid-day-min: 44px;
+  --grid-day-gap: 3px;
+  --grid-cell-font: 11px;
+  --grid-cell-pad: 5px 3px;
+  --grid-header-font: 11px;
+
+  /* Layout */
+  --page-max-width: 1520px;
+  --sidebar-width-open: 300px;
+  --sidebar-width-collapsed: 42px;
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-void);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+code {
+  font-family: var(--font-mono);
+}
+
+/* Dark theme for form elements */
+select,
+input,
+textarea {
+  color-scheme: dark;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+.page-enter {
+  animation:
+    fadeIn 0.3s ease-out,
+    slideUp 0.4s ease-out;
+}
+
+/* Page description — subtítulo descritivo em cada página */
+.page-desc {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  margin: var(--space-4) 0 0 0;
+  max-width: 600px;
+  line-height: 1.5;
+  font-weight: 400;
+}

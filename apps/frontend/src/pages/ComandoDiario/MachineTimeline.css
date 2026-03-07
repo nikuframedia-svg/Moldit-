@@ -1,0 +1,136 @@
+/* MachineTimeline — Horizontal bars per machine */
+
+.mtl {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-16);
+  box-shadow: var(--shadow-card);
+}
+
+.mtl__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-12);
+}
+
+.mtl__title {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mtl__scale {
+  display: flex;
+  justify-content: space-between;
+  flex: 1;
+  margin-left: 80px;
+}
+
+.mtl__tick {
+  font-size: 9px;
+  color: var(--text-ghost);
+  font-family: var(--font-mono);
+}
+
+.mtl__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-bottom: var(--space-4);
+}
+
+.mtl__label {
+  width: 72px;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-xs);
+  transition: background 0.15s;
+}
+
+.mtl__label:hover {
+  background: var(--bg-raised);
+}
+
+.mtl__machine-id {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.mtl__machine-util {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.mtl__bar {
+  flex: 1;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-xs);
+  position: relative;
+  overflow: hidden;
+}
+
+.mtl__shift-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.mtl__block {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  min-width: 2px;
+}
+
+.mtl__block:hover {
+  opacity: 0.8;
+  outline: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.mtl__block--ok {
+  background: var(--accent);
+}
+
+.mtl__block--overflow {
+  background: var(--semantic-amber);
+}
+
+.mtl__block--infeasible {
+  background: var(--semantic-red);
+  opacity: 0.6;
+}
+
+.mtl__block--blocked {
+  background: var(--text-ghost);
+}
+
+.mtl__setup {
+  position: absolute;
+  top: 0;
+  height: 6px;
+  background: var(--text-muted);
+  opacity: 0.5;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.mtl__empty {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-16);
+}

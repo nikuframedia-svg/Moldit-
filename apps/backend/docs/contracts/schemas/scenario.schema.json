@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://incompol.pt/schemas/scenario/v1",
+  "title": "Scenario",
+  "description": "Cenário de sandbox com mutações e diff",
+  "type": "object",
+  "required": ["scenario_id", "baseline_plan_hash", "diff", "created_at"],
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "baseline_plan_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "diff": {
+      "type": "object",
+      "properties": {
+        "move_operations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["operation_id", "from_resource", "to_resource", "reason"],
+            "properties": {
+              "operation_id": { "type": "string" },
+              "from_resource": { "type": "string" },
+              "to_resource": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "freeze": {
+          "type": "object",
+          "properties": {
+            "window_minutes": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,42 @@
+.collapsible {
+  display: flex;
+  flex-direction: column;
+}
+
+.collapsible__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  user-select: none;
+}
+
+.collapsible__icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.collapsible__title {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.collapsible__badge {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-raised);
+}
+
+.collapsible__body {
+  /* content renders directly; no extra padding needed */
+}

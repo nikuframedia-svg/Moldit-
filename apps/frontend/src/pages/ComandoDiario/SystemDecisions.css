@@ -1,0 +1,65 @@
+/* SystemDecisions — Auto-replan decision log */
+
+.sdec__empty {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  padding: var(--space-8);
+}
+
+.sdec__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sdec__item {
+  padding: var(--space-8) var(--space-12);
+  background: rgba(59, 130, 246, 0.04);
+  border-left: 2px solid var(--semantic-blue);
+  border-radius: var(--radius-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sdec__item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.sdec__type {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--semantic-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sdec__strategy {
+  font-size: 9px;
+  padding: 1px 5px;
+  background: var(--semantic-blue-bg);
+  color: var(--semantic-blue);
+  border-radius: var(--radius-xs);
+}
+
+.sdec__reversible {
+  font-size: 8px;
+  padding: 1px 4px;
+  background: var(--semantic-green-bg);
+  color: var(--semantic-green);
+  border-radius: var(--radius-xs);
+}
+
+.sdec__detail {
+  font-size: var(--text-small);
+  color: var(--text-secondary);
+}
+
+.sdec__meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}

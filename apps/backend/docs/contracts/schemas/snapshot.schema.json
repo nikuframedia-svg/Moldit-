@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://incompol.pt/schemas/snapshot/v1",
+  "title": "InputSnapshot",
+  "description": "Snapshot canónico e imutável dos inputs para o solver",
+  "type": "object",
+  "required": [
+    "snapshot_id",
+    "tenant_id",
+    "created_at",
+    "sources",
+    "semantics",
+    "master_data",
+    "routing",
+    "trust_index"
+  ],
+  "properties": {
+    "snapshot_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID único do snapshot (imutável após criação)"
+    },
+    "tenant_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID do tenant"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp UTC de criação"
+    },
+    "sources": {
+      "type": "array",
+      "description": "Fontes de dados (XLSX, PDF, API, etc.)",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "type", "file_hash_sha256"],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["XLSX", "PDF", "API", "MANUAL"]
+          },
+          "filename": {
+            "type": "string"
+          },
+          "file_hash_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 do ficheiro original"
+          },
+          "generated_at_local": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source_timezone": {
+            "type": "string",
+            "description": "IANA timezone (ex.: Europe/Lisbon)"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "semantics": {
+      "type": "object",
+      "required": ["series_semantics"],
+      "properties": {
+        "series_semantics": {
+          "type": "string",
+          "enum": [
+            "NET_POSITION_AFTER_ALL_NEEDS_BY_DATE",
+            "PROJECTED_AVAILABLE_AFTER_ALL_NEEDS_BY_DATE",
+            "DEMAND_QTY_BY_DATE",
+            "PLANNED_PRODUCTION_QTY_BY_DATE",
+            "PROJECTED_STOCK_LEVEL",
+            "NET_REQUIREMENT",
+            "UNKNOWN"
+          ],
+          "description": "Semântica das colunas por data (obrigatório)"
+        },
+        "setup_time_uom": {
+          "type": "string",
+          "enum": ["HOURS", "MINUTES", "SECONDS", "UNKNOWN"]
+        },
+        "mo_uom": {
+          "type": "string",
+          "enum": ["HOURS", "FTE", "OPERATORS", "UNKNOWN"]
+        }
+      }
+    },
+    "master_data": {
+      "type": "object",
+      "required": ["items", "resources", "tools"],
+      "properties": {
+        "customers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["customer_id", "code"],
+            "properties": {
+              "customer_id": { "type": "string" },
+              "code": { "type": "string" },
+              "name": { "type": "string" }
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["item_id", "sku"],
+            "properties": {
+              "item_id": { "type": "string" },
+              "sku": { "type": "string" },
+              "name": { "type": "string" },
+              "parent_sku": { "type": "string" },
+              "lot_economic_qty": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["resource_id", "code"],
+            "properties": {
+              "resource_id": { "type": "string" },
+              "code": { "type": "string" },
+              "name": { "type": "string" },
+              "type": {
+                "type": "string",
+                "enum": ["MACHINE", "SETUPCREW", "CALCO", "OPERATOR_POOL"]
+              }
+            }
+          }
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["tool_id", "code"],
+            "properties": {
+              "tool_id": { "type": "string" },
+              "code": { "type": "string" },
+              "name": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "routing": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["routing_id", "item_sku", "operations"],
+        "properties": {
+          "routing_id": { "type": "string" },
+          "item_sku": { "type": "string" },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "operation_id",
+                "sequence",
+                "resource_code",
+                "setup_time",
+                "rate_pieces_per_hour",
+                "operators_required"
+              ],
+              "properties": {
+                "operation_id": { "type": "string" },
+                "sequence": { "type": "integer", "minimum": 1 },
+                "resource_code": { "type": "string" },
+                "alt_resources": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "tool_code": { "type": "string" },
+                "setup_time": { "type": "number", "minimum": 0 },
+                "setup_time_uom": {
+                  "type": "string",
+                  "enum": ["HOURS", "MINUTES", "SECONDS"]
+                },
+                "rate_pieces_per_hour": { "type": "number", "exclusiveMinimum": 0 },
+                "operators_required": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "series": {
+      "type": "array",
+      "description": "Série temporal de estado (posição/saldo)",
+      "items": {
+        "type": "object",
+        "required": ["item_sku", "date", "value"],
+        "properties": {
+          "item_sku": { "type": "string" },
+          "date": { "type": "string", "format": "date" },
+          "value": { "type": "number" }
+        }
+      }
+    },
+    "derived": {
+      "type": "object",
+      "properties": {
+        "needs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["item_sku", "date", "quantity"],
+            "properties": {
+              "item_sku": { "type": "string" },
+              "date": { "type": "string", "format": "date" },
+              "quantity": { "type": "integer", "minimum": 0 },
+              "due_date": { "type": "string", "format": "date-time" },
+              "customer_code": { "type": "string" }
+            }
+          }
+        },
+        "supplies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["item_sku", "date", "quantity"],
+            "properties": {
+              "item_sku": { "type": "string" },
+              "date": { "type": "string", "format": "date" },
+              "quantity": { "type": "integer", "minimum": 0 },
+              "kind": {
+                "type": "string",
+                "enum": ["INTERNAL_PRODUCTION", "PURCHASE_RECEIPT", "ADJUSTMENT", "UNKNOWN"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "trust_index": {
+      "type": "object",
+      "required": ["overall"],
+      "properties": {
+        "overall": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "TrustIndex global [0..1]"
+        },
+        "by_domain": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "causes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code"],
+            "properties": {
+              "code": { "type": "string" },
+              "count": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

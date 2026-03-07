@@ -1,0 +1,50 @@
+.status-banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-16);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-16);
+  border-left: 3px solid transparent;
+}
+
+.status-banner--ok {
+  background: rgba(34, 197, 94, 0.06);
+  border-left-color: var(--semantic-green);
+}
+
+.status-banner--warning {
+  background: rgba(245, 158, 11, 0.06);
+  border-left-color: var(--semantic-amber);
+}
+
+.status-banner--critical {
+  background: rgba(239, 68, 68, 0.06);
+  border-left-color: var(--semantic-red);
+}
+
+.status-banner__message {
+  font-size: var(--text-small);
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.status-banner--ok .status-banner__message {
+  color: var(--semantic-green);
+}
+
+.status-banner--warning .status-banner__message {
+  color: var(--semantic-amber);
+}
+
+.status-banner--critical .status-banner__message {
+  color: var(--semantic-red);
+}
+
+.status-banner__details {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.4;
+}

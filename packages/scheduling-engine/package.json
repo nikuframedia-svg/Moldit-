@@ -1,0 +1,31 @@
+{
+  "name": "@prodplan/scheduling-engine",
+  "version": "1.0.0",
+  "description": "INCOMPOL Production Planning Engine — Nikufra Factory",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5",
+    "date-fns": "^3.0.6"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

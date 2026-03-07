@@ -1,0 +1,129 @@
+/* D1Preparation — D+1 workforce forecast */
+
+.d1prep__empty {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  padding: var(--space-8);
+}
+
+.d1prep__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-8);
+}
+.d1prep__date {
+  font-size: var(--text-small);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+.d1prep__risk-badge {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+}
+
+.d1prep__ok {
+  font-size: var(--text-small);
+  color: var(--accent);
+  padding: var(--space-8);
+}
+
+.d1prep__warnings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.d1prep__warn {
+  padding: var(--space-8);
+  background: var(--semantic-amber-bg);
+  border-radius: var(--radius-xs);
+  border-left: 2px solid var(--semantic-amber);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.d1prep__warn-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--semantic-amber);
+  text-transform: uppercase;
+}
+
+.d1prep__warn-detail {
+  font-size: var(--text-small);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.d1prep__suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.d1prep__suggestion-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-8);
+  background: var(--bg-raised);
+  border-radius: var(--radius-xs);
+  border-left: 2px solid var(--accent);
+}
+.d1prep__suggestion-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.d1prep__suggestion-text {
+  font-size: 10px;
+  color: var(--accent);
+  flex: 1;
+}
+.d1prep__suggestion-impact {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.d1prep__causing {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.d1prep__coverage {
+  margin-top: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.d1prep__coverage-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--semantic-red);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.d1prep__coverage-item {
+  display: flex;
+  gap: var(--space-6);
+  font-size: 10px;
+  padding: var(--space-4) var(--space-8);
+  background: var(--semantic-red-bg);
+  border-radius: var(--radius-xs);
+}
+.d1prep__coverage-type {
+  font-weight: 600;
+  color: var(--semantic-red);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.d1prep__coverage-detail {
+  color: var(--text-secondary);
+}

@@ -1,0 +1,90 @@
+/* TransparencyPanel — Per-operation justifications */
+
+.transp__empty {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  padding: var(--space-8);
+}
+
+.transp__section {
+  margin-bottom: var(--space-12);
+}
+
+.transp__section:last-child {
+  margin-bottom: 0;
+}
+
+.transp__section-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-4);
+}
+
+.transp__card {
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: var(--space-4);
+}
+
+.transp__card--ok {
+  background: rgba(20, 184, 166, 0.04);
+  border-left: 2px solid var(--accent);
+}
+
+.transp__card--failure {
+  background: var(--semantic-red-bg);
+  border-left: 2px solid var(--semantic-red);
+}
+
+.transp__op {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.transp__reason {
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.transp__constraints {
+  font-size: 10px;
+  color: var(--semantic-red);
+}
+
+.transp__missing {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.transp__capacity {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.transp__produced {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.transp__suggestion {
+  font-size: 10px;
+  color: var(--accent);
+  font-style: italic;
+}
+
+.transp__more {
+  font-size: 10px;
+  color: var(--text-ghost);
+  text-align: center;
+  padding: var(--space-4);
+}
