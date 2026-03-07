@@ -1,9 +1,12 @@
+import { ConfigProvider } from 'antd';
+import ptPT from 'antd/locale/pt_PT';
 import { lazy, Suspense } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import { SkeletonCard } from './components/Common/SkeletonLoader';
 import Layout from './components/Layout/Layout';
 import ToastContainer from './components/Toast/Toast';
+import { industrialTheme } from './theme/industrial-theme';
 
 const ComandoDiario = lazy(() => import('./pages/ComandoDiario/ComandoDiario'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
@@ -18,27 +21,29 @@ const Risk = lazy(() => import('./pages/Risk/Risk'));
 
 function App() {
   return (
-    <Router>
-      <Layout>
-        <ErrorBoundary>
-          <Suspense fallback={<SkeletonCard lines={5} />}>
-            <Routes>
-              <Route path="/" element={<ComandoDiario />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/fabrica" element={<Fabrica />} />
-              <Route path="/pecas" element={<Pecas />} />
-              <Route path="/mrp" element={<MRP />} />
-              <Route path="/supply" element={<Supply />} />
-              <Route path="/planning" element={<Planning />} />
-              <Route path="/intelligence" element={<Intelligence />} />
-              <Route path="/risk" element={<Risk />} />
-              <Route path="/definicoes/dados" element={<CarregarDados />} />
-            </Routes>
-          </Suspense>
-        </ErrorBoundary>
-      </Layout>
-      <ToastContainer />
-    </Router>
+    <ConfigProvider theme={industrialTheme} locale={ptPT}>
+      <Router>
+        <Layout>
+          <ErrorBoundary>
+            <Suspense fallback={<SkeletonCard lines={5} />}>
+              <Routes>
+                <Route path="/" element={<ComandoDiario />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/fabrica" element={<Fabrica />} />
+                <Route path="/pecas" element={<Pecas />} />
+                <Route path="/mrp" element={<MRP />} />
+                <Route path="/supply" element={<Supply />} />
+                <Route path="/planning" element={<Planning />} />
+                <Route path="/intelligence" element={<Intelligence />} />
+                <Route path="/risk" element={<Risk />} />
+                <Route path="/definicoes/dados" element={<CarregarDados />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
+        </Layout>
+        <ToastContainer />
+      </Router>
+    </ConfigProvider>
   );
 }
 

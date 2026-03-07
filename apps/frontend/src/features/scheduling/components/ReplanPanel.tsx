@@ -108,6 +108,8 @@ export default function ReplanView({
     optN,
     optProfile,
     optMoveable,
+    saRunning,
+    saProgress,
     roTool,
     roQty,
     roDeadline,
@@ -150,6 +152,8 @@ export default function ReplanView({
     removeFailure,
     runCascadingReplan,
     runOpt,
+    runSA,
+    cancelSA,
     applyOptResult,
     addRushOrder,
     removeRushOrder,
@@ -1559,7 +1563,59 @@ export default function ReplanView({
             />
             {optRunning ? `A optimizar... ${Math.round(optProgress * 100)}%` : 'Otimizar'}
           </button>
+          <button
+            onClick={saRunning ? cancelSA : runSA}
+            disabled={optRunning}
+            data-testid="run-sa"
+            style={{
+              padding: '8px 20px',
+              borderRadius: 6,
+              border: 'none',
+              background: saRunning ? C.s3 : '#1a6b3a',
+              color: saRunning ? C.t3 : C.t1,
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: optRunning ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            <Zap
+              size={11}
+              strokeWidth={1.5}
+              style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }}
+            />
+            {saRunning
+              ? `SA ${saProgress != null ? `${saProgress}%` : '...'} (cancelar)`
+              : 'SA Otimizar'}
+          </button>
         </div>
+
+        {/* SA Progress Bar */}
+        {saRunning && saProgress != null && (
+          <div style={{ marginBottom: 6 }}>
+            <div
+              style={{
+                height: 4,
+                borderRadius: 2,
+                background: C.s3,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  width: `${saProgress}%`,
+                  background: '#1a6b3a',
+                  borderRadius: 2,
+                  transition: 'width 0.3s ease',
+                }}
+              />
+            </div>
+            <div style={{ fontSize: 10, color: C.t3, marginTop: 2 }}>
+              Simulated Annealing em execucao (Web Worker) — {saProgress}%
+            </div>
+          </div>
+        )}
 
         {/* Moveable ops summary */}
         {optMoveable.length > 0 && !optResults.length && (

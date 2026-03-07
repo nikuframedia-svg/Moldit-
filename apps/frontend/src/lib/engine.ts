@@ -12,6 +12,7 @@ export type {
   ActionMessagesSummary,
   AdvanceAction,
   AlternativeAction,
+  ATCSParams,
   AutoReplanAction,
   AutoReplanConfig,
   // Auto-Replan types
@@ -56,6 +57,9 @@ export type {
   FailureJustification,
   FailureSeverity,
   FeasibilityReport,
+  FullReplanInput,
+  FullReplanResult,
+  GridResult,
   ImpactedBlock,
   ImpactReport,
   InfeasibilityEntry,
@@ -65,6 +69,8 @@ export type {
   MachineLoadEntry,
   MasterISOPData,
   MasterToolRecord,
+  MatchUpInput,
+  MatchUpResult,
   MoveAction,
   MoveableOp,
   MRPDayBucket,
@@ -95,6 +101,8 @@ export type {
   OptResult,
   OrderJustification,
   OvertimeAction,
+  PartialReplanInput,
+  PartialReplanResult,
   PlanningKPIs,
   PlanningMachine,
   PlanningOperation,
@@ -107,12 +115,19 @@ export type {
   RemediationProposal,
   RemediationType,
   ReplanActionDetail,
+  ReplanDispatchInput,
+  ReplanDispatchResult,
+  ReplanEventType,
+  ReplanLayer,
   // Gen decisions
   ReplanProposal,
   ReplanResult,
   ReplanSimulation,
   ReplanStrategyType,
   ResourceTimeline,
+  // Layered Replanning types
+  RightShiftInput,
+  RightShiftResult,
   RiskCell,
   // Risk types
   RiskGridData,
@@ -124,6 +139,9 @@ export type {
   ROPSkuResult,
   ROPSkuSummary,
   ROPSummary,
+  SAConfig,
+  SAInput,
+  SAResult,
   // Scheduler types
   ScheduleAllInput,
   ScheduleAllResult,
@@ -131,8 +149,13 @@ export type {
   // Schedule validation (distinct from kpis.ts ValidationReport)
   ScheduleValidationReport,
   ScheduleViolation,
+  // Config types
+  SchedulingConfig,
+  SchedulingContext,
+  SchedulingStrategy,
   // Score weights
   ScoreWeights,
+  ScoringJob,
   ServiceLevel,
   ShiftId,
   // Shipping types
@@ -181,11 +204,15 @@ export {
   analyzeAllFailures,
   analyzeFailureImpact,
   applyAlternative,
+  assignFreezeZones,
+  atcsGridSearch,
+  atcsPriority,
   auditCoverage,
   // Auto-Replan
   autoReplan,
   // Overflow
   autoRouteOverflow,
+  BalancedStrategy,
   // Scheduling parameters
   BUCKET_WINDOW,
   // Failures
@@ -196,7 +223,9 @@ export {
   ConstraintManager,
   capAnalysis,
   cascadingReplan,
+  chooseLayer,
   computeActionMessages,
+  computeATCSAverages,
   computeCoverageMatrix,
   computeCoverageMatrixSku,
   computeCTP,
@@ -228,6 +257,7 @@ export {
   createToolTimeline,
   // Capacity
   DAY_CAP, // 1020 min (NOT 990)
+  DEFAULT_ATCS_PARAMS,
   DEFAULT_AUTO_REPLAN_CONFIG,
   // Config defaults
   DEFAULT_CONSTRAINT_CONFIG,
@@ -238,6 +268,8 @@ export {
   DEFAULT_OVERTIME_MAX_PER_MACHINE,
   DEFAULT_OVERTIME_MAX_TOTAL,
   DEFAULT_ROP_CONFIG,
+  DEFAULT_SA_CONFIG,
+  DEFAULT_SCHEDULING_CONFIG,
   DEFAULT_SCORE_WEIGHTS,
   // Shipping
   DEFAULT_SHIPPING_BUFFER_HOURS,
@@ -249,6 +281,7 @@ export {
   DecisionRegistry,
   deltaizeCumulativeNP,
   deriveLegacyStatus,
+  dispatchReplan,
   extractStockFromRawNP,
   FactoryLookup,
   finalizeFeasibilityReport,
@@ -270,6 +303,8 @@ export {
   isFullyDown,
   // Machine IDs
   KNOWN_FOCUS,
+  LAYER_THRESHOLD_1,
+  LAYER_THRESHOLD_2,
   LEVEL_HIGH_THRESHOLD,
   LEVEL_LOOKAHEAD,
   LEVEL_LOW_THRESHOLD,
@@ -280,26 +315,42 @@ export {
   // 50 (NOT 16)
   MAX_EDD_GAP,
   MAX_OVERFLOW_ITER,
+  // Strategy Pattern
+  MaxOTDStrategy,
+  MinSetupsStrategy,
   mergeConsecutiveBlocks,
+  migrateConfig,
   moveableOps,
   // Utilities
   mulberry32,
   // Normalize
   normalizeNikufraData,
   OTD_TOLERANCE,
+  POLICY_BALANCED,
+  POLICY_MAX_OTD,
+  POLICY_MIN_SETUPS,
+  POLICY_URGENT,
   // 1.0 HARD (NOT 0.95)
   padMoArray,
   // Quick Validate
   quickValidate,
   rawNPtoDailyDemand,
   rawNPtoOrderDemand,
+  replanFull,
+  replanMatchUp,
+  replanPartial,
+  // Layered Replanning
+  replanRightShift,
   replanWithUserChoices,
   // Optimization
   runOptimization,
+  runSimulatedAnnealing,
   // Shift boundaries (THE TRUTH: S0=420 = 07:00, NOT 07:30)
   S0,
   S1,
   S2,
+  // Configuration (Zod)
+  SchedulingConfigSchema,
   SPLIT_MIN_DEFICIT,
   SPLIT_MIN_FRACTION,
   // Scheduler (CORE)
@@ -309,6 +360,7 @@ export {
   scoreSchedule,
   simulateWithout,
   sortGroupsByScore,
+  strategyFromConfig,
   T1,
   TC,
   tci,
@@ -317,8 +369,10 @@ export {
   transformPlanState,
   twoOptResequence,
   undoReplanActions,
+  validateConfig,
   validateSchedule,
   validateTwinReferences,
+  WeightedCompositeStrategy,
 } from '@prodplan/scheduling-engine';
 
 // ── Backwards-compatible types for web app ──

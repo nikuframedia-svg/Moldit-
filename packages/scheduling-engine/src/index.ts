@@ -29,7 +29,27 @@ export { validateSchedule } from './analysis/validate-schedule.js';
 export type { WorkforceForecastInput } from './analysis/workforce-forecast.js';
 // ── Workforce Forecast ──
 export { computeD1WorkforceRisk, computeWorkforceForecast } from './analysis/workforce-forecast.js';
-
+export type { SchedulingConfig } from './config/scheduling-config.js';
+// ── Configuration (Zod) ──
+export {
+  DEFAULT_SCHEDULING_CONFIG,
+  migrateConfig,
+  POLICY_BALANCED,
+  POLICY_MAX_OTD,
+  POLICY_MIN_SETUPS,
+  POLICY_URGENT,
+  SchedulingConfigSchema,
+  validateConfig,
+} from './config/scheduling-config.js';
+export type { SchedulingContext, SchedulingStrategy, ScoringJob } from './config/strategy.js';
+// ── Strategy Pattern ──
+export {
+  BalancedStrategy,
+  MaxOTDStrategy,
+  MinSetupsStrategy,
+  strategyFromConfig,
+  WeightedCompositeStrategy,
+} from './config/strategy.js';
 // ── Constants ──
 export {
   ADVANCE_UTIL_THRESHOLD,
@@ -60,6 +80,7 @@ export {
 export { createCalcoTimeline } from './constraints/calco-timeline.js';
 export { ConstraintManager } from './constraints/constraint-manager.js';
 export { createOperatorPool } from './constraints/operator-pool.js';
+
 // ── Constraints ──
 export { createSetupCrew } from './constraints/setup-crew.js';
 export { createToolTimeline } from './constraints/tool-timeline.js';
@@ -96,8 +117,10 @@ export type {
 } from './optimization/run-optimization.js';
 // ── Optimization ──
 export { moveableOps, runOptimization, twoOptResequence } from './optimization/run-optimization.js';
+export type { SAConfig, SAInput, SAResult } from './optimization/simulated-annealing.js';
+// ── Simulated Annealing ──
+export { DEFAULT_SA_CONFIG, runSimulatedAnnealing } from './optimization/simulated-annealing.js';
 export type { AutoReplanAction, AutoReplanResult } from './overflow/auto-replan.js';
-
 // ── Auto-Replan ──
 export { autoReplan } from './overflow/auto-replan.js';
 export type { AutoReplanConfig } from './overflow/auto-replan-config.js';
@@ -107,7 +130,6 @@ export type {
   ReplanSimulation,
   UserReplanChoice,
 } from './overflow/auto-replan-control.js';
-
 // ── Auto-Replan Control (undo / replace / simulate) ──
 export {
   applyAlternative,
@@ -120,6 +142,30 @@ export {
 // ── Overflow ──
 export { autoRouteOverflow } from './overflow/auto-route-overflow.js';
 export type {
+  ReplanDispatchInput,
+  ReplanDispatchResult,
+  ReplanLayer,
+} from './replan/replan-dispatcher.js';
+export {
+  chooseLayer,
+  dispatchReplan,
+  LAYER_THRESHOLD_1,
+  LAYER_THRESHOLD_2,
+} from './replan/replan-dispatcher.js';
+export type { FullReplanInput, FullReplanResult } from './replan/replan-full.js';
+export { assignFreezeZones, replanFull } from './replan/replan-full.js';
+export type { MatchUpInput, MatchUpResult } from './replan/replan-match-up.js';
+export { replanMatchUp } from './replan/replan-match-up.js';
+export type {
+  PartialReplanInput,
+  PartialReplanResult,
+  ReplanEventType,
+} from './replan/replan-partial.js';
+export { replanPartial } from './replan/replan-partial.js';
+export type { RightShiftInput, RightShiftResult } from './replan/replan-right-shift.js';
+// ── Layered Replanning ──
+export { replanRightShift } from './replan/replan-right-shift.js';
+export type {
   RiskCell,
   RiskGridData,
   RiskLevel,
@@ -128,6 +174,13 @@ export type {
 } from './risk/risk-grid.js';
 // ── Risk ──
 export { computeRiskGrid } from './risk/risk-grid.js';
+export type { ATCSParams, GridResult } from './scheduler/atcs-dispatch.js';
+export {
+  atcsGridSearch,
+  atcsPriority,
+  computeATCSAverages,
+  DEFAULT_ATCS_PARAMS,
+} from './scheduler/atcs-dispatch.js';
 export { computeEarliestStarts } from './scheduler/backward-scheduler.js';
 export { mergeConsecutiveBlocks } from './scheduler/block-merger.js';
 export { groupDemandIntoBuckets } from './scheduler/demand-grouper.js';

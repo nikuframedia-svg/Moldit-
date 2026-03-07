@@ -102,6 +102,11 @@ export interface Block {
   coProductionGroupId?: string;
   /** Per-SKU output breakdown for twin co-production (each SKU gets its actual demand) */
   outputs?: TwinOutput[];
+  /** Freeze zone for layered replanning:
+   *  'frozen' = do not move (0-5 days),
+   *  'slushy' = adjust timing only (5d-2wk),
+   *  'liquid' = fully reschedulable */
+  freezeStatus?: 'frozen' | 'slushy' | 'liquid';
 }
 
 /** Operation reassignment to alternative machine */

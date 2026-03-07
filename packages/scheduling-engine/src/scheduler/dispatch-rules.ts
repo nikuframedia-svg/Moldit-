@@ -9,6 +9,8 @@
 
 import { DAY_CAP, MAX_EDD_GAP } from '../constants.js';
 import type { DispatchRule } from '../types/kpis.js';
+import type { ATCSParams } from './atcs-dispatch.js';
+import { atcsPriority, computeATCSAverages, DEFAULT_ATCS_PARAMS } from './atcs-dispatch.js';
 import type { ToolGroup } from './demand-grouper.js';
 
 // ── Supply boost extraction ─────────────────────────────────────────
@@ -39,6 +41,7 @@ function maxBoost(g: ToolGroup, supplyBoosts?: Map<string, { boost: number }>): 
 export function createGroupComparator(
   rule: DispatchRule,
   supplyBoosts?: Map<string, { boost: number }>,
+  atcsContext?: { avgProdMin: number; avgSetupMin: number; params: ATCSParams },
 ): (a: ToolGroup, b: ToolGroup) => number {
   return (a: ToolGroup, b: ToolGroup): number => {
     // Supply boost takes priority -- higher boost = schedule first
@@ -66,6 +69,18 @@ export function createGroupComparator(
       case 'SPT':
         // Shortest Processing Time: ascending production time
         return a.totalProdMin !== b.totalProdMin ? a.totalProdMin - b.totalProdMin : a.edd - b.edd;
+      case 'ATCS': {
+        // ATCS: higher priority index = schedule first
+        const ctx = atcsContext ?? {
+          avgProdMin: 100,
+          avgSetupMin: 30,
+          params: DEFAULT_ATCS_PARAMS,
+        };
+        // Static comparator: no previous-tool context, so previousToolId = null
+        const prioA = atcsPriority(a, null, ctx.params, ctx.avgProdMin, ctx.avgSetupMin);
+        const prioB = atcsPriority(b, null, ctx.params, ctx.avgProdMin, ctx.avgSetupMin);
+        return prioB - prioA;
+      }
       default: // EDD
         return a.edd !== b.edd ? a.edd - b.edd : b.totalProdMin - a.totalProdMin;
     }
@@ -190,8 +205,14 @@ export function sortAndMergeGroups(
   groups: ToolGroup[],
   rule: DispatchRule,
   supplyBoosts?: Map<string, { boost: number }>,
+  atcsParams?: ATCSParams,
 ): ToolGroup[] {
-  const comparator = createGroupComparator(rule, supplyBoosts);
+  // For ATCS, pre-compute averages from the group set (needed by the priority formula)
+  const atcsContext =
+    rule === 'ATCS'
+      ? { ...computeATCSAverages(groups), params: atcsParams ?? DEFAULT_ATCS_PARAMS }
+      : undefined;
+  const comparator = createGroupComparator(rule, supplyBoosts, atcsContext);
   const sorted = [...groups].sort(comparator);
 
   const toolMerged = mergeConsecutiveTools(sorted);

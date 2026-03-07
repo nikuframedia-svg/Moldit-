@@ -59,6 +59,8 @@ export interface OptimizationInput {
   dates?: string[];
   /** Order-based demand mode: each day with demand = separate order bucket */
   orderBased?: boolean;
+  /** ATCS parameters (k1/k2) — only used when rule = 'ATCS' */
+  atcsParams?: { k1: number; k2: number };
 }
 
 export interface OptimizationSetup {
@@ -215,6 +217,7 @@ function buildScheduleInput(
     twinValidationReport: input.twinValidationReport,
     dates: input.dates,
     orderBased: input.orderBased,
+    atcsParams: input.atcsParams,
   };
 }
 

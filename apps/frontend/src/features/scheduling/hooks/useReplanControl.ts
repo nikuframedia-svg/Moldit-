@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-
+import { useSchedulingWorker } from '../../../hooks/useSchedulingWorker';
 import type {
   AlternativeAction,
   AutoReplanConfig,
@@ -16,6 +16,7 @@ import type {
   OptResult,
   ReplanActionDetail,
   ReplanSimulation,
+  SAInput,
   ScoreWeights,
 } from '../../../lib/engine';
 import {
@@ -72,6 +73,10 @@ export interface ReplanControlState {
   optN: number;
   optProfile: string;
   optMoveable: ReturnType<typeof moveableOps>;
+  // Simulated Annealing
+  saRunning: boolean;
+  saProgress: number | null;
+  saError: string | null;
   // Rush Orders
   roTool: string;
   roQty: number;
@@ -120,6 +125,8 @@ export interface ReplanControlActions {
   removeFailure: (id: string) => void;
   runCascadingReplan: () => void;
   runOpt: () => void;
+  runSA: () => void;
+  cancelSA: () => void;
   applyOptResult: (r: OptResult) => void;
   addRushOrder: () => void;
   removeRushOrder: (idx: number) => void;
@@ -487,6 +494,80 @@ export function useReplanControl(
     [applyMove],
   );
 
+  // Simulated Annealing via Web Worker
+  const {
+    runSA: workerRunSA,
+    progress: saProgress,
+    isRunning: saRunning,
+    error: saError,
+    cancel: cancelSA,
+  } = useSchedulingWorker();
+
+  const runSA = useCallback(() => {
+    const settings = useSettingsStore.getState();
+    const rule = (settings.dispatchRule || 'ATCS') as DispatchRule;
+
+    const saInput: SAInput = {
+      ops: allOps,
+      mSt,
+      tSt,
+      machines,
+      TM,
+      workdays: data.workdays,
+      nDays: data.nDays,
+      workforceConfig: data.workforceConfig ?? DEFAULT_WORKFORCE_CONFIG,
+      rule,
+      thirdShift: data.thirdShift ?? settings.thirdShiftDefault,
+      machineTimelines: replanTimelines?.machineTimelines ?? data.machineTimelines,
+      toolTimelines: replanTimelines?.toolTimelines ?? data.toolTimelines,
+      twinValidationReport: data.twinValidationReport,
+      dates: data.dates,
+      orderBased: data.orderBased,
+      initialBlocks: blocks,
+      initialMoves: moves,
+    };
+
+    workerRunSA(saInput, { maxIter: 10_000 })
+      .then((result) => {
+        if (result.improved) {
+          // Apply SA moves
+          for (const mv of result.moves) applyMove(mv.opId, mv.toM);
+          useToastStore
+            .getState()
+            .actions.addToast(
+              `SA concluido: score ${result.metrics.score.toFixed(0)} (${result.accepted} aceites em ${result.iterations} iteracoes)`,
+              'success',
+              5000,
+            );
+        } else {
+          useToastStore
+            .getState()
+            .actions.addToast('SA concluido: sem melhoria sobre solucao actual', 'info', 4000);
+        }
+      })
+      .catch((err) => {
+        useToastStore
+          .getState()
+          .actions.addToast(
+            `Erro SA: ${err instanceof Error ? err.message : String(err)}`,
+            'error',
+            5000,
+          );
+      });
+  }, [
+    allOps,
+    mSt,
+    tSt,
+    machines,
+    TM,
+    data,
+    blocks,
+    moves,
+    replanTimelines,
+    workerRunSA,
+    applyMove,
+  ]);
+
   // Rush Order form state
   const [roTool, setRoTool] = useState('');
   const [roQty, setRoQty] = useState(500);
@@ -550,6 +631,9 @@ export function useReplanControl(
       optN,
       optProfile,
       optMoveable,
+      saRunning,
+      saProgress,
+      saError,
       roTool,
       roQty,
       roDeadline,
@@ -592,6 +676,8 @@ export function useReplanControl(
       removeFailure,
       runCascadingReplan,
       runOpt,
+      runSA,
+      cancelSA,
       applyOptResult,
       addRushOrder,
       removeRushOrder,

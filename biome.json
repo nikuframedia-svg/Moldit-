@@ -24,7 +24,8 @@
         "useKeyWithClickEvents": "warn",
         "noLabelWithoutControl": "warn",
         "noSvgWithoutTitle": "warn",
-        "noNoninteractiveTabindex": "warn"
+        "noNoninteractiveTabindex": "warn",
+        "noAutofocus": "warn"
       },
       "correctness": {
         "useExhaustiveDependencies": "warn",

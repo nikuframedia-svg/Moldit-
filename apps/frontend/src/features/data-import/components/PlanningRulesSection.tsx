@@ -15,6 +15,11 @@ const DISPATCH_OPTIONS: { value: DispatchRule; label: string; desc: string }[] =
   },
   { value: 'WSPT', label: 'WSPT — Weighted SPT', desc: 'Prioriza maior volume/tempo (throughput)' },
   { value: 'SPT', label: 'SPT — Shortest Processing Time', desc: 'Minimiza tempo total de fluxo' },
+  {
+    value: 'ATCS',
+    label: 'ATCS — Apparent Tardiness Cost w/ Setups',
+    desc: 'Combina urgencia com custo de setup (grid search k1/k2)',
+  },
 ];
 
 export default function PlanningRulesSection() {

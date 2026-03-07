@@ -18,8 +18,9 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "date-fns": "^3.0.6",
     "xlsx": "^0.18.5",
-    "date-fns": "^3.0.6"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "typescript": "~5.6.0",

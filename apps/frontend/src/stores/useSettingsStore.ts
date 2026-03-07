@@ -27,7 +27,7 @@ import type { AutoReplanConfig } from '../lib/engine';
 export type MOStrategy = 'cyclic' | 'nominal' | 'custom';
 
 /** Dispatch rule for scheduling heuristic */
-export type DispatchRule = 'EDD' | 'CR' | 'WSPT' | 'SPT';
+export type DispatchRule = 'EDD' | 'CR' | 'WSPT' | 'SPT' | 'ATCS';
 
 /** Optimisation preset profile */
 export type OptimizationProfile = 'balanced' | 'otd' | 'setup' | 'custom';

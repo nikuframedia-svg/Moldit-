@@ -38,6 +38,7 @@ import type { TransparencyReport } from '../types/transparency.js';
 import type { TwinValidationReport } from '../types/twin.js';
 import type { WorkforceForecast } from '../types/workforce.js';
 import { getBlockProductionForOp } from '../utils/block-production.js';
+import { computeATCSAverages, DEFAULT_ATCS_PARAMS } from './atcs-dispatch.js';
 import { computeEarliestStarts } from './backward-scheduler.js';
 import { mergeConsecutiveBlocks } from './block-merger.js';
 import { groupDemandIntoBuckets } from './demand-grouper.js';
@@ -104,6 +105,8 @@ export interface ScheduleAllInput {
   dates?: string[];
   /** Order-based demand mode: each day with demand = separate order bucket, no lot economic */
   orderBased?: boolean;
+  /** ATCS parameters (k1/k2) — only used when rule = 'ATCS' */
+  atcsParams?: { k1: number; k2: number };
 }
 
 export interface ScheduleAllResult {
@@ -262,14 +265,25 @@ export function scheduleAll(input: ScheduleAllInput): ScheduleAllResult {
       mGroups[mId] = sortGroupsByScore(mGroups[mId], scores) as (typeof mGroups)[string];
     }
   } else {
-    // Legacy: dispatch rules (EDD/CR/WSPT/SPT)
+    // Legacy: dispatch rules (EDD/CR/WSPT/SPT/ATCS)
     for (const mId of Object.keys(mGroups)) {
-      mGroups[mId] = sortAndMergeGroups(mGroups[mId], rule, supplyBoosts);
+      mGroups[mId] = sortAndMergeGroups(mGroups[mId], rule, supplyBoosts, input.atcsParams);
     }
   }
 
   // ── Step 4: Order machines by urgency ──
-  const comparator = createGroupComparator(rule, supplyBoosts);
+  // For ATCS, compute global averages across all machines for consistent machine ordering
+  let atcsCtxGlobal:
+    | { avgProdMin: number; avgSetupMin: number; params: { k1: number; k2: number } }
+    | undefined;
+  if (rule === 'ATCS') {
+    const allGroups = Object.values(mGroups).flat();
+    atcsCtxGlobal = {
+      ...computeATCSAverages(allGroups),
+      params: input.atcsParams ?? DEFAULT_ATCS_PARAMS,
+    };
+  }
+  const comparator = createGroupComparator(rule, supplyBoosts, atcsCtxGlobal);
   const machOrder = orderMachinesByUrgency(machines, mGroups, comparator) as EMachine[];
 
   // ── Step 5: Schedule machines (slot allocation — ALL HARD) ──

@@ -81,7 +81,7 @@ export interface CoverageAudit {
 }
 
 /** Dispatch rule selection */
-export type DispatchRule = 'EDD' | 'CR' | 'WSPT' | 'SPT';
+export type DispatchRule = 'EDD' | 'CR' | 'WSPT' | 'SPT' | 'ATCS';
 
 /** Optimization weight profile */
 export interface ObjectiveWeights {
