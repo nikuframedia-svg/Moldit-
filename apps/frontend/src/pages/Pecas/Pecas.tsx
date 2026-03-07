@@ -22,8 +22,8 @@ type SortDir = 'asc' | 'desc';
 
 function Pecas() {
   const { engine, blocks, loading, error } = useScheduleData();
-  const openContextPanel = useUIStore((s) => s.openContextPanel);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const focus = useUIStore((s) => s.focus);
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
 

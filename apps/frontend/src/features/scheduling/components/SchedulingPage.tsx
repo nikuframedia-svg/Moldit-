@@ -134,7 +134,7 @@ export default function SchedulingPage() {
           await loadData();
           useToastStore
             .getState()
-            .addToast(
+            .actions.addToast(
               `Replan aplicado: ${applyMoves.length} movimentos guardados`,
               'success',
               5000,
@@ -143,7 +143,7 @@ export default function SchedulingPage() {
         } catch (e) {
           useToastStore
             .getState()
-            .addToast(
+            .actions.addToast(
               `Erro ao aplicar replan: ${e instanceof Error ? e.message : String(e)}`,
               'error',
               6000,
@@ -159,7 +159,7 @@ export default function SchedulingPage() {
         setMoves(applyMoves);
         useToastStore
           .getState()
-          .addToast(`Plano aplicado: ${applyMoves.length} movimentos`, 'success', 5000);
+          .actions.addToast(`Plano aplicado: ${applyMoves.length} movimentos`, 'success', 5000);
         setView('gantt');
       }
     },
@@ -167,9 +167,9 @@ export default function SchedulingPage() {
   );
 
   useEffect(() => {
-    useReplanStore.getState().onApplyCallback = loadData;
+    useReplanStore.getState().actions.setOnApplyCallback(loadData);
     return () => {
-      useReplanStore.getState().onApplyCallback = null;
+      useReplanStore.getState().actions.setOnApplyCallback(null);
     };
   }, [loadData]);
 
@@ -289,7 +289,7 @@ export default function SchedulingPage() {
     } catch (e) {
       useToastStore
         .getState()
-        .addToast(
+        .actions.addToast(
           `Erro no auto-replan: ${e instanceof Error ? e.message : String(e)}`,
           'error',
           5000,

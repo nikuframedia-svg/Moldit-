@@ -59,6 +59,13 @@ export interface IDataSource {
 
 const initialDataSource: IDataSource = MockDataSource as IDataSource;
 
+export interface AppActions {
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  initializeDataSource: () => void;
+  setCurrentUser: (user: AppState['currentUser']) => void;
+}
+
 interface AppState {
   dataSource: IDataSource;
   isLoading: boolean;
@@ -68,11 +75,7 @@ interface AppState {
     name: string;
     role: 'VIEWER' | 'PLANNER' | 'APPROVER' | 'ADMIN';
   };
-
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  initializeDataSource: () => void;
-  setCurrentUser: (user: AppState['currentUser']) => void;
+  actions: AppActions;
 }
 
 const useAppStore = create<AppState>((set) => ({
@@ -85,15 +88,20 @@ const useAppStore = create<AppState>((set) => ({
     role: 'PLANNER',
   },
 
-  setLoading: (loading) => set({ isLoading: loading }),
-  setError: (error) => set({ error }),
-
-  initializeDataSource: () => {
-    // Data source is initialized at module load time via initialDataSource.
-    // No-op to prevent infinite re-render loops when called from useEffect.
+  actions: {
+    setLoading: (loading) => set({ isLoading: loading }),
+    setError: (error) => set({ error }),
+    initializeDataSource: () => {
+      // Data source is initialized at module load time via initialDataSource.
+      // No-op to prevent infinite re-render loops when called from useEffect.
+    },
+    setCurrentUser: (user) => set({ currentUser: user }),
   },
-
-  setCurrentUser: (user) => set({ currentUser: user }),
 }));
+
+// ── Atomic selector hooks ─────────────────────────────────────
+
+export const useDataSource = () => useAppStore((s) => s.dataSource);
+export const useAppActions = () => useAppStore((s) => s.actions);
 
 export default useAppStore;

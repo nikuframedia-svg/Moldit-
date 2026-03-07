@@ -87,7 +87,7 @@ function LoadBar({ prod, setup, cap }: { prod: number; setup: number; cap: numbe
 // ── Machine detail panel ───────────────────────────────────
 function MachineDetail({ machineId }: { machineId: string }) {
   const navigate = useNavigate();
-  const setFocus = useUIStore((s) => s.setFocus);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const { engine, cap, blocks, validation } = useScheduleData();
 
   const machine = engine?.machines.find((m) => m.id === machineId);
@@ -220,7 +220,7 @@ function MachineDetail({ machineId }: { machineId: string }) {
 // ── Tool detail panel ──────────────────────────────────────
 function ToolDetail({ toolId }: { toolId: string }) {
   const navigate = useNavigate();
-  const setFocus = useUIStore((s) => s.setFocus);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const { engine, blocks } = useScheduleData();
 
   const tool = engine?.tools.find((t) => t.id === toolId);
@@ -292,7 +292,7 @@ function ToolDetail({ toolId }: { toolId: string }) {
 function ContextPanel() {
   const isOpen = useUIStore((s) => s.contextPanelOpen);
   const entity = useUIStore((s) => s.contextEntity);
-  const close = useUIStore((s) => s.closeContextPanel);
+  const close = useUIStore((s) => s.actions.closeContextPanel);
 
   // Close on Esc
   useEffect(() => {

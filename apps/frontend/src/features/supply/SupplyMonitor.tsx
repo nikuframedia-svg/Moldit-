@@ -420,8 +420,8 @@ function SupplyTableRow({
   onToggle: () => void;
   dnames: string[];
 }) {
-  const openContextPanel = useUIStore((s) => s.openContextPanel);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const skuLabel =
     row.skus.length === 1 ? row.skus[0].name : `${row.skus[0].name} +${row.skus.length - 1}`;
 

@@ -262,8 +262,8 @@ function OrderRow({
   dates: string[];
   dnames: string[];
 }) {
-  const openContextPanel = useUIStore((s) => s.openContextPanel);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
 
   return (
     <>

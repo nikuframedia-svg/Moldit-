@@ -720,10 +720,16 @@ export default function WhatIfView({
                   focusIds,
                   tools,
                 );
-                const id = usePlanVersionStore.getState().savePlan(s as any, decs, params, s.label);
+                const id = usePlanVersionStore
+                  .getState()
+                  .actions.savePlan(s as any, decs, params, s.label);
                 useToastStore
                   .getState()
-                  .addToast(`Versão guardada: ${s.label} (${id.slice(0, 8)})`, 'success', 4000);
+                  .actions.addToast(
+                    `Versão guardada: ${s.label} (${id.slice(0, 8)})`,
+                    'success',
+                    4000,
+                  );
               }}
               style={{
                 flex: 1,
@@ -749,10 +755,10 @@ export default function WhatIfView({
               <button
                 onClick={() => {
                   const last = versions[versions.length - 1];
-                  usePlanVersionStore.getState().commitPlan(last.id);
+                  usePlanVersionStore.getState().actions.commitPlan(last.id);
                   useToastStore
                     .getState()
-                    .addToast(`Plano committed: ${last.label}`, 'success', 4000);
+                    .actions.addToast(`Plano committed: ${last.label}`, 'success', 4000);
                 }}
                 style={{
                   padding: '8px 16px',
@@ -870,7 +876,9 @@ export default function WhatIfView({
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <button
                             onClick={() =>
-                              usePlanVersionStore.getState().setFavorite(v.id, !v.isFavorite)
+                              usePlanVersionStore
+                                .getState()
+                                .actions.setFavorite(v.id, !v.isFavorite)
                             }
                             style={{
                               background: 'none',
@@ -937,7 +945,7 @@ export default function WhatIfView({
                       <div style={{ display: 'flex', gap: 4, marginTop: 4, alignItems: 'center' }}>
                         {!isCurrent && (
                           <button
-                            onClick={() => usePlanVersionStore.getState().commitPlan(v.id)}
+                            onClick={() => usePlanVersionStore.getState().actions.commitPlan(v.id)}
                             style={{
                               padding: '2px 8px',
                               borderRadius: 4,
@@ -978,7 +986,7 @@ export default function WhatIfView({
                           onBlur={(e) =>
                             usePlanVersionStore
                               .getState()
-                              .setBranchLabel(v.id, e.target.value.trim())
+                              .actions.setBranchLabel(v.id, e.target.value.trim())
                           }
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
@@ -1003,8 +1011,8 @@ export default function WhatIfView({
               {/* Diff display */}
               {diffPair &&
                 (() => {
-                  const vA = usePlanVersionStore.getState().getVersion(diffPair[0]);
-                  const vB = usePlanVersionStore.getState().getVersion(diffPair[1]);
+                  const vA = usePlanVersionStore.getState().actions.getVersion(diffPair[0]);
+                  const vB = usePlanVersionStore.getState().actions.getVersion(diffPair[1]);
                   if (!vA || !vB) return null;
                   const diff = computePlanDiff(vA, vB);
                   return (

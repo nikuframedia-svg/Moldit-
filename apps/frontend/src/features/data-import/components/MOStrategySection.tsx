@@ -21,16 +21,12 @@ const MO_OPTIONS: { value: MOStrategy; label: string; desc: string }[] = [
 ];
 
 export default function MOStrategySection() {
-  const {
-    moStrategy,
-    moNominalPG1,
-    moNominalPG2,
-    moCustomPG1,
-    moCustomPG2,
-    setMOStrategy,
-    setMONominal,
-    setMOCustom,
-  } = useSettingsStore();
+  const moStrategy = useSettingsStore((s) => s.moStrategy);
+  const moNominalPG1 = useSettingsStore((s) => s.moNominalPG1);
+  const moNominalPG2 = useSettingsStore((s) => s.moNominalPG2);
+  const moCustomPG1 = useSettingsStore((s) => s.moCustomPG1);
+  const moCustomPG2 = useSettingsStore((s) => s.moCustomPG2);
+  const { setMOStrategy, setMONominal, setMOCustom } = useSettingsStore((s) => s.actions);
 
   const showInputs = moStrategy === 'nominal' || moStrategy === 'custom';
   const pg1Val = moStrategy === 'custom' ? moCustomPG1 : moNominalPG1;

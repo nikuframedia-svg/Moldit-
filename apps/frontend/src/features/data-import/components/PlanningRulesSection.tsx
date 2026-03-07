@@ -18,16 +18,12 @@ const DISPATCH_OPTIONS: { value: DispatchRule; label: string; desc: string }[] =
 ];
 
 export default function PlanningRulesSection() {
-  const {
-    dispatchRule,
-    bucketWindowDays,
-    maxEddGapDays,
-    defaultSetupHours,
-    setDispatchRule,
-    setBucketWindowDays,
-    setMaxEddGapDays,
-    setDefaultSetupHours,
-  } = useSettingsStore();
+  const dispatchRule = useSettingsStore((s) => s.dispatchRule);
+  const bucketWindowDays = useSettingsStore((s) => s.bucketWindowDays);
+  const maxEddGapDays = useSettingsStore((s) => s.maxEddGapDays);
+  const defaultSetupHours = useSettingsStore((s) => s.defaultSetupHours);
+  const { setDispatchRule, setBucketWindowDays, setMaxEddGapDays, setDefaultSetupHours } =
+    useSettingsStore((s) => s.actions);
 
   return (
     <div className="carregar-dados__section" data-testid="section-planning">

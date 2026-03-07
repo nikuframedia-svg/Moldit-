@@ -29,9 +29,9 @@ function ComandoDiario() {
   const { dayData, loading, error } = useDayData();
   const { engine, cap, blocks: allBlocks } = useScheduleData();
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
-  const setSelectedDayIdx = useUIStore((s) => s.setSelectedDayIdx);
-  const openContextPanel = useUIStore((s) => s.openContextPanel);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const setSelectedDayIdx = useUIStore((s) => s.actions.setSelectedDayIdx);
+  const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
 
   // Daily factory utilization for all days (DaySelector dots)
   const dailyUtils = useMemo(() => {

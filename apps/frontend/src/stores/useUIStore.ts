@@ -19,60 +19,49 @@ export interface FocusContext {
   toolId?: string | null;
 }
 
-interface UIStoreState {
-  /** Command palette open/closed */
-  commandPaletteOpen: boolean;
+export interface UIActions {
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
   toggleCommandPalette: () => void;
-
-  /** Focus strip — shared context across pages */
-  focus: FocusContext;
   setFocus: (ctx: Partial<FocusContext>) => void;
   clearFocus: () => void;
-
-  /** Context panel open/closed + selected entity */
-  contextPanelOpen: boolean;
-  contextEntity: { type: string; id: string } | null;
   openContextPanel: (entity: { type: string; id: string }) => void;
   closeContextPanel: () => void;
-
-  /** Temporal zoom level (persisted) */
-  temporalZoom: TemporalZoom;
   setTemporalZoom: (zoom: TemporalZoom) => void;
-
-  /** Selected day index for Centro de Comando Diario (persisted) */
-  selectedDayIdx: number;
   setSelectedDayIdx: (idx: number) => void;
+}
+
+interface UIStoreState {
+  commandPaletteOpen: boolean;
+  focus: FocusContext;
+  contextPanelOpen: boolean;
+  contextEntity: { type: string; id: string } | null;
+  temporalZoom: TemporalZoom;
+  selectedDayIdx: number;
+  actions: UIActions;
 }
 
 const useUIStore = create<UIStoreState>()(
   persist(
     (set) => ({
-      // Command palette
       commandPaletteOpen: false,
-      openCommandPalette: () => set({ commandPaletteOpen: true }),
-      closeCommandPalette: () => set({ commandPaletteOpen: false }),
-      toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
-
-      // Focus strip
       focus: {},
-      setFocus: (ctx) => set((s) => ({ focus: { ...s.focus, ...ctx } })),
-      clearFocus: () => set({ focus: {} }),
-
-      // Context panel
       contextPanelOpen: false,
       contextEntity: null,
-      openContextPanel: (entity) => set({ contextPanelOpen: true, contextEntity: entity }),
-      closeContextPanel: () => set({ contextPanelOpen: false, contextEntity: null }),
-
-      // Temporal zoom
       temporalZoom: 'day',
-      setTemporalZoom: (zoom) => set({ temporalZoom: zoom }),
-
-      // Selected day for Comando Diario
       selectedDayIdx: 0,
-      setSelectedDayIdx: (idx) => set({ selectedDayIdx: idx }),
+
+      actions: {
+        openCommandPalette: () => set({ commandPaletteOpen: true }),
+        closeCommandPalette: () => set({ commandPaletteOpen: false }),
+        toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
+        setFocus: (ctx) => set((s) => ({ focus: { ...s.focus, ...ctx } })),
+        clearFocus: () => set({ focus: {} }),
+        openContextPanel: (entity) => set({ contextPanelOpen: true, contextEntity: entity }),
+        closeContextPanel: () => set({ contextPanelOpen: false, contextEntity: null }),
+        setTemporalZoom: (zoom) => set({ temporalZoom: zoom }),
+        setSelectedDayIdx: (idx) => set({ selectedDayIdx: idx }),
+      },
     }),
     {
       name: 'pp1-ui-state',
@@ -83,5 +72,13 @@ const useUIStore = create<UIStoreState>()(
     },
   ),
 );
+
+// ── Atomic selector hooks ─────────────────────────────────────
+
+export const useContextPanelOpen = () => useUIStore((s) => s.contextPanelOpen);
+export const useContextEntity = () => useUIStore((s) => s.contextEntity);
+export const useFocus = () => useUIStore((s) => s.focus);
+export const useSelectedDayIdx = () => useUIStore((s) => s.selectedDayIdx);
+export const useUIActions = () => useUIStore((s) => s.actions);
 
 export default useUIStore;

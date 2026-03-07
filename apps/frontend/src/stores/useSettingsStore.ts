@@ -89,141 +89,101 @@ export const WEIGHT_PROFILES: Record<
   },
 };
 
-// ── Interface ──────────────────────────────────────────────────
+// ── Actions interface ─────────────────────────────────────────
 
-interface SettingsState {
-  // ── §1 Turnos & Capacidade ──
-  /** Turno X start time as HH:MM string */
-  shiftXStart: string;
-  /** Shift changeover time as HH:MM string */
-  shiftChange: string;
-  /** Turno Y end time as HH:MM string */
-  shiftYEnd: string;
-  /** Overall Equipment Effectiveness (0.50–0.90) */
-  oee: number;
-  /** Whether 3rd shift (Z) is active by default */
-  thirdShiftDefault: boolean;
-
-  // ── §2 Regras de Planeamento ──
-  /** Scheduling dispatch heuristic */
-  dispatchRule: DispatchRule;
-  /** Time-window bucket size for demand grouping (working days) */
-  bucketWindowDays: number;
-  /** Max EDD gap (days) for tool-group merging */
-  maxEddGapDays: number;
-  /** Default setup hours for tools without master data */
-  defaultSetupHours: number;
-
-  // ── §3 Perfil de Optimização ──
-  /** Active optimisation profile (or 'custom' for manual weights) */
-  optimizationProfile: OptimizationProfile;
-  /** Weight: tardiness (penalty per day late) */
-  wTardiness: number;
-  /** Weight: number of setups */
-  wSetupCount: number;
-  /** Weight: total setup time (minutes) */
-  wSetupTime: number;
-  /** Weight: shift balance (|X setups − Y setups|) */
-  wSetupBalance: number;
-  /** Weight: churn (displacement from baseline) */
-  wChurn: number;
-  /** Weight: overflow (blocks exceeding capacity) */
-  wOverflow: number;
-  /** Weight: below minimum batch */
-  wBelowMinBatch: number;
-  /** Weight: capacity utilization variance (penalises uneven load distribution) */
-  wCapacityVariance: number;
-  /** Weight: setup density (penalises concentrated setups per machine-shift) */
-  wSetupDensity: number;
-
-  // ── §4 Capacidade de Operadores — M.O. ──
-  /** MO padding strategy */
-  moStrategy: MOStrategy;
-  /** Nominal operator capacity for PG1 */
-  moNominalPG1: number;
-  /** Nominal operator capacity for PG2 */
-  moNominalPG2: number;
-  /** Custom operator capacity for PG1 */
-  moCustomPG1: number;
-  /** Custom operator capacity for PG2 */
-  moCustomPG2: number;
-
-  // ── §5 Overflow & Routing ──
-  /** Utilization threshold above which alt machine is tried */
-  altUtilThreshold: number;
-  /** Maximum number of auto-move operations per iteration */
-  maxAutoMoves: number;
-  /** Maximum overflow routing iterations */
-  maxOverflowIter: number;
-  /** OTD tolerance (0.80–1.00): cumProd >= cumDemand * tolerance → on time */
-  otdTolerance: number;
-  /** Load balance threshold: min avgUtil difference to trigger rebalancing */
-  loadBalanceThreshold: number;
-
-  // ── §5b Auto-Replan & Pipeline ──
-  /** Enable auto-replan (5 strategies: advance, altMaq, split, overtime, 3rd shift) */
-  enableAutoReplan: boolean;
-  /** Enable shipping cutoff as hard constraint */
-  enableShippingCutoff: boolean;
-  /** Override individual auto-replan strategy settings */
-  autoReplanConfig: Partial<AutoReplanConfig>;
-  /** How to interpret demand values from ISOP */
-  demandSemantics: DemandSemantics;
-
-  // ── §6 MRP & Supply ──
-  /** MRP service level for safety stock calculation */
-  serviceLevel: ServiceLevelOption;
-  /** Coverage warning threshold (days) */
-  coverageThresholdDays: number;
-  /** ABC classification: cumulative % for A boundary */
-  abcThresholdA: number;
-  /** ABC classification: cumulative % for B boundary */
-  abcThresholdB: number;
-  /** XYZ classification: CV threshold for X boundary */
-  xyzThresholdX: number;
-  /** XYZ classification: CV threshold for Y boundary */
-  xyzThresholdY: number;
-
-  // ── Setters (all invalidate schedule cache) ──
-
+export interface SettingsActions {
   // §1
   setShifts: (xStart: string, change: string, yEnd: string) => void;
   setOEE: (v: number) => void;
   setThirdShiftDefault: (v: boolean) => void;
-
   // §2
   setDispatchRule: (r: DispatchRule) => void;
   setBucketWindowDays: (d: number) => void;
   setMaxEddGapDays: (d: number) => void;
   setDefaultSetupHours: (h: number) => void;
-
   // §3
   setOptimizationProfile: (p: OptimizationProfile) => void;
   setWeight: (key: string, val: number) => void;
-
   // §4
   setMOStrategy: (strategy: MOStrategy) => void;
   setMONominal: (pg1: number, pg2: number) => void;
   setMOCustom: (pg1: number, pg2: number) => void;
-
   // §5
   setAltUtilThreshold: (v: number) => void;
   setMaxAutoMoves: (v: number) => void;
   setMaxOverflowIter: (v: number) => void;
   setOTDTolerance: (v: number) => void;
   setLoadBalanceThreshold: (v: number) => void;
-
   // §5b
   setEnableAutoReplan: (v: boolean) => void;
   setEnableShippingCutoff: (v: boolean) => void;
   setAutoReplanConfig: (cfg: Partial<AutoReplanConfig>) => void;
   setDemandSemantics: (v: DemandSemantics) => void;
-
   // §6
   setServiceLevel: (v: ServiceLevelOption) => void;
   setCoverageThresholdDays: (v: number) => void;
   setABCThresholds: (a: number, b: number) => void;
   setXYZThresholds: (x: number, y: number) => void;
+}
+
+// ── State interface ───────────────────────────────────────────
+
+interface SettingsState {
+  // ── §1 Turnos & Capacidade ──
+  shiftXStart: string;
+  shiftChange: string;
+  shiftYEnd: string;
+  oee: number;
+  thirdShiftDefault: boolean;
+
+  // ── §2 Regras de Planeamento ──
+  dispatchRule: DispatchRule;
+  bucketWindowDays: number;
+  maxEddGapDays: number;
+  defaultSetupHours: number;
+
+  // ── §3 Perfil de Optimização ──
+  optimizationProfile: OptimizationProfile;
+  wTardiness: number;
+  wSetupCount: number;
+  wSetupTime: number;
+  wSetupBalance: number;
+  wChurn: number;
+  wOverflow: number;
+  wBelowMinBatch: number;
+  wCapacityVariance: number;
+  wSetupDensity: number;
+
+  // ── §4 Capacidade de Operadores — M.O. ──
+  moStrategy: MOStrategy;
+  moNominalPG1: number;
+  moNominalPG2: number;
+  moCustomPG1: number;
+  moCustomPG2: number;
+
+  // ── §5 Overflow & Routing ──
+  altUtilThreshold: number;
+  maxAutoMoves: number;
+  maxOverflowIter: number;
+  otdTolerance: number;
+  loadBalanceThreshold: number;
+
+  // ── §5b Auto-Replan & Pipeline ──
+  enableAutoReplan: boolean;
+  enableShippingCutoff: boolean;
+  autoReplanConfig: Partial<AutoReplanConfig>;
+  demandSemantics: DemandSemantics;
+
+  // ── §6 MRP & Supply ──
+  serviceLevel: ServiceLevelOption;
+  coverageThresholdDays: number;
+  abcThresholdA: number;
+  abcThresholdB: number;
+  xyzThresholdX: number;
+  xyzThresholdY: number;
+
+  // ── Actions ──
+  actions: SettingsActions;
 }
 
 // ── Store ──────────────────────────────────────────────────────
@@ -232,7 +192,7 @@ const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       // ── §1 Defaults ──
-      shiftXStart: '07:00', // INCOMPOL PLAN truth: S0=420 (07:00)
+      shiftXStart: '07:00',
       shiftChange: '15:30',
       shiftYEnd: '24:00',
       oee: 0.66,
@@ -265,9 +225,9 @@ const useSettingsStore = create<SettingsState>()(
 
       // ── §5 Defaults ──
       altUtilThreshold: 0.95,
-      maxAutoMoves: 50, // INCOMPOL PLAN truth: MAX_AUTO_MOVES=50
+      maxAutoMoves: 50,
       maxOverflowIter: 3,
-      otdTolerance: 1.0, // INCOMPOL PLAN truth: OTD_TOLERANCE=1.0 (HARD)
+      otdTolerance: 1.0,
       loadBalanceThreshold: 0.15,
 
       // ── §5b Defaults ──
@@ -284,154 +244,164 @@ const useSettingsStore = create<SettingsState>()(
       xyzThresholdX: 0.5,
       xyzThresholdY: 1.0,
 
-      // ── §1 Setters ──
-      setShifts: (xStart, change, yEnd) => {
-        set({ shiftXStart: xStart, shiftChange: change, shiftYEnd: yEnd });
-        invalidateScheduleCache();
-      },
-      setOEE: (v) => {
-        set({ oee: v });
-        invalidateScheduleCache();
-      },
-      setThirdShiftDefault: (v) => {
-        set({ thirdShiftDefault: v });
-        invalidateScheduleCache();
-      },
-
-      // ── §2 Setters ──
-      setDispatchRule: (r) => {
-        set({ dispatchRule: r });
-        invalidateScheduleCache();
-      },
-      setBucketWindowDays: (d) => {
-        set({ bucketWindowDays: d });
-        invalidateScheduleCache();
-      },
-      setMaxEddGapDays: (d) => {
-        set({ maxEddGapDays: d });
-        invalidateScheduleCache();
-      },
-      setDefaultSetupHours: (h) => {
-        set({ defaultSetupHours: h });
-        invalidateScheduleCache();
-      },
-
-      // ── §3 Setters ──
-      setOptimizationProfile: (p) => {
-        if (p !== 'custom') {
-          const w = WEIGHT_PROFILES[p];
-          set({
-            optimizationProfile: p,
-            wTardiness: w.wTardiness,
-            wSetupCount: w.wSetupCount,
-            wSetupTime: w.wSetupTime,
-            wSetupBalance: w.wSetupBalance,
-            wChurn: w.wChurn,
-            wOverflow: w.wOverflow,
-            wBelowMinBatch: w.wBelowMinBatch,
-            wCapacityVariance: w.wCapacityVariance,
-            wSetupDensity: w.wSetupDensity,
-          });
-        } else {
-          set({ optimizationProfile: 'custom' });
-        }
-        invalidateScheduleCache();
-      },
-      setWeight: (key, val) => {
-        const valid = [
-          'wTardiness',
-          'wSetupCount',
-          'wSetupTime',
-          'wSetupBalance',
-          'wChurn',
-          'wOverflow',
-          'wBelowMinBatch',
-          'wCapacityVariance',
-          'wSetupDensity',
-        ];
-        if (valid.includes(key)) {
-          set({ [key]: val, optimizationProfile: 'custom' } as Partial<SettingsState>);
+      // ── Actions ──
+      actions: {
+        // §1
+        setShifts: (xStart, change, yEnd) => {
+          set({ shiftXStart: xStart, shiftChange: change, shiftYEnd: yEnd });
           invalidateScheduleCache();
-        }
-      },
+        },
+        setOEE: (v) => {
+          set({ oee: v });
+          invalidateScheduleCache();
+        },
+        setThirdShiftDefault: (v) => {
+          set({ thirdShiftDefault: v });
+          invalidateScheduleCache();
+        },
 
-      // ── §4 Setters ──
-      setMOStrategy: (strategy) => {
-        set({ moStrategy: strategy });
-        invalidateScheduleCache();
-      },
-      setMONominal: (pg1, pg2) => {
-        set({ moNominalPG1: pg1, moNominalPG2: pg2 });
-        invalidateScheduleCache();
-      },
-      setMOCustom: (pg1, pg2) => {
-        set({ moCustomPG1: pg1, moCustomPG2: pg2 });
-        invalidateScheduleCache();
-      },
+        // §2
+        setDispatchRule: (r) => {
+          set({ dispatchRule: r });
+          invalidateScheduleCache();
+        },
+        setBucketWindowDays: (d) => {
+          set({ bucketWindowDays: d });
+          invalidateScheduleCache();
+        },
+        setMaxEddGapDays: (d) => {
+          set({ maxEddGapDays: d });
+          invalidateScheduleCache();
+        },
+        setDefaultSetupHours: (h) => {
+          set({ defaultSetupHours: h });
+          invalidateScheduleCache();
+        },
 
-      // ── §5 Setters ──
-      setAltUtilThreshold: (v) => {
-        set({ altUtilThreshold: v });
-        invalidateScheduleCache();
-      },
-      setMaxAutoMoves: (v) => {
-        set({ maxAutoMoves: v });
-        invalidateScheduleCache();
-      },
-      setMaxOverflowIter: (v) => {
-        set({ maxOverflowIter: v });
-        invalidateScheduleCache();
-      },
-      setOTDTolerance: (v) => {
-        set({ otdTolerance: v });
-        invalidateScheduleCache();
-      },
-      setLoadBalanceThreshold: (v) => {
-        set({ loadBalanceThreshold: v });
-        invalidateScheduleCache();
-      },
+        // §3
+        setOptimizationProfile: (p) => {
+          if (p !== 'custom') {
+            const w = WEIGHT_PROFILES[p];
+            set({
+              optimizationProfile: p,
+              wTardiness: w.wTardiness,
+              wSetupCount: w.wSetupCount,
+              wSetupTime: w.wSetupTime,
+              wSetupBalance: w.wSetupBalance,
+              wChurn: w.wChurn,
+              wOverflow: w.wOverflow,
+              wBelowMinBatch: w.wBelowMinBatch,
+              wCapacityVariance: w.wCapacityVariance,
+              wSetupDensity: w.wSetupDensity,
+            });
+          } else {
+            set({ optimizationProfile: 'custom' });
+          }
+          invalidateScheduleCache();
+        },
+        setWeight: (key, val) => {
+          const valid = [
+            'wTardiness',
+            'wSetupCount',
+            'wSetupTime',
+            'wSetupBalance',
+            'wChurn',
+            'wOverflow',
+            'wBelowMinBatch',
+            'wCapacityVariance',
+            'wSetupDensity',
+          ];
+          if (valid.includes(key)) {
+            set({ [key]: val, optimizationProfile: 'custom' } as Partial<SettingsState>);
+            invalidateScheduleCache();
+          }
+        },
 
-      // ── §5b Setters ──
-      setEnableAutoReplan: (v) => {
-        set({ enableAutoReplan: v });
-        invalidateScheduleCache();
-      },
-      setEnableShippingCutoff: (v) => {
-        set({ enableShippingCutoff: v });
-        invalidateScheduleCache();
-      },
-      setAutoReplanConfig: (cfg) => {
-        set({ autoReplanConfig: cfg });
-        invalidateScheduleCache();
-      },
-      setDemandSemantics: (v) => {
-        set({ demandSemantics: v });
-        invalidateScheduleCache();
-      },
+        // §4
+        setMOStrategy: (strategy) => {
+          set({ moStrategy: strategy });
+          invalidateScheduleCache();
+        },
+        setMONominal: (pg1, pg2) => {
+          set({ moNominalPG1: pg1, moNominalPG2: pg2 });
+          invalidateScheduleCache();
+        },
+        setMOCustom: (pg1, pg2) => {
+          set({ moCustomPG1: pg1, moCustomPG2: pg2 });
+          invalidateScheduleCache();
+        },
 
-      // ── §6 Setters ──
-      setServiceLevel: (v) => {
-        set({ serviceLevel: v });
-        invalidateScheduleCache();
-      },
-      setCoverageThresholdDays: (v) => {
-        set({ coverageThresholdDays: v });
-        invalidateScheduleCache();
-      },
-      setABCThresholds: (a, b) => {
-        set({ abcThresholdA: a, abcThresholdB: b });
-        invalidateScheduleCache();
-      },
-      setXYZThresholds: (x, y) => {
-        set({ xyzThresholdX: x, xyzThresholdY: y });
-        invalidateScheduleCache();
+        // §5
+        setAltUtilThreshold: (v) => {
+          set({ altUtilThreshold: v });
+          invalidateScheduleCache();
+        },
+        setMaxAutoMoves: (v) => {
+          set({ maxAutoMoves: v });
+          invalidateScheduleCache();
+        },
+        setMaxOverflowIter: (v) => {
+          set({ maxOverflowIter: v });
+          invalidateScheduleCache();
+        },
+        setOTDTolerance: (v) => {
+          set({ otdTolerance: v });
+          invalidateScheduleCache();
+        },
+        setLoadBalanceThreshold: (v) => {
+          set({ loadBalanceThreshold: v });
+          invalidateScheduleCache();
+        },
+
+        // §5b
+        setEnableAutoReplan: (v) => {
+          set({ enableAutoReplan: v });
+          invalidateScheduleCache();
+        },
+        setEnableShippingCutoff: (v) => {
+          set({ enableShippingCutoff: v });
+          invalidateScheduleCache();
+        },
+        setAutoReplanConfig: (cfg) => {
+          set({ autoReplanConfig: cfg });
+          invalidateScheduleCache();
+        },
+        setDemandSemantics: (v) => {
+          set({ demandSemantics: v });
+          invalidateScheduleCache();
+        },
+
+        // §6
+        setServiceLevel: (v) => {
+          set({ serviceLevel: v });
+          invalidateScheduleCache();
+        },
+        setCoverageThresholdDays: (v) => {
+          set({ coverageThresholdDays: v });
+          invalidateScheduleCache();
+        },
+        setABCThresholds: (a, b) => {
+          set({ abcThresholdA: a, abcThresholdB: b });
+          invalidateScheduleCache();
+        },
+        setXYZThresholds: (x, y) => {
+          set({ xyzThresholdX: x, xyzThresholdY: y });
+          invalidateScheduleCache();
+        },
       },
     }),
     {
       name: 'pp1-settings',
+      partialize: ({ actions: _, ...data }) => data,
     },
   ),
 );
+
+// ── Atomic selector hooks ─────────────────────────────────────
+
+export const useSettingsActions = () => useSettingsStore((s) => s.actions);
+export const useDemandSemantics = () => useSettingsStore((s) => s.demandSemantics);
+export const useThirdShiftDefault = () => useSettingsStore((s) => s.thirdShiftDefault);
 
 // ── Helper: read engine config from store (for non-React callers) ──
 

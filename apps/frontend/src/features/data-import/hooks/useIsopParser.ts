@@ -4,7 +4,7 @@ import { parseISOPFile } from '../../../domain/isopClientParser';
 import type { NikufraData } from '../../../domain/nikufra-types';
 import { invalidateScheduleCache } from '../../../hooks/useScheduleData';
 import type { LoadMeta } from '../../../stores/useDataStore';
-import useDataStore from '../../../stores/useDataStore';
+import useDataStore, { useDataActions, useNikufraData } from '../../../stores/useDataStore';
 import useSettingsStore from '../../../stores/useSettingsStore';
 
 export type UploadState =
@@ -20,14 +20,11 @@ export const SEMANTICS_OPTIONS: { value: string; label: string }[] = [
 ];
 
 export function useIsopParser() {
-  const {
-    nikufraData,
-    loadedAt,
-    fileName: storedFileName,
-    meta: storedMeta,
-    setNikufraData,
-    clearData,
-  } = useDataStore();
+  const nikufraData = useNikufraData();
+  const loadedAt = useDataStore((s) => s.loadedAt);
+  const storedFileName = useDataStore((s) => s.fileName);
+  const storedMeta = useDataStore((s) => s.meta);
+  const { setNikufraData, clearData } = useDataActions();
 
   const semantics = useSettingsStore((s) => s.demandSemantics);
 

@@ -25,8 +25,8 @@ const RISK_BG: Record<RiskLevel, string> = {
 
 function Risk() {
   const { engine, cap, validation, mrp, loading, error } = useScheduleData();
-  const openContextPanel = useUIStore((s) => s.openContextPanel);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
 
   const [filters, setFilters] = useState<Record<FilterKey, boolean>>({

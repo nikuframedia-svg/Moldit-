@@ -218,7 +218,7 @@ export function useReplanControl(
       } catch (e) {
         useToastStore
           .getState()
-          .addToast(
+          .actions.addToast(
             `Erro no auto-replan: ${e instanceof Error ? e.message : String(e)}`,
             'error',
             5000,
@@ -238,11 +238,11 @@ export function useReplanControl(
         setArActions(getReplanActions(newResult));
         setArSim(null);
         setArSimId(null);
-        useToastStore.getState().addToast('Acção desfeita', 'success', 3000);
+        useToastStore.getState().actions.addToast('Acção desfeita', 'success', 3000);
       } catch (e) {
         useToastStore
           .getState()
-          .addToast(`Erro: ${e instanceof Error ? e.message : String(e)}`, 'error', 4000);
+          .actions.addToast(`Erro: ${e instanceof Error ? e.message : String(e)}`, 'error', 4000);
       }
     },
     [arResult],
@@ -258,11 +258,11 @@ export function useReplanControl(
         setArActions(getReplanActions(newResult));
         setArSim(null);
         setArSimId(null);
-        useToastStore.getState().addToast('Alternativa aplicada', 'success', 3000);
+        useToastStore.getState().actions.addToast('Alternativa aplicada', 'success', 3000);
       } catch (e) {
         useToastStore
           .getState()
-          .addToast(`Erro: ${e instanceof Error ? e.message : String(e)}`, 'error', 4000);
+          .actions.addToast(`Erro: ${e instanceof Error ? e.message : String(e)}`, 'error', 4000);
       }
     },
     [arResult],
@@ -279,7 +279,7 @@ export function useReplanControl(
       } catch (e) {
         useToastStore
           .getState()
-          .addToast(
+          .actions.addToast(
             `Erro na simulação: ${e instanceof Error ? e.message : String(e)}`,
             'error',
             4000,
@@ -302,7 +302,7 @@ export function useReplanControl(
     } catch (e) {
       useToastStore
         .getState()
-        .addToast(`Erro: ${e instanceof Error ? e.message : String(e)}`, 'error', 4000);
+        .actions.addToast(`Erro: ${e instanceof Error ? e.message : String(e)}`, 'error', 4000);
     }
   }, [arResult, arActions]);
 
@@ -311,7 +311,11 @@ export function useReplanControl(
     for (const mv of arResult.autoMoves) applyMove(mv.opId, mv.toM);
     useToastStore
       .getState()
-      .addToast(`Auto-replan aplicado: ${arResult.autoMoves.length} movimentos`, 'success', 5000);
+      .actions.addToast(
+        `Auto-replan aplicado: ${arResult.autoMoves.length} movimentos`,
+        'success',
+        5000,
+      );
   }, [arResult, applyMove]);
 
   // Failure/Breakdown state
@@ -382,7 +386,7 @@ export function useReplanControl(
         for (const mv of result.mitigationMoves) applyMove(mv.opId, mv.toM);
         useToastStore
           .getState()
-          .addToast(
+          .actions.addToast(
             `Replan cascata: ${result.mitigationMoves.length} movimentos, ${result.unrecoverableBlocks.length} irrecuperáveis`,
             result.unrecoverableBlocks.length > 0 ? 'warning' : 'success',
             5000,
@@ -390,7 +394,7 @@ export function useReplanControl(
       } catch (e) {
         useToastStore
           .getState()
-          .addToast(`Erro: ${e instanceof Error ? e.message : String(e)}`, 'error', 5000);
+          .actions.addToast(`Erro: ${e instanceof Error ? e.message : String(e)}`, 'error', 5000);
       }
       setCascRunning(false);
     }, 0);
@@ -450,7 +454,7 @@ export function useReplanControl(
     } catch (e) {
       useToastStore
         .getState()
-        .addToast(
+        .actions.addToast(
           `Erro na optimização: ${e instanceof Error ? e.message : String(e)}`,
           'error',
           5000,
@@ -478,7 +482,7 @@ export function useReplanControl(
       for (const mv of r.moves) applyMove(mv.opId, mv.toM);
       useToastStore
         .getState()
-        .addToast(`Optimização aplicada: ${r.moves.length} movimentos`, 'success', 5000);
+        .actions.addToast(`Optimização aplicada: ${r.moves.length} movimentos`, 'success', 5000);
     },
     [applyMove],
   );
@@ -496,7 +500,7 @@ export function useReplanControl(
     setRoTool('');
     useToastStore
       .getState()
-      .addToast(`Rush order adicionada: ${roTool} · ${roQty} pcs`, 'success', 3000);
+      .actions.addToast(`Rush order adicionada: ${roTool} · ${roQty} pcs`, 'success', 3000);
   }, [roTool, roQty, roDeadline, ops, setRushOrders]);
 
   const removeRushOrder = useCallback(

@@ -25,8 +25,8 @@ function aggregateWeekly(vals: number[]): number[] {
 
 function Fabrica() {
   const { engine, cap, metrics, loading, error } = useScheduleData();
-  const openContextPanel = useUIStore((s) => s.openContextPanel);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const focus = useUIStore((s) => s.focus);
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
 

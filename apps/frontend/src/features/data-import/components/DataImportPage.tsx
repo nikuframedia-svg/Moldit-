@@ -18,7 +18,7 @@ import '../../../pages/Definicoes/CarregarDados.css';
 export default function DataImportPage() {
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
   const semantics = useSettingsStore((s) => s.demandSemantics);
-  const setDemandSemantics = useSettingsStore((s) => s.setDemandSemantics);
+  const setDemandSemantics = useSettingsStore((s) => s.actions.setDemandSemantics);
 
   const {
     uploadState,

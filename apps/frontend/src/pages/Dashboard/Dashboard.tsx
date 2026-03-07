@@ -15,8 +15,8 @@ import './Dashboard.css';
 
 function Dashboard() {
   const { engine, cap, metrics, loading, error } = useScheduleData();
-  const openContextPanel = useUIStore((s) => s.openContextPanel);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
 
   // Working day indices — filter out weekends (Sáb/Dom) from display

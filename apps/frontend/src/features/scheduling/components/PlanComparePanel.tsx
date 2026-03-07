@@ -14,8 +14,8 @@ export default function PlanComparePanel({ data }: { data: EngineData }) {
 
   const diff = useMemo(() => {
     if (!idA || !idB || idA === idB) return null;
-    const vA = usePlanVersionStore.getState().getVersion(idA);
-    const vB = usePlanVersionStore.getState().getVersion(idB);
+    const vA = usePlanVersionStore.getState().actions.getVersion(idA);
+    const vB = usePlanVersionStore.getState().actions.getVersion(idB);
     if (!vA || !vB) return null;
     return { a: vA, b: vB, diff: computePlanDiff(vA, vB) };
   }, [idA, idB]);

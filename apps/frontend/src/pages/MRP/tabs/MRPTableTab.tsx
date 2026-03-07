@@ -141,8 +141,8 @@ function SKURow({
   numDays: number;
   onToggle: () => void;
 }) {
-  const openContextPanel = useUIStore((s) => s.openContextPanel);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const hasStockout = r.stockoutDay !== null;
   const totalPOR = r.buckets.reduce((s, b) => s + b.plannedOrderReceipt, 0);
 
@@ -464,8 +464,8 @@ function MRPRow({
   numDays: number;
   onToggle: () => void;
 }) {
-  const openContextPanel = useUIStore((s) => s.openContextPanel);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const skuLabel = r.skus.length === 1 ? r.skus[0].sku : `${r.skus[0].sku} +${r.skus.length - 1}`;
   return (
     <>

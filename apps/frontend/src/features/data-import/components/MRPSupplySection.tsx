@@ -3,18 +3,14 @@ import type { ServiceLevelOption } from '../../../stores/useSettingsStore';
 import useSettingsStore from '../../../stores/useSettingsStore';
 
 export default function MRPSupplySection() {
-  const {
-    serviceLevel,
-    coverageThresholdDays,
-    abcThresholdA,
-    abcThresholdB,
-    xyzThresholdX,
-    xyzThresholdY,
-    setServiceLevel,
-    setCoverageThresholdDays,
-    setABCThresholds,
-    setXYZThresholds,
-  } = useSettingsStore();
+  const serviceLevel = useSettingsStore((s) => s.serviceLevel);
+  const coverageThresholdDays = useSettingsStore((s) => s.coverageThresholdDays);
+  const abcThresholdA = useSettingsStore((s) => s.abcThresholdA);
+  const abcThresholdB = useSettingsStore((s) => s.abcThresholdB);
+  const xyzThresholdX = useSettingsStore((s) => s.xyzThresholdX);
+  const xyzThresholdY = useSettingsStore((s) => s.xyzThresholdY);
+  const { setServiceLevel, setCoverageThresholdDays, setABCThresholds, setXYZThresholds } =
+    useSettingsStore((s) => s.actions);
 
   return (
     <div className="carregar-dados__section" data-testid="section-mrp">

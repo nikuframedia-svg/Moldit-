@@ -5,7 +5,7 @@ import './index.css';
 import useAppStore from './stores/useAppStore';
 
 // Inicializar data source no arranque
-useAppStore.getState().initializeDataSource();
+useAppStore.getState().actions.initializeDataSource();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

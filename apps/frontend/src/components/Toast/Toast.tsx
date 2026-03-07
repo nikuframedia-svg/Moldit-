@@ -11,7 +11,7 @@ const icons: Record<ToastType['type'], string> = {
 };
 
 function ToastItem({ toast }: { toast: ToastType }) {
-  const removeToast = useToastStore((s) => s.removeToast);
+  const removeToast = useToastStore((s) => s.actions.removeToast);
   const [removing, setRemoving] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

@@ -13,7 +13,7 @@ import './FocusStrip.css';
 
 function FocusStrip() {
   const focus = useUIStore((s) => s.focus);
-  const setFocus = useUIStore((s) => s.setFocus);
+  const setFocus = useUIStore((s) => s.actions.setFocus);
   const pills: Array<{ key: keyof FocusContext; label: string; value: string }> = [];
 
   if (focus.machine) pills.push({ key: 'machine', label: 'Maquina', value: focus.machine });

@@ -20,18 +20,15 @@ const WEIGHT_DEFS: { key: string; label: string; max: number }[] = [
 ];
 
 export default function OptimizationProfileSection() {
-  const {
-    optimizationProfile,
-    wTardiness,
-    wSetupCount,
-    wSetupTime,
-    wSetupBalance,
-    wChurn,
-    wOverflow,
-    wBelowMinBatch,
-    setOptimizationProfile,
-    setWeight,
-  } = useSettingsStore();
+  const optimizationProfile = useSettingsStore((s) => s.optimizationProfile);
+  const wTardiness = useSettingsStore((s) => s.wTardiness);
+  const wSetupCount = useSettingsStore((s) => s.wSetupCount);
+  const wSetupTime = useSettingsStore((s) => s.wSetupTime);
+  const wSetupBalance = useSettingsStore((s) => s.wSetupBalance);
+  const wChurn = useSettingsStore((s) => s.wChurn);
+  const wOverflow = useSettingsStore((s) => s.wOverflow);
+  const wBelowMinBatch = useSettingsStore((s) => s.wBelowMinBatch);
+  const { setOptimizationProfile, setWeight } = useSettingsStore((s) => s.actions);
 
   const weights: Record<string, number> = {
     wTardiness,

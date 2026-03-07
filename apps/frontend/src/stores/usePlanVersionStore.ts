@@ -40,13 +40,7 @@ export interface PlanVersion {
   isFavorite?: boolean;
 }
 
-interface PlanVersionState {
-  versions: PlanVersion[];
-  currentId: string | null;
-  baselineId: string | null;
-  snapshotHash: string | null;
-
-  // Actions
+export interface PlanVersionActions {
   init: (hash: string) => void;
   savePlan: (
     result: OptResult,
@@ -70,6 +64,14 @@ function generateId(): string {
   return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+interface PlanVersionState {
+  versions: PlanVersion[];
+  currentId: string | null;
+  baselineId: string | null;
+  snapshotHash: string | null;
+  actions: PlanVersionActions;
+}
+
 const usePlanVersionStore = create<PlanVersionState>()(
   persist(
     (set, get) => ({
@@ -78,108 +80,108 @@ const usePlanVersionStore = create<PlanVersionState>()(
       baselineId: null,
       snapshotHash: null,
 
-      init: (hash: string) => {
-        const state = get();
-        if (state.snapshotHash === hash) return; // same data, keep versions
-        // New snapshot data — clear old versions
-        set({
-          versions: [],
-          currentId: null,
-          baselineId: null,
-          snapshotHash: hash,
-        });
-      },
+      actions: {
+        init: (hash: string) => {
+          const state = get();
+          if (state.snapshotHash === hash) return;
+          set({
+            versions: [],
+            currentId: null,
+            baselineId: null,
+            snapshotHash: hash,
+          });
+        },
 
-      savePlan: (result, decisions, params, label) => {
-        const id = generateId();
-        const state = get();
-        const version: PlanVersion = {
-          id,
-          timestamp: new Date().toISOString(),
-          label,
-          blocks: result.blocks,
-          decisions,
-          score: result.score,
-          kpis: {
-            otd: result.otd,
-            otdDelivery: result.otdDelivery,
-            setupCount: result.setupCount,
-            setupMin: result.setupMin,
-            tardinessDays: result.tardinessDays,
-            capUtil: result.capUtil,
-          },
-          params,
-          parentId: state.currentId,
-        };
-        const updated = [...state.versions, version];
-        // Keep max 20 versions to avoid localStorage bloat
-        const trimmed = updated.length > 20 ? updated.slice(-20) : updated;
-        set({ versions: trimmed });
+        savePlan: (result, decisions, params, label) => {
+          const id = generateId();
+          const state = get();
+          const version: PlanVersion = {
+            id,
+            timestamp: new Date().toISOString(),
+            label,
+            blocks: result.blocks,
+            decisions,
+            score: result.score,
+            kpis: {
+              otd: result.otd,
+              otdDelivery: result.otdDelivery,
+              setupCount: result.setupCount,
+              setupMin: result.setupMin,
+              tardinessDays: result.tardinessDays,
+              capUtil: result.capUtil,
+            },
+            params,
+            parentId: state.currentId,
+          };
+          const updated = [...state.versions, version];
+          const trimmed = updated.length > 20 ? updated.slice(-20) : updated;
+          set({ versions: trimmed });
 
-        // First version becomes baseline automatically
-        if (!state.baselineId) {
-          set({ baselineId: id });
-        }
+          if (!state.baselineId) {
+            set({ baselineId: id });
+          }
 
-        return id;
-      },
+          return id;
+        },
 
-      commitPlan: (id: string) => {
-        const state = get();
-        const exists = state.versions.find((v) => v.id === id);
-        if (!exists) return;
-        set({ currentId: id });
-      },
+        commitPlan: (id: string) => {
+          const state = get();
+          const exists = state.versions.find((v) => v.id === id);
+          if (!exists) return;
+          set({ currentId: id });
+        },
 
-      getBaseline: () => {
-        const state = get();
-        if (!state.baselineId) return null;
-        return state.versions.find((v) => v.id === state.baselineId) ?? null;
-      },
+        getBaseline: () => {
+          const state = get();
+          if (!state.baselineId) return null;
+          return state.versions.find((v) => v.id === state.baselineId) ?? null;
+        },
 
-      getCurrent: () => {
-        const state = get();
-        if (!state.currentId) return null;
-        return state.versions.find((v) => v.id === state.currentId) ?? null;
-      },
+        getCurrent: () => {
+          const state = get();
+          if (!state.currentId) return null;
+          return state.versions.find((v) => v.id === state.currentId) ?? null;
+        },
 
-      getVersion: (id: string) => {
-        return get().versions.find((v) => v.id === id) ?? null;
-      },
+        getVersion: (id: string) => {
+          return get().versions.find((v) => v.id === id) ?? null;
+        },
 
-      listVersions: () => {
-        return get().versions;
-      },
+        listVersions: () => {
+          return get().versions;
+        },
 
-      setBranchLabel: (id: string, branchLabel: string) => {
-        set({
-          versions: get().versions.map((v) =>
-            v.id === id ? { ...v, branchLabel: branchLabel || undefined } : v,
-          ),
-        });
-      },
+        setBranchLabel: (id: string, branchLabel: string) => {
+          set({
+            versions: get().versions.map((v) =>
+              v.id === id ? { ...v, branchLabel: branchLabel || undefined } : v,
+            ),
+          });
+        },
 
-      setFavorite: (id: string, isFavorite: boolean) => {
-        set({
-          versions: get().versions.map((v) => (v.id === id ? { ...v, isFavorite } : v)),
-        });
-      },
+        setFavorite: (id: string, isFavorite: boolean) => {
+          set({
+            versions: get().versions.map((v) => (v.id === id ? { ...v, isFavorite } : v)),
+          });
+        },
 
-      clear: () => {
-        set({ versions: [], currentId: null, baselineId: null });
+        clear: () => {
+          set({ versions: [], currentId: null, baselineId: null });
+        },
       },
     }),
     {
       name: 'pp1-plan-versions',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        versions: state.versions,
-        currentId: state.currentId,
-        baselineId: state.baselineId,
-        snapshotHash: state.snapshotHash,
-      }),
+      partialize: ({ actions: _, ...data }) => data,
     },
   ),
 );
+
+// ── Atomic selector hooks ─────────────────────────────────────
+
+export const usePlanVersions = () => usePlanVersionStore((s) => s.versions);
+export const useCurrentPlanId = () => usePlanVersionStore((s) => s.currentId);
+export const usePlanVersionActions = () => usePlanVersionStore((s) => s.actions);
 
 export default usePlanVersionStore;

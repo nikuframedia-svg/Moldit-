@@ -6,13 +6,24 @@
 
 import { create } from 'zustand';
 
-interface ReplanState {
-  // Callback for external refresh (set by NikufraEngine)
-  onApplyCallback: (() => void) | null;
+export interface ReplanActions {
+  setOnApplyCallback: (cb: (() => void) | null) => void;
 }
 
-const useReplanStore = create<ReplanState>(() => ({
+interface ReplanState {
+  onApplyCallback: (() => void) | null;
+  actions: ReplanActions;
+}
+
+const useReplanStore = create<ReplanState>((set) => ({
   onApplyCallback: null,
+  actions: {
+    setOnApplyCallback: (cb) => set({ onApplyCallback: cb }),
+  },
 }));
+
+// ── Atomic selector hooks ─────────────────────────────────────
+
+export const useReplanActions = () => useReplanStore((s) => s.actions);
 
 export default useReplanStore;

@@ -2,18 +2,18 @@ import { GitBranch } from 'lucide-react';
 import useSettingsStore from '../../../stores/useSettingsStore';
 
 export default function OverflowRoutingSection() {
+  const altUtilThreshold = useSettingsStore((s) => s.altUtilThreshold);
+  const maxAutoMoves = useSettingsStore((s) => s.maxAutoMoves);
+  const maxOverflowIter = useSettingsStore((s) => s.maxOverflowIter);
+  const otdTolerance = useSettingsStore((s) => s.otdTolerance);
+  const loadBalanceThreshold = useSettingsStore((s) => s.loadBalanceThreshold);
   const {
-    altUtilThreshold,
-    maxAutoMoves,
-    maxOverflowIter,
-    otdTolerance,
-    loadBalanceThreshold,
     setAltUtilThreshold,
     setMaxAutoMoves,
     setMaxOverflowIter,
     setOTDTolerance,
     setLoadBalanceThreshold,
-  } = useSettingsStore();
+  } = useSettingsStore((s) => s.actions);
 
   return (
     <div className="carregar-dados__section" data-testid="section-overflow">

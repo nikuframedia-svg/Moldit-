@@ -1,18 +1,17 @@
 import { Clock } from 'lucide-react';
 import { useMemo } from 'react';
-import useSettingsStore, { getEngineConfig } from '../../../stores/useSettingsStore';
+import useSettingsStore, {
+  getEngineConfig,
+  useSettingsActions,
+} from '../../../stores/useSettingsStore';
 
 export default function ShiftsCapacitySection() {
-  const {
-    shiftXStart,
-    shiftChange,
-    shiftYEnd,
-    oee,
-    thirdShiftDefault,
-    setShifts,
-    setOEE,
-    setThirdShiftDefault,
-  } = useSettingsStore();
+  const shiftXStart = useSettingsStore((s) => s.shiftXStart);
+  const shiftChange = useSettingsStore((s) => s.shiftChange);
+  const shiftYEnd = useSettingsStore((s) => s.shiftYEnd);
+  const oee = useSettingsStore((s) => s.oee);
+  const thirdShiftDefault = useSettingsStore((s) => s.thirdShiftDefault);
+  const { setShifts, setOEE, setThirdShiftDefault } = useSettingsActions();
 
   const config = useMemo(() => getEngineConfig(), [shiftXStart, shiftChange, shiftYEnd, oee]);
 

@@ -185,7 +185,7 @@ async function mergeWithMasterData(data: NikufraData): Promise<NikufraData> {
   if (!resolved) {
     useToastStore
       .getState()
-      .addToast(
+      .actions.addToast(
         'Sem dados Mestre — a usar defaults (setup 45min, sem máq. alternativa).',
         'warning',
       );
@@ -206,13 +206,13 @@ async function mergeWithMasterData(data: NikufraData): Promise<NikufraData> {
   if (parts.length > 0) {
     useToastStore
       .getState()
-      .addToast(`Enriquecido com ${srcLabel}: ${parts.join(', ')}.`, 'success');
+      .actions.addToast(`Enriquecido com ${srcLabel}: ${parts.join(', ')}.`, 'success');
   }
 
   if (report.unknownTools.length > 0) {
     useToastStore
       .getState()
-      .addToast(
+      .actions.addToast(
         `${report.unknownTools.length} ferramenta(s) sem dados Mestre (setup=45min, sem máq. alt.): ${report.unknownTools.slice(0, 5).join(', ')}${report.unknownTools.length > 5 ? '…' : ''}`,
         'warning',
         8000,
@@ -222,7 +222,7 @@ async function mergeWithMasterData(data: NikufraData): Promise<NikufraData> {
   if (report.zeroRateOps.length > 0) {
     useToastStore
       .getState()
-      .addToast(
+      .actions.addToast(
         `${report.zeroRateOps.length} operação(ões) com rate=0 — serão ignoradas pelo scheduler.`,
         'warning',
         6000,
@@ -232,35 +232,24 @@ async function mergeWithMasterData(data: NikufraData): Promise<NikufraData> {
   return merged;
 }
 
+// ── Actions interface ─────────────────────────────────────────
+
+export interface DataActions {
+  setNikufraData: (data: NikufraData, fileName: string, meta: LoadMeta) => Promise<void>;
+  clearData: () => void;
+  hasUserData: () => boolean;
+}
+
 // ── Store ──────────────────────────────────────────────────────────────
 
 interface DataStoreState {
-  /** Post-merge enriched NikufraData. null = use fixture default. */
   nikufraData: NikufraData | null;
-
-  /** Pre-merge raw daily ISOP — kept for re-merging when master data changes */
   _rawDailyData: NikufraData | null;
-
-  /** ISO timestamp when data was loaded */
   loadedAt: string | null;
-
-  /** Original filename */
   fileName: string | null;
-
-  /** Parse metadata */
   meta: LoadMeta | null;
-
-  /** True while mergeWithMasterData() is running — prevents stale scheduling */
   isMerging: boolean;
-
-  /** Store parsed daily data enriched with fixture master data, and metadata */
-  setNikufraData: (data: NikufraData, fileName: string, meta: LoadMeta) => Promise<void>;
-
-  /** Clear user data — reverts to fixture */
-  clearData: () => void;
-
-  /** Whether user has loaded data */
-  hasUserData: () => boolean;
+  actions: DataActions;
 }
 
 const useDataStore = create<DataStoreState>()(
@@ -273,35 +262,36 @@ const useDataStore = create<DataStoreState>()(
       meta: null,
       isMerging: false,
 
-      setNikufraData: async (data, fileName, meta) => {
-        // Signal that merge is in progress — prevents stale scheduling
-        set({ isMerging: true });
-        // Enrich daily ISOP data with fixture master data (setup times, alt machines)
-        const enriched = await mergeWithMasterData(data);
-        set({
-          nikufraData: enriched,
-          _rawDailyData: data,
-          loadedAt: new Date().toISOString(),
-          fileName,
-          meta,
-          isMerging: false,
-        });
-      },
+      actions: {
+        setNikufraData: async (data, fileName, meta) => {
+          set({ isMerging: true });
+          const enriched = await mergeWithMasterData(data);
+          set({
+            nikufraData: enriched,
+            _rawDailyData: data,
+            loadedAt: new Date().toISOString(),
+            fileName,
+            meta,
+            isMerging: false,
+          });
+        },
 
-      clearData: () => {
-        set({
-          nikufraData: null,
-          _rawDailyData: null,
-          loadedAt: null,
-          fileName: null,
-          meta: null,
-        });
-      },
+        clearData: () => {
+          set({
+            nikufraData: null,
+            _rawDailyData: null,
+            loadedAt: null,
+            fileName: null,
+            meta: null,
+          });
+        },
 
-      hasUserData: () => get().nikufraData !== null,
+        hasUserData: () => get().nikufraData !== null,
+      },
     }),
     {
       name: 'pp1-loaded-data',
+      partialize: ({ actions: _, ...data }) => data,
     },
   ),
 );
@@ -310,5 +300,11 @@ const useDataStore = create<DataStoreState>()(
 if (typeof window !== 'undefined') {
   localStorage.removeItem('pp1-master-data');
 }
+
+// ── Atomic selector hooks ─────────────────────────────────────
+
+export const useNikufraData = () => useDataStore((s) => s.nikufraData);
+export const useIsMerging = () => useDataStore((s) => s.isMerging);
+export const useDataActions = () => useDataStore((s) => s.actions);
 
 export default useDataStore;
