@@ -1,4 +1,4 @@
-import NikufraIntel from '../../features/intelligence/NikufraIntel';
+import { IntelligencePage as NikufraIntel } from '../../features/intelligence';
 import useUIStore from '../../stores/useUIStore';
 
 function Intelligence() {
