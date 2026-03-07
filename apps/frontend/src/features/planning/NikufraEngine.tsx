@@ -22,7 +22,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDataSource } from '../../hooks/useDataSource';
 import type { PlanVersionParams } from '../../stores/usePlanVersionStore';
 import usePlanVersionStore from '../../stores/usePlanVersionStore';
@@ -31,6 +31,7 @@ import useSettingsStore, { getTransformConfig } from '../../stores/useSettingsSt
 import useToastStore from '../../stores/useToastStore';
 import { gridDensityVars } from '../../utils/gridDensity';
 import { computePlanDiff } from '../../utils/planDiff';
+import { useScheduleFilters } from '../scheduling/hooks/useScheduleFilters';
 import './NikufraEngine.css';
 
 import type {
@@ -67,7 +68,7 @@ import {
   auditCoverage,
   autoReplan,
   autoRouteOverflow,
-  buildResourceTimelines,
+  type buildResourceTimelines,
   // Color/UI constants
   C,
   // Analysis
@@ -7177,16 +7178,23 @@ export default function NikufraEngine() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ── Schedule Filters (machine/tool status, failure events, temporal down) ──
+  const { state: filters, actions: filterActions } = useScheduleFilters(engineData);
+  const { mSt, tSt, failureEvents, isScheduling, replanTimelines } = filters;
+  const {
+    setMSt,
+    setTSt,
+    toggleM,
+    toggleT,
+    setResourceDown,
+    clearResourceDown,
+    getResourceDownDays,
+  } = filterActions;
+
   // ── Core State ──
-  const [mSt, setMSt] = useState<Record<string, string>>({});
-  const [tSt, setTSt] = useState<Record<string, string>>({});
   const [moves, setMoves] = useState<MoveAction[]>([]);
   const [view, setView] = useState('plan');
   const [isSaving, setIsSaving] = useState(false);
-  // Temporal down: FailureEvent[] for per-day machine/tool down periods
-  const [failureEvents, setFailureEvents] = useState<FailureEvent[]>([]);
-  // Scheduling transition: allows React to keep UI responsive during heavy scheduling
-  const [isScheduling, startScheduleTransition] = useTransition();
   // ── Rush Order state (lifted from ReplanView for scheduling integration) ──
   const [rushOrders, setRushOrders] = useState<
     Array<{ toolId: string; sku: string; qty: number; deadline: number }>
@@ -7216,11 +7224,9 @@ export default function NikufraEngine() {
         demandSemantics: tcfg.demandSemantics,
       });
       setEngineData(data);
-      // Initialize machine status
-      setMSt(Object.fromEntries(data.machines.map((m) => [m.id, 'running'])));
+      // Initialize machine/tool status via schedule filters
+      filterActions.resetFilters(data.machines);
       setMoves([]);
-      setTSt({});
-      setFailureEvents([]);
 
       // Snapshot change detection (simplified — DemandDelta/SnapshotHash modules removed)
       setIsopBanner(null);
@@ -7236,136 +7242,7 @@ export default function NikufraEngine() {
     loadData();
   }, [loadData]);
 
-  // Temporal down: derive mSt/tSt + timelines from failureEvents
-  const replanTimelines = useMemo(() => {
-    if (!engineData || failureEvents.length === 0) return null;
-    const tl = buildResourceTimelines(failureEvents, engineData.nDays, engineData.thirdShift);
-    return tl;
-  }, [failureEvents, engineData]);
-
-  // Sync mSt/tSt from failureEvents: resource with ANY down period → 'down'
-  useEffect(() => {
-    if (!engineData) return;
-    const feByMachine: Record<string, boolean> = {};
-    const feByTool: Record<string, boolean> = {};
-    for (const fe of failureEvents) {
-      if (fe.resourceType === 'machine') feByMachine[fe.resourceId] = true;
-      else feByTool[fe.resourceId] = true;
-    }
-    setMSt((prev) => {
-      const next = { ...prev };
-      for (const m of engineData.machines) {
-        next[m.id] = feByMachine[m.id] ? 'down' : 'running';
-      }
-      return next;
-    });
-    setTSt((prev) => {
-      const next: Record<string, string> = {};
-      // Only keep entries for resources with failures
-      for (const [id] of Object.entries(prev)) {
-        if (feByTool[id]) next[id] = 'down';
-      }
-      // Add new failures
-      for (const id of Object.keys(feByTool)) {
-        next[id] = 'down';
-      }
-      return next;
-    });
-  }, [failureEvents, engineData]);
-
-  const toggleM = useCallback(
-    (id: string) => setMSt((p) => ({ ...p, [id]: p[id] === 'down' ? 'running' : 'down' })),
-    [],
-  );
-  const toggleT = useCallback(
-    (id: string) =>
-      setTSt((p) => {
-        const n = { ...p };
-        if (n[id] === 'down') delete n[id];
-        else n[id] = 'down';
-        return n;
-      }),
-    [],
-  );
-
-  // Temporal down helpers for ReplanView (wrapped in transition for responsive UI)
-  const setResourceDown = useCallback(
-    (type: 'machine' | 'tool', id: string, days: number[]) => {
-      startScheduleTransition(() => {
-        setFailureEvents((prev) => {
-          const filtered = prev.filter((f) => !(f.resourceType === type && f.resourceId === id));
-          if (days.length === 0) return filtered;
-          // Group consecutive days into ranges
-          const sorted = [...days].sort((a, b) => a - b);
-          const events: FailureEvent[] = [];
-          let start = sorted[0];
-          let end = sorted[0];
-          for (let i = 1; i < sorted.length; i++) {
-            if (sorted[i] === end + 1) {
-              end = sorted[i];
-            } else {
-              events.push({
-                id: `${type}-${id}-${start}-${end}`,
-                resourceType: type,
-                resourceId: id,
-                startDay: start,
-                endDay: end,
-                startShift: null,
-                endShift: null,
-                severity: 'total',
-                capacityFactor: 0,
-              });
-              start = sorted[i];
-              end = sorted[i];
-            }
-          }
-          events.push({
-            id: `${type}-${id}-${start}-${end}`,
-            resourceType: type,
-            resourceId: id,
-            startDay: start,
-            endDay: end,
-            startShift: null,
-            endShift: null,
-            severity: 'total',
-            capacityFactor: 0,
-          });
-          return [...filtered, ...events];
-        });
-      });
-    },
-    [startScheduleTransition],
-  );
-
-  const clearResourceDown = useCallback(
-    (type: 'machine' | 'tool', id: string) => {
-      startScheduleTransition(() => {
-        setFailureEvents((prev) =>
-          prev.filter((f) => !(f.resourceType === type && f.resourceId === id)),
-        );
-      });
-    },
-    [startScheduleTransition],
-  );
-
-  // Pre-compute down days per resource to avoid O(n) scans per machine button render
-  const downDaysCache = useMemo(() => {
-    const cache: Record<string, Record<string, Set<number>>> = { machine: {}, tool: {} };
-    for (const fe of failureEvents) {
-      if (!cache[fe.resourceType][fe.resourceId]) cache[fe.resourceType][fe.resourceId] = new Set();
-      for (let d = fe.startDay; d <= fe.endDay; d++) {
-        cache[fe.resourceType][fe.resourceId].add(d);
-      }
-    }
-    return cache;
-  }, [failureEvents]);
-
-  const getResourceDownDays = useCallback(
-    (type: 'machine' | 'tool', id: string): Set<number> => {
-      return downDaysCache[type]?.[id] ?? new Set();
-    },
-    [downDaysCache],
-  );
+  // (machine/tool status, timelines, down days — managed by useScheduleFilters)
 
   const applyMove = useCallback(
     (opId: string, toM: string) =>
