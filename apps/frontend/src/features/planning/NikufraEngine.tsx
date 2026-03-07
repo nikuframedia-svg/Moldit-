@@ -34,11 +34,11 @@ import { computePlanDiff } from '../../utils/planDiff';
 import { useGanttInteraction } from '../scheduling/hooks/useGanttInteraction';
 import { useScheduleFilters } from '../scheduling/hooks/useScheduleFilters';
 import { useScheduleValidation } from '../scheduling/hooks/useScheduleValidation';
+import { useWhatIf } from '../scheduling/hooks/useWhatIf';
 import './NikufraEngine.css';
 
 import type {
   AlternativeAction,
-  AreaCaps,
   AutoReplanConfig,
   AutoReplanResult,
   Block,
@@ -5315,91 +5315,54 @@ function WhatIfView({
   replanTimelines: ReturnType<typeof buildResourceTimelines> | null;
 }) {
   const { machines, tools, ops, dates, dnames, toolMap: TM, focusIds } = data;
-  const [sc, setSc] = useState({ t1: 6, p1: 2, t2: 8, p2: 3, seed: 42 });
-  const [N, setN] = useState(300);
-  const [dispatchRule, setDispatchRule] = useState<DispatchRule>('EDD');
-  const [objProfile, setObjProfile] = useState<string>('balanced');
-  const [res, setRes] = useState<{
-    top3: OptResult[];
-    moveable: ReturnType<typeof moveableOps>;
-  } | null>(null);
-  const [run, setRun] = useState(false);
-  const [prog, setProg] = useState(0);
-  const [editingDown, setEditingDown] = useState<{ type: 'machine' | 'tool'; id: string } | null>(
-    null,
+  const { state: wi, actions: wiActions } = useWhatIf(
+    data,
+    OBJECTIVE_PROFILES,
+    getResourceDownDays,
+    replanTimelines,
   );
-  const wdiWI = useMemo(
-    () =>
-      data.workdays.map((w: boolean, i: number) => (w ? i : -1)).filter((i): i is number => i >= 0),
-    [data.workdays],
-  );
-  const [wiDownStartDay, setWiDownStartDay] = useState(() => wdiWI[0] ?? 0);
-  const [wiDownEndDay, setWiDownEndDay] = useState(() => wdiWI[0] ?? 0);
-  const [sel, setSel] = useState(0);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showCompare, setShowCompare] = useState(false);
-  const [diffPair, setDiffPair] = useState<[string, string] | null>(null);
+  const {
+    sc,
+    N,
+    dispatchRule,
+    objProfile,
+    res,
+    run,
+    prog,
+    editingDown,
+    wdi: wdiWI,
+    wiDownStartDay,
+    wiDownEndDay,
+    sel,
+    showHistory,
+    showCompare,
+    diffPair,
+    focusT,
+    areaCaps,
+    avOps,
+    qv: qvWI,
+  } = wi;
+  const {
+    setSc,
+    setN,
+    setDispatchRule,
+    setObjProfile,
+    setEditingDown,
+    setWiDownStartDay,
+    setWiDownEndDay,
+    setSel,
+    setShowHistory,
+    setShowCompare,
+    setDiffPair,
+    setRes,
+    optimize,
+  } = wiActions;
   const versions = usePlanVersionStore((s) => s.versions);
   const currentId = usePlanVersionStore((s) => s.currentId);
-  const focusT = tools.filter(
-    (t) => focusIds.includes(t.m) || (t.alt && t.alt !== '-' && focusIds.includes(t.alt)),
-  );
-  const areaCaps: AreaCaps = { PG1: sc.t1 + sc.p1, PG2: sc.t2 + sc.p2 };
-  const avOps = areaCaps.PG1 + areaCaps.PG2;
-
-  const optimize = useCallback(() => {
-    setRun(true);
-    setProg(0);
-    setRes(null);
-    setSel(0);
-    const bM = Object.fromEntries(
-      machines.map((m) => [
-        m.id,
-        getResourceDownDays('machine', m.id).size > 0 ? 'down' : 'running',
-      ]),
-    );
-    const bT = Object.fromEntries(
-      focusT.filter((t) => getResourceDownDays('tool', t.id).size > 0).map((t) => [t.id, 'down']),
-    );
-    const profile = OBJECTIVE_PROFILES.find((p) => p.id === objProfile);
-    const wts = profile ? { ...profile.weights } : null;
-    const opt = runOptimization({
-      ops,
-      mSt: bM,
-      tSt: bT,
-      machines,
-      TM,
-      focusIds,
-      tools,
-      workforceConfig: data.workforceConfig ?? DEFAULT_WORKFORCE_CONFIG,
-      weights: wts ? (wts as Partial<ScoreWeights>) : undefined,
-      seed: sc.seed,
-      workdays: data.workdays,
-      nDays: data.nDays,
-      rule: dispatchRule,
-      N,
-      K: 3,
-      thirdShift: data.thirdShift ?? useSettingsStore.getState().thirdShiftDefault,
-      machineTimelines: replanTimelines?.machineTimelines ?? data.machineTimelines,
-      toolTimelines: replanTimelines?.toolTimelines ?? data.toolTimelines,
-      twinValidationReport: data.twinValidationReport,
-      dates: data.dates,
-      orderBased: data.orderBased,
-    });
-    opt.run(
-      (top3) => {
-        setRes({ top3, moveable: opt.moveable });
-        setRun(false);
-      },
-      (p) => setProg(p),
-    );
-  }, [sc, N, machines, ops, TM, focusIds, tools, dispatchRule, objProfile, data, replanTimelines]);
 
   const rankColor = (i: number) => (i === 0 ? C.ac : i === 1 ? C.bl : C.pp);
   const rankLabel = (i: number) =>
     i === 0 ? '#1 MELHOR' : i === 1 ? '#2' : i === 2 ? '#3' : `#${i + 1}`;
-  const selBlocks = res?.top3[sel]?.blocks ?? [];
-  const qvWI = useMemo(() => quickValidate(selBlocks, machines, TM), [selBlocks, machines, TM]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
