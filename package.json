@@ -17,7 +17,7 @@
     "turbo": "^2.7.0"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,css}": "biome check --write",
+    "{apps/frontend/src,packages/scheduling-engine/src,packages/scheduling-engine/tests}/**/*.{ts,tsx,js,jsx,json,css}": "biome check --write",
     "*.py": [
       "uvx ruff check --fix --exit-zero",
       "uvx ruff format"
