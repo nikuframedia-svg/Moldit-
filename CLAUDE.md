@@ -1,158 +1,110 @@
-# ProdPlan PP1 — Sistema APS de Planeamento de Produção Industrial
+# ProdPlan PP1 — Industrial Cognitive APS
 
-SaaS de planeamento e escalonamento de produção para fábricas de estampagem.
-Fábrica actual: Incompol (5 prensas activas, 59 ferramentas, ~94 SKUs, 14 clientes).
+SaaS de planeamento de produção para fábricas de estampagem.
+Fábrica: Incompol (5 prensas, 59 ferramentas, ~94 SKUs, 14 clientes).
 Empresa: NIKUFRA.AI (Portugal).
 
 ## Arquitectura
 
 Monorepo Turborepo + pnpm:
-- `apps/frontend` — React 18 + TypeScript + Vite + Zustand (UI)
-- `apps/backend` — FastAPI + PostgreSQL (persistência, sem solver)
-- `packages/scheduling-engine` — TypeScript puro (scheduling 100% client-side)
+- apps/frontend — React 18 + TS + Vite + Zustand + Ant Design 5
+- apps/backend — FastAPI + PostgreSQL + OR-Tools (CP-SAT)
+- packages/scheduling-engine — TypeScript puro (scheduling client-side)
 
 ## Comandos
-
 pnpm dev | pnpm build | pnpm test | pnpm lint | pnpm format
 
 ## Convenções
-
-- Named exports (nunca default). Ficheiros max 400 linhas.
-- Zustand: selectores atómicos, nunca raw store.
+- Named exports. Ficheiros max 400 linhas. Zustand selectores atómicos.
 - Biome formata TS. Ruff formata Python.
 
-## ════ PRIORIDADE Nº1 DO SISTEMA ════
+## ═══ PRIORIDADE Nº1 ═══
+ENTREGAR TUDO A TEMPO. Sem excepção. Tudo o resto é subordinado.
 
-**ENTREGAR TUDO A TEMPO. Sem excepção.**
-Todas as decisões — sequenciação, alocação, setups, lote económico —
-são SUBORDINADAS a este objectivo.
+## ═══ DADOS ISOP ═══
 
-## ════ DADOS ISOP ════
+Colunas: A(Cliente) B(Nome) C(SKU) D(Designação) E(Lote Eco—SOFT)
+G(Máquina) H(Ferramenta) I(Peças/H) J(Pessoas) L(WIP) M(Gémea) N(Atraso)
+O+(Datas ~80 dias—FONTE PRINCIPAL)
 
-### Colunas
+IGNORAR SEMPRE: F(Prz.Fabrico) e K(STOCK-A)
 
-| Col | Campo | USAR? |
-|-----|-------|-------|
-| A | Cliente | SIM |
-| B | Nome | SIM |
-| C | Ref. Artigo (SKU) | SIM |
-| D | Designação | SIM |
-| E | Lote Económico | SOFT — só se houver tempo livre |
-| F | Prz.Fabrico | **IGNORAR SEMPRE** |
-| G | Máquina | SIM |
-| H | Ferramenta | SIM |
-| I | Peças/H (cadência) | SIM |
-| J | Nº Pessoas | SIM |
-| K | STOCK-A | **IGNORAR SEMPRE** |
-| L | WIP | SIM |
-| M | Peça Gémea | SIM |
-| N | ATRASO | SIM |
-| O+ | Datas (~80 dias) | SIM — FONTE PRINCIPAL |
+Valores NP nas datas:
+- Positivo (preto) = STOCK REAL disponível
+- Negativo (vermelho) = ENCOMENDA INDEPENDENTE (NÃO cumulativo)
+  |valor| = qtd a produzir, data coluna = deadline
+- Vazio = sem dados
 
-### Valores NP nas datas
+Stock real = último positivo antes do primeiro negativo.
+Lote económico: SOFT — só se houver tempo. NUNCA atrasa encomenda.
 
-- **Positivo** (preto) = STOCK REAL disponível nesse dia
-- **Negativo** (vermelho) = ENCOMENDA INDEPENDENTE
-  - |valor| = quantidade a produzir
-  - Data da coluna = DEADLINE
-  - Cada negativo é SEPARADO, NÃO cumulativo
-  - -9600 no dia 10 NÃO inclui -2853 do dia 5
-- **Vazio** = sem dados
-
-### Colunas IGNORADAS
-
-- F (Prz.Fabrico): deadlines vêm dos negativos, não daqui
-- K (STOCK-A): stock real = valores positivos nas datas
-
-### Lote Económico — SOFT
-
-Se houver tempo após agendar TUDO a tempo → produzir lote económico.
-Se NÃO houver tempo → IGNORAR. NUNCA atrasa encomenda.
-
-### Stock real
-
-= último valor POSITIVO antes do primeiro negativo nas datas.
-
-## ════ PEÇAS GÉMEAS ════
-
-Pares LH/RH, mesma ferramenta, mesma máquina, produção SIMULTÂNEA.
+## ═══ PEÇAS GÉMEAS ═══
+Mesma ferramenta + máquina, produção SIMULTÂNEA.
 Quantidade = max(|NP_A|, |NP_B|) para AMBAS.
-Tempo = tempo de UMA quantidade (não o dobro).
-Excedente → stock.
+Tempo = UMA quantidade (não dobro). Excedente → stock.
 
-## ════ MÁQUINAS ════
+## ═══ MÁQUINAS ═══
+PRM019(Grandes,21SKUs) PRM031(Grandes,20,Faurecia) PRM039(Grandes,28,+variedade)
+PRM042(Médias,11,SEM ALTERNATIVA) PRM043(Grandes,14)
+PRM020 — FORA DE USO. IGNORAR.
 
-| Máq | Área | SKUs | Notas |
-|-----|------|------|-------|
-| PRM019 | Grandes | 21 | — |
-| PRM031 | Grandes | 20 | Alta carga FAURECIA |
-| PRM039 | Grandes | 28 | Maior variedade |
-| PRM042 | Médias | 11 | **SEM ALTERNATIVA** |
-| PRM043 | Grandes | 14 | — |
+## ═══ TURNOS ═══
+Grandes: A 07:00-15:30 (6p) | B 15:30-00:00 (5p)
+Médias: A 07:00-15:30 (9p) | B 15:30-00:00 (4p)
+Noite 00:00-07:00: SÓ EMERGÊNCIA (sinalizar, não criar automaticamente)
 
-**PRM020 — FORA DE USO. IGNORAR.**
+## ═══ 4 CONSTRAINTS ═══
+1.SetupCrew: max 1 setup simultâneo 2.ToolTimeline: ferramenta 1 máq vez
+3.CalcoTimeline: calço 1 máq vez 4.OperatorPool: capacidade por turno (advisory)
 
-## ════ TURNOS ════
+## ═══ MOTOR DE SCHEDULING — 3 CAMADAS ═══
 
-Prensas Grandes (019/031/039/043):
-- A: 07:00–15:30 → 6 pessoas (5 + 1 geral)
-- B: 15:30–00:00 → 5 pessoas
+Camada 1 — ATCS client-side (<10ms):
+  Prioridade(j) = (w/p)·exp(-slack/k1p̄)·exp(-setup/k2s̄)
+  Grid search k1/k2 (25 combos). Selecção UCB1 entre ATCS/EDD/CR/SPT/WSPT.
 
-Prensa Média (042):
-- A: 07:00–15:30 → 9 pessoas (5 + 4 geral)
-- B: 15:30–00:00 → 4 pessoas
+Camada 2 — SA client-side (Web Worker, 1-3s):
+  Vizinhança swap/insert. 10K iterações. Melhoria 5-15%.
 
-Turno Noite (00:00–07:00): SÓ EM EMERGÊNCIA.
-Criado quando impossível entregar a tempo com 2 turnos.
+Camada 3 — CP-SAT server-side (OR-Tools, 5-60s):
+  <50 jobs: solução óptima. 50-200: time limit 30-60s. >200: fallback Camada 1.
 
-Normal: 1020 min/dia | Emergência: 1440 min/dia
+## ═══ LÓGICA CONFIGURÁVEL — 7 NÍVEIS ═══
 
-## ════ 4 CONSTRAINTS ════
+L1: Parâmetros numéricos (sliders, thresholds)
+L2: Regras SE/ENTÃO (react-querybuilder → json-rules-engine)
+L3: Fórmulas custom (expr-eval — parser seguro sem eval)
+L4: Definições de conceito ("atrasado" = fórmula custom por fábrica)
+L5: Workflows & aprovações (quem aprova o quê, governance L0-L5)
+L6: Estratégias multi-passo (sequência de regras como Asprova)
+L7: Plugins Python (Fase 2+)
 
-1. SetupCrew: máx 1 setup simultâneo na fábrica
-2. ToolTimeline: ferramenta em 1 máquina de cada vez
-3. CalcoTimeline: calço em 1 máquina de cada vez
-4. OperatorPool: capacidade operadores por turno/área (advisory)
+Config persistida em JSON validado com Zod. Tudo versionado.
 
-## ════ MOTOR DE SCHEDULING ════
+## ═══ DECISION INTEGRITY FIREWALL ═══
 
-### Arquitectura de 3 camadas
+Cada desvio do óptimo TEM:
+- Custo explícito (calculado deterministicamente, NUNCA pelo LLM)
+- Motivo declarado (dropdown: técnico/comercial/conveniência/hierárquico)
+- Categoria de incentivo classificada
+- Registo imutável no Decision Ledger
+- Contrafactual obrigatório para L3+
 
-Camada 1 — ATCS (instantâneo, <10ms):
-Regra de despacho com 3 termos exponenciais.
-Prioridade(j) = (w/p) × exp(-slack/k1p̄) × exp(-setup/k2s̄)
+O Firewall NÃO impede decisões. Torna-as CARAS e VISÍVEIS.
 
-Camada 2 — Busca local (1-3 seg, Web Worker):
-SA ou Tabu Search refinam a solução ATCS. 5-15% melhoria.
+## ═══ TRUSTINDEX ═══
 
-Camada 3 — CP solver (futuro, WASM):
-MiniZinc-js com Gecode/Chuffed para otimização pesada.
+TI = 0.15·C + 0.20·V + 0.15·F + 0.20·K + 0.15·P + 0.15·A
+Gates: ≥0.90 Full Auto | ≥0.70 Monitoring | ≥0.50 Suggestion | <0.50 Manual
 
-### Configuração pelo utilizador
+## ═══ GOVERNANCE L0-L5 ═══
+L0: Logging | L1: +Validação | L2: +Preview
+L3: +Contrafactual+CustoDesvio | L4: +Aprovação | L5: +Multi-aprovação
 
-- Sliders de peso: OTD vs Setups vs Utilização
-- Políticas: "Maximizar OTD" | "Minimizar Setups" | "Equilibrado"
-- Regras custom via expr-eval (fórmulas) e json-rules-engine
-- Strategy Pattern: SchedulingStrategy.score(job, machine, ctx)
-- Config persistida em JSON validado com Zod
+## ═══ REPLANEAMENTO 4 CAMADAS ═══
+1.Right-shift (<30min) 2.Match-up (30min-2h) 3.Parcial (>2h) 4.Regen (catástrofe)
+Zonas: frozen(0-5d) slushy(5d-2sem) liquid(resto)
 
-### Replaneamento por camadas
-
-1. Right-shift (< 30 min perturbação)
-2. Match-up (30 min – 2h)
-3. Parcial (> 2h, só operações afetadas)
-4. Regeneração total (catástrofe)
-+ Turno noite automático quando 2 turnos não bastam
-
-### Zonas de horizonte
-
-- CONGELADO (0–5 dias): sem alterações sem aprovação
-- SEMIFLEXÍVEL (5 dias–2 sem): alterações negociadas
-- LÍQUIDO (resto): alterações livres
-
-## Docs detalhados
-
-- docs/agent/scheduling-engine.md
-- docs/agent/factory-data.md
-- docs/agent/design-system.md
-- docs/agent/algorithms.md
+## ═══ LEARNING ENGINE ═══
+Compara previsão vs realidade. UCB1 ajusta selecção de heurística.
+Variance >10% → propor ajuste. NUNCA aplica automaticamente.
