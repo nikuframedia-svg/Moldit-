@@ -1,5 +1,18 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, ChevronRight, Clock, Grid3x3, Sliders, UserCog, Wrench } from 'lucide-react';
+import {
+  BookOpen,
+  Building2,
+  Calculator,
+  ChevronRight,
+  Clock,
+  GitBranch,
+  Grid3x3,
+  Layers,
+  Shield,
+  Sliders,
+  UserCog,
+  Wrench,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface SettingsCard {
@@ -45,6 +58,36 @@ const SETTINGS_CARDS: SettingsCard[] = [
     description: 'Pesos, políticas e constraints',
     icon: Sliders,
     path: '/settings/scheduling',
+  },
+  {
+    title: 'Regras SE/ENTÃO',
+    description: 'Regras condicionais de prioridade (L2)',
+    icon: GitBranch,
+    path: '/settings/rules',
+  },
+  {
+    title: 'Fórmulas',
+    description: 'Fórmulas custom de scoring (L3)',
+    icon: Calculator,
+    path: '/settings/formulas',
+  },
+  {
+    title: 'Definições',
+    description: 'Definições de conceitos da fábrica (L4)',
+    icon: BookOpen,
+    path: '/settings/definitions',
+  },
+  {
+    title: 'Workflows',
+    description: 'Governance e aprovações (L5)',
+    icon: Shield,
+    path: '/settings/workflows',
+  },
+  {
+    title: 'Estratégias',
+    description: 'Estratégias multi-passo (L6)',
+    icon: Layers,
+    path: '/settings/strategy',
   },
 ];
 

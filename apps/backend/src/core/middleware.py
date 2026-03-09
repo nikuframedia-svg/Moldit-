@@ -139,6 +139,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     media_type=response.media_type,
                 )
 
+            # Non-2xx: return the error response as-is
+            return response
+
         # Request não mutável ou não precisa de idempotency
         return await call_next(request)
 

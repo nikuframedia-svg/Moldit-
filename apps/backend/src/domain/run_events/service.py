@@ -51,8 +51,7 @@ class RunEventService:
             if existing:
                 logger.info(
                     "Event with event_id already exists (idempotent)",
-                    event_id=event_id,
-                    existing_event_id=str(existing.event_id),
+                    extra={"event_id": event_id, "existing_event_id": str(existing.event_id)},
                 )
                 return existing
 
@@ -78,9 +77,11 @@ class RunEventService:
 
         logger.info(
             "Run event created",
-            event_id=str(event.event_id),
-            event_type=event_type.value,
-            occurred_at=occurred_at.isoformat(),
+            extra={
+                "event_id": str(event.event_id),
+                "event_type": event_type.value,
+                "occurred_at": occurred_at.isoformat(),
+            },
         )
 
         return event

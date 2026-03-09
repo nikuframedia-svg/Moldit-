@@ -2,6 +2,7 @@ import { ConstraintToggles } from '../components/ConstraintToggles';
 import { OptimizationSliders } from '../components/OptimizationSliders';
 import { PolicySelector } from '../components/PolicySelector';
 import { ScenarioManager } from '../components/ScenarioManager';
+import { SchedulingExtras } from '../components/SchedulingExtras';
 
 export function SchedulingConfigPage() {
   return (
@@ -10,6 +11,7 @@ export function SchedulingConfigPage() {
         Configuração de Scheduling
       </h2>
       <PolicySelector />
+      <SchedulingExtras />
       <OptimizationSliders />
       <ConstraintToggles />
       <ScenarioManager onPromote={() => {}} />

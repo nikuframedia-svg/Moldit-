@@ -16,6 +16,7 @@ jobs:
     outputs:
       engine: ${{ steps.filter.outputs.engine }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -32,6 +33,10 @@ jobs:
               - 'apps/frontend/package.json'
               - 'apps/frontend/tsconfig.json'
               - 'apps/frontend/vite.config.ts'
+            backend:
+              - 'apps/backend/src/**'
+              - 'apps/backend/tests/**'
+              - 'apps/backend/pyproject.toml'
 
   lint-ts:
     needs: detect-changes
@@ -46,6 +51,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm biome check --no-errors-on-unmatched
+
+  lint-python:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv run ruff check src/
+        working-directory: apps/backend
 
   test-engine:
     needs: detect-changes
@@ -75,14 +90,38 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo test --filter=pp1-frontend
 
+  test-backend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv run pytest
+        working-directory: apps/backend
+
+  build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.engine == 'true' || needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo build --filter=pp1-frontend
+
   ci-gate:
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint-ts, test-engine, test-frontend]
+    needs: [lint-ts, lint-python, test-engine, test-frontend, test-backend, build]
     steps:
       - name: Check results
         run: |
-          results="${{ needs.lint-ts.result }} ${{ needs.test-engine.result }} ${{ needs.test-frontend.result }}"
+          results="${{ needs.lint-ts.result }} ${{ needs.lint-python.result }} ${{ needs.test-engine.result }} ${{ needs.test-frontend.result }} ${{ needs.test-backend.result }} ${{ needs.build.result }}"
           for r in $results; do
             if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
               echo "Job failed or cancelled: $r"

@@ -1,0 +1,142 @@
+/* ConsoleDay — Detailed day view */
+
+.cday {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding: var(--space-16);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.cday__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.cday__nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+  font-size: 14px;
+}
+
+.cday__nav-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cday__nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cday__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.cday__subtitle {
+  font-size: 11px;
+  color: var(--text-ghost);
+  font-family: var(--font-mono);
+}
+
+.cday__badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cday__badge--workday {
+  background: rgba(20, 184, 166, 0.12);
+  color: var(--accent);
+}
+
+.cday__badge--weekend {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--semantic-amber);
+}
+
+/* KPI strip */
+.cday__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-8);
+}
+
+/* Operations lists */
+.cday__ops-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cday__op-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  font-size: var(--text-small);
+  cursor: pointer;
+  transition: border-color 0.15s;
+  border: 1px solid transparent;
+}
+
+.cday__op-row:hover {
+  border-color: var(--border-subtle);
+}
+
+.cday__op-sku {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 100px;
+}
+
+.cday__op-machine {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 60px;
+}
+
+.cday__op-time {
+  font-family: var(--font-mono);
+  color: var(--text-ghost);
+  min-width: 90px;
+}
+
+.cday__op-pcs {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.cday__op-client {
+  color: var(--text-ghost);
+  margin-left: auto;
+}
+
+.cday__empty {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-8);
+}

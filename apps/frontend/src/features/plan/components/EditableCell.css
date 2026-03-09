@@ -1,0 +1,39 @@
+/* EditableCell — inline editable table cell */
+
+.editable-cell {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  font-family: var(--font-mono);
+}
+
+.editable-cell:hover {
+  border-color: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.editable-cell--overridden {
+  border-style: dashed;
+}
+
+.editable-cell__input,
+.editable-cell__select {
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--accent);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font-size: inherit;
+  font-family: var(--font-mono);
+  width: 100%;
+  max-width: 100px;
+  outline: none;
+}
+
+.editable-cell__select {
+  max-width: 120px;
+}

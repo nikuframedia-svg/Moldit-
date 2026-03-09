@@ -128,6 +128,26 @@
   pointer-events: none;
 }
 
+/* Now line — red vertical indicator for current time */
+.mtl__now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--semantic-red);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Temporal opacity — past blocks solid, future semi-transparent */
+.mtl__block--past {
+  opacity: 0.85;
+}
+
+.mtl__block--future {
+  opacity: 0.5;
+}
+
 .mtl__empty {
   font-size: var(--text-small);
   color: var(--text-muted);

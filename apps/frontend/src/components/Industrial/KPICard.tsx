@@ -32,21 +32,25 @@ export function KPICard({ label, value, unit, trend, sparkline, statusColor }: K
           data: sparkline,
           smooth: true,
           symbol: 'none',
-          lineStyle: { width: 1.5, color: statusColor ?? '#3B82F6' },
+          lineStyle: { width: 1.5, color: statusColor ?? 'var(--accent)' },
           areaStyle: { color: `${statusColor ?? '#3B82F6'}20` },
         },
       ],
     };
   }, [sparkline, statusColor]);
 
+  const trendArrow =
+    trend?.direction === 'up' ? '\u2191' : trend?.direction === 'down' ? '\u2193' : '';
+
   return (
     <div className="kpi-card" data-testid="kpi-card">
+      {statusColor && <div className="kpi-card__status-bar" style={{ background: statusColor }} />}
+
       <div className="kpi-card__header">
         <span className="kpi-card__label">{label}</span>
         {trend && (
           <span className={`kpi-card__trend kpi-card__trend--${trend.direction}`}>
-            {trend.direction === 'up' ? '+' : trend.direction === 'down' ? '' : ''}
-            {trend.label}
+            {trendArrow} {trend.label}
           </span>
         )}
       </div>
@@ -61,14 +65,12 @@ export function KPICard({ label, value, unit, trend, sparkline, statusColor }: K
           <ReactEChartsCore
             echarts={echarts}
             option={sparkOption}
-            style={{ height: 32, width: '100%' }}
+            style={{ height: 60, width: '100%' }}
             opts={{ renderer: 'canvas' }}
             notMerge
           />
         </div>
       )}
-
-      {statusColor && <div className="kpi-card__status-bar" style={{ background: statusColor }} />}
     </div>
   );
 }

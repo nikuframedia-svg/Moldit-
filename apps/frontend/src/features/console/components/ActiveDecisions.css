@@ -1,0 +1,115 @@
+/* ActiveDecisions — Scheduler decisions with Firewall info */
+
+.adec__empty {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-16);
+}
+
+.adec__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.adec__item {
+  display: flex;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.adec__item--clickable {
+  cursor: pointer;
+}
+
+.adec__item--clickable:hover {
+  border-color: var(--border-subtle);
+}
+
+.adec__icon {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.adec__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.adec__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.adec__category {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.adec__badges {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.adec__badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.adec__badge--auto {
+  background: rgba(20, 184, 166, 0.12);
+  color: var(--accent);
+}
+
+.adec__badge--manual {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--semantic-amber);
+}
+
+.adec__badge--rev {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--text-secondary);
+}
+
+.adec__badge--cost {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--semantic-red);
+  font-family: var(--font-mono);
+}
+
+.adec__badge--reason {
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--semantic-amber);
+}
+
+.adec__detail {
+  font-size: var(--text-small);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.adec__meta {
+  font-size: 10px;
+  color: var(--text-ghost);
+  font-family: var(--font-mono);
+}

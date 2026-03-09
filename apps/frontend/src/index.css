@@ -8,59 +8,68 @@
 :root {
   /* ── PP1 Design System ── */
 
+  /* ═══ LIGHT MODE (default) ═══ */
+
   /* Backgrounds — 4-level hierarchy */
-  --bg-void: #0d0d0d;
-  --bg-base: #141414;
-  --bg-card: #141414;
-  --bg-raised: #1a1a1a;
+  --bg-void: #f5f5f5;
+  --bg-base: #ffffff;
+  --bg-card: #ffffff;
+  --bg-raised: #fafafa;
 
   /* Borders */
-  --border-subtle: #1f1f1f;
-  --border-default: #1f1f1f;
-  --border-hover: rgba(20, 184, 166, 0.3);
-  --border-active: rgba(20, 184, 166, 0.4);
+  --border-subtle: #e5e7eb;
+  --border-default: #d1d5db;
+  --border-hover: rgba(30, 64, 175, 0.3);
+  --border-active: rgba(30, 64, 175, 0.4);
 
   /* Text — 4 levels */
-  --text-primary: #ffffff;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
-  --text-ghost: #374151;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --text-ghost: #d1d5db;
 
-  /* Accent — Teal */
-  --accent: #14b8a6;
-  --accent-hover: #0d9488;
-  --accent-bg: rgba(20, 184, 166, 0.1);
-  --accent-border: rgba(20, 184, 166, 0.25);
-  --accent-light: #2dd4bf;
-  --accent-dark: #0f766e;
+  /* Accent — Industrial Blue */
+  --accent: #1e40af;
+  --accent-hover: #1e3a8a;
+  --accent-bg: rgba(30, 64, 175, 0.08);
+  --accent-border: rgba(30, 64, 175, 0.2);
+  --accent-light: #3b82f6;
+  --accent-dark: #1e3a8a;
 
   /* Semantic colors */
-  --semantic-green: #22c55e;
-  --semantic-green-bg: rgba(34, 197, 94, 0.2);
-  --semantic-red: #ef4444;
-  --semantic-red-bg: rgba(239, 68, 68, 0.2);
-  --semantic-amber: #f59e0b;
-  --semantic-amber-bg: rgba(245, 158, 11, 0.2);
-  --semantic-blue: #3b82f6;
-  --semantic-blue-bg: rgba(59, 130, 246, 0.2);
+  --semantic-green: #16a34a;
+  --semantic-green-bg: rgba(22, 163, 74, 0.1);
+  --semantic-red: #dc2626;
+  --semantic-red-bg: rgba(220, 38, 38, 0.1);
+  --semantic-amber: #d97706;
+  --semantic-amber-bg: rgba(217, 119, 6, 0.1);
+  --semantic-blue: #2563eb;
+  --semantic-blue-bg: rgba(37, 99, 235, 0.1);
 
   /* Interactive surfaces */
-  --hover-overlay: rgba(255, 255, 255, 0.03);
-  --active-overlay: rgba(255, 255, 255, 0.06);
-  --selected-bg: rgba(20, 184, 166, 0.08);
+  --hover-overlay: rgba(0, 0, 0, 0.03);
+  --active-overlay: rgba(0, 0, 0, 0.06);
+  --selected-bg: rgba(30, 64, 175, 0.06);
 
   /* Special — CTA */
-  --cta-bg: #e74c3c;
-  --cta-hover: #c0392b;
+  --cta-bg: #dc2626;
+  --cta-hover: #b91c1c;
 
   /* Icon circles */
-  --icon-circle-accent: rgba(20, 184, 166, 0.15);
-  --icon-circle-blue: rgba(59, 130, 246, 0.15);
-  --icon-circle-green: rgba(34, 197, 94, 0.15);
-  --icon-circle-amber: rgba(245, 158, 11, 0.15);
+  --icon-circle-accent: rgba(30, 64, 175, 0.1);
+  --icon-circle-blue: rgba(37, 99, 235, 0.1);
+  --icon-circle-green: rgba(22, 163, 74, 0.1);
+  --icon-circle-amber: rgba(217, 119, 6, 0.1);
 
   /* Notification badge */
-  --notif-bg: #ef4444;
+  --notif-bg: #dc2626;
+
+  /* Shadows — subtle for light mode */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-glow: 0 0 20px rgba(30, 64, 175, 0.1);
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+
+  /* ═══ NON-THEMED TOKENS ═══ */
 
   /* Typography — font stacks */
   --font-body: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
@@ -102,13 +111,11 @@
   --radius-md: 12px;
   --radius-lg: 16px;
 
-  /* Shadows */
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
-  --shadow-glow: 0 0 20px rgba(20, 184, 166, 0.15);
-  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
-
   /* Layout */
   --sidebar-width: 220px;
+  --page-max-width: 1600px;
+  --sidebar-width-open: 300px;
+  --sidebar-width-collapsed: 42px;
 
   /* Z-index */
   --z-sticky: 2;
@@ -127,20 +134,82 @@
   --grid-cell-font: 11px;
   --grid-cell-pad: 5px 3px;
   --grid-header-font: 11px;
+}
 
-  /* Layout */
-  --page-max-width: 1520px;
-  --sidebar-width-open: 300px;
-  --sidebar-width-collapsed: 42px;
+/* ═══ DARK MODE ═══ */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-void: #0d0d0d;
+  --bg-base: #141414;
+  --bg-card: #141414;
+  --bg-raised: #1a1a1a;
+
+  /* Borders */
+  --border-subtle: #1f1f1f;
+  --border-default: #1f1f1f;
+  --border-hover: rgba(59, 130, 246, 0.3);
+  --border-active: rgba(59, 130, 246, 0.4);
+
+  /* Text */
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-ghost: #374151;
+
+  /* Accent — Lighter blue for dark backgrounds */
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-bg: rgba(59, 130, 246, 0.1);
+  --accent-border: rgba(59, 130, 246, 0.25);
+  --accent-light: #60a5fa;
+  --accent-dark: #1e40af;
+
+  /* Semantic colors — brighter for dark bg */
+  --semantic-green: #22c55e;
+  --semantic-green-bg: rgba(34, 197, 94, 0.2);
+  --semantic-red: #ef4444;
+  --semantic-red-bg: rgba(239, 68, 68, 0.2);
+  --semantic-amber: #f59e0b;
+  --semantic-amber-bg: rgba(245, 158, 11, 0.2);
+  --semantic-blue: #3b82f6;
+  --semantic-blue-bg: rgba(59, 130, 246, 0.2);
+
+  /* Interactive surfaces */
+  --hover-overlay: rgba(255, 255, 255, 0.03);
+  --active-overlay: rgba(255, 255, 255, 0.06);
+  --selected-bg: rgba(59, 130, 246, 0.08);
+
+  /* Special — CTA */
+  --cta-bg: #e74c3c;
+  --cta-hover: #c0392b;
+
+  /* Icon circles */
+  --icon-circle-accent: rgba(59, 130, 246, 0.15);
+  --icon-circle-blue: rgba(59, 130, 246, 0.15);
+  --icon-circle-green: rgba(34, 197, 94, 0.15);
+  --icon-circle-amber: rgba(245, 158, 11, 0.15);
+
+  /* Notification badge */
+  --notif-bg: #ef4444;
+
+  /* Shadows — stronger for dark mode */
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.15);
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 html {
   scroll-behavior: smooth;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
   color-scheme: dark;
 }
 
 body {
   font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-void);
@@ -152,11 +221,11 @@ code {
   font-family: var(--font-mono);
 }
 
-/* Dark theme for form elements */
+/* Form elements follow theme color-scheme */
 select,
 input,
 textarea {
-  color-scheme: dark;
+  color-scheme: inherit;
 }
 
 /* Scrollbar styling */
@@ -222,7 +291,7 @@ textarea {
     slideUp 0.4s ease-out;
 }
 
-/* Page description — subtítulo descritivo em cada página */
+/* Page description */
 .page-desc {
   font-size: var(--text-small);
   color: var(--text-muted);

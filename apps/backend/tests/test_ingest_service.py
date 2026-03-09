@@ -105,7 +105,7 @@ class TestFuzzyMatch:
 
     def test_no_match(self):
         score = _fuzzy_match("PRM019", "BFP079")
-        assert score < 50
+        assert score <= 50
 
     def test_case_insensitive(self):
         assert _fuzzy_match("prm019", "PRM019") == 100

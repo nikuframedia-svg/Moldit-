@@ -80,10 +80,10 @@ export const TEXT = {
 
 /** Primary brand / action color */
 export const PRIMARY = {
-  base: '#2563EB',
-  hover: '#1D4ED8',
+  base: '#1E40AF',
+  hover: '#1E3A8A',
   light: '#DBEAFE',
-  dark: '#1E40AF',
+  dark: '#1E3A8A',
 } as const;
 
 /** Consolidated export */

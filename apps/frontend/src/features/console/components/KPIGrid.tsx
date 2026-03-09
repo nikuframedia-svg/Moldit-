@@ -1,8 +1,19 @@
 /**
- * KPIGrid — 6 compact metric cards for the selected day.
+ * KPIGrid — 6 premium KPI cards with sparklines for the selected day.
+ * Uses KPICard from Industrial/ for ECharts sparklines + trend + status bar.
  */
 
+import { KPICard } from '@/components/Industrial/KPICard';
 import './KPIGrid.css';
+
+export interface KPISparklines {
+  pcs: number[];
+  ops: number[];
+  util: number[];
+  setup: number[];
+  alerts: number[];
+  operators: number[];
+}
 
 interface KPIGridProps {
   totalPcs: number;
@@ -14,15 +25,27 @@ interface KPIGridProps {
   overflowCount: number;
   operatorsByArea: { pg1: number; pg2: number; total: number };
   operatorCapacity: { pg1: number; pg2: number };
+  sparklines?: KPISparklines;
+  otd?: number;
+  otdSparkline?: number[];
 }
 
-type Variant = 'teal' | 'green' | 'amber' | 'red';
+function utilColor(v: number): string {
+  if (v >= 0.85) return 'var(--semantic-amber)';
+  if (v >= 0.6) return 'var(--semantic-green)';
+  return 'var(--accent)';
+}
 
-interface KPICard {
-  label: string;
-  value: string;
-  sub?: string;
-  variant: Variant;
+function otdColor(v: number): string {
+  if (v >= 0.95) return 'var(--semantic-green)';
+  if (v >= 0.85) return 'var(--semantic-amber)';
+  return 'var(--semantic-red)';
+}
+
+function alertColor(n: number): string {
+  if (n === 0) return 'var(--semantic-green)';
+  if (n <= 3) return 'var(--semantic-amber)';
+  return 'var(--semantic-red)';
 }
 
 export function KPIGrid(props: KPIGridProps) {
@@ -34,73 +57,61 @@ export function KPIGrid(props: KPIGridProps) {
     violationCount,
     infeasibleCount,
     overflowCount,
-    operatorsByArea,
-    operatorCapacity,
+    sparklines,
+    otd,
+    otdSparkline,
   } = props;
 
   const alertCount = violationCount + infeasibleCount;
-
-  const utilPct = (factoryUtil * 100).toFixed(0);
-  const utilVariant: Variant = factoryUtil < 0.6 ? 'green' : factoryUtil < 0.85 ? 'teal' : 'amber';
-
-  const alertVariant: Variant = alertCount === 0 ? 'green' : alertCount <= 3 ? 'amber' : 'red';
-
-  const totalCap = operatorCapacity.pg1 + operatorCapacity.pg2;
-  const opVariant: Variant = operatorsByArea.total <= totalCap ? 'teal' : 'red';
-
   const setupH = Math.floor(totalSetupMin / 60);
-  const setupM = totalSetupMin % 60;
-
-  const cards: KPICard[] = [
-    {
-      label: 'Producao',
-      value: `${totalProdMinToHours(props.totalPcs)}`,
-      sub: `${totalPcs.toLocaleString()} pcs`,
-      variant: totalPcs > 0 ? 'teal' : 'teal',
-    },
-    {
-      label: 'Operacoes',
-      value: `${totalOps}`,
-      variant: 'teal',
-    },
-    {
-      label: 'Utilizacao',
-      value: `${utilPct}%`,
-      variant: utilVariant,
-    },
-    {
-      label: 'Setup',
-      value: `${setupH}h${setupM > 0 ? `${setupM}m` : ''}`,
-      variant: 'teal',
-    },
-    {
-      label: 'Alertas',
-      value: `${alertCount}`,
-      sub: overflowCount > 0 ? `${overflowCount} overflow` : undefined,
-      variant: alertVariant,
-    },
-    {
-      label: 'Operadores',
-      value: `${operatorsByArea.total}`,
-      sub: `G:${operatorsByArea.pg1} M:${operatorsByArea.pg2} / cap ${totalCap}`,
-      variant: opVariant,
-    },
-  ];
+  const setupM = Math.round(totalSetupMin % 60);
 
   return (
     <div className="kpi-grid" data-testid="kpi-grid">
-      {cards.map((k) => (
-        <div key={k.label} className={`kpi-grid__card kpi-grid__card--${k.variant}`}>
-          <span className="kpi-grid__label">{k.label}</span>
-          <span className="kpi-grid__value">{k.value}</span>
-          {k.sub && <span className="kpi-grid__sub">{k.sub}</span>}
-        </div>
-      ))}
+      <KPICard
+        label="OTD"
+        value={otd != null ? `${otd.toFixed(0)}` : '—'}
+        unit="%"
+        sparkline={otdSparkline}
+        statusColor={otd != null ? otdColor(otd / 100) : undefined}
+      />
+      <KPICard
+        label="Producao"
+        value={totalPcs.toLocaleString()}
+        unit="pcs"
+        sparkline={sparklines?.pcs}
+        statusColor="var(--accent)"
+      />
+      <KPICard
+        label="Operacoes"
+        value={totalOps}
+        sparkline={sparklines?.ops}
+        statusColor="var(--accent)"
+      />
+      <KPICard
+        label="Utilizacao"
+        value={`${(factoryUtil * 100).toFixed(0)}`}
+        unit="%"
+        sparkline={sparklines?.util}
+        statusColor={utilColor(factoryUtil)}
+      />
+      <KPICard
+        label="Setup"
+        value={`${setupH}h${setupM > 0 ? `${setupM}m` : ''}`}
+        sparkline={sparklines?.setup}
+        statusColor="var(--accent)"
+      />
+      <KPICard
+        label="Alertas"
+        value={alertCount}
+        trend={
+          overflowCount > 0
+            ? { direction: 'up' as const, label: `${overflowCount} overflow` }
+            : undefined
+        }
+        sparkline={sparklines?.alerts}
+        statusColor={alertColor(alertCount)}
+      />
     </div>
   );
-}
-
-/** Helper — just format pcs, not minutes. The "Producao" card shows pcs. */
-function totalProdMinToHours(pcs: number): string {
-  return pcs.toLocaleString();
 }

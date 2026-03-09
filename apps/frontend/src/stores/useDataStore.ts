@@ -15,6 +15,13 @@ import { persist } from 'zustand/middleware';
 import type { MasterISOPData, NikufraData } from '../domain/nikufra-types';
 import { useToastStore } from './useToastStore';
 
+export interface TrustDimensions {
+  completeness: number;
+  quality: number;
+  demandCoverage: number;
+  consistency: number;
+}
+
 export interface LoadMeta {
   rows: number;
   machines: number;
@@ -23,6 +30,7 @@ export interface LoadMeta {
   dates: number;
   workdays: number;
   trustScore: number;
+  trustDimensions?: TrustDimensions;
   warnings: string[];
 }
 

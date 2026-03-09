@@ -38,9 +38,76 @@ const DispatchRuleSchema = z.enum(['EDD', 'CR', 'WSPT', 'SPT', 'ATCS']);
 
 const DirectionSchema = z.enum(['forward', 'backward']);
 
+// ── L2: SE/ENTÃO Rules ────────────────────────────────────
+
+const RuleConditionSchema = z.object({
+  field: z.string(),
+  operator: z.enum(['>', '<', '>=', '<=', '==', '!=']),
+  value: z.number(),
+  action: z.string(),
+});
+
+const L2RulesSchema = z.object({
+  rules: z.array(RuleConditionSchema).default([]),
+});
+
+// ── L3: Custom Formulas ───────────────────────────────────
+
+const FormulaSchema = z.object({
+  name: z.string(),
+  expression: z.string(),
+  variables: z.array(z.string()).default([]),
+});
+
+const L3FormulasSchema = z.object({
+  formulas: z.array(FormulaSchema).default([]),
+});
+
+// ── L4: Concept Definitions ───────────────────────────────
+
+const ConceptDefinitionSchema = z.object({
+  name: z.string(),
+  formula: z.string(),
+  threshold: z.number().optional(),
+});
+
+const L4DefinitionsSchema = z.object({
+  definitions: z.array(ConceptDefinitionSchema).default([]),
+});
+
+// ── L5: Governance ────────────────────────────────────────
+
+const GovernanceLevelSchema = z.enum(['L0', 'L1', 'L2', 'L3', 'L4', 'L5']);
+
+const ApprovalRuleSchema = z.object({
+  action: z.string(),
+  requiredLevel: GovernanceLevelSchema,
+  approvers: z.array(z.string()).default([]),
+});
+
+const L5GovernanceSchema = z.object({
+  defaultLevel: GovernanceLevelSchema.default('L1'),
+  approvalRules: z.array(ApprovalRuleSchema).default([]),
+});
+
+// ── L6: Multi-Step Strategy ───────────────────────────────
+
+const StrategyStepSchema = z.object({
+  dispatchRule: DispatchRuleSchema,
+  condition: z.string().optional(),
+  maxIterations: z.number().int().positive().default(1),
+});
+
+const L6StrategySchema = z.object({
+  steps: z.array(StrategyStepSchema).default([]),
+  fallbackRule: DispatchRuleSchema.default('ATCS'),
+});
+
+// ── Main Schema ───────────────────────────────────────────
+
 export const SchedulingConfigSchema = z.object({
   /** Config schema version (for migration) */
-  version: z.number().int().positive().default(1),
+  version: z.number().int().positive().default(2),
   /** Objective weights (must sum to 1.0) */
   weights: WeightsSchema.default({ otd: 0.7, setup: 0.2, utilization: 0.1 }),
   /** Dispatch rule for scheduling */
@@ -69,6 +136,16 @@ export const SchedulingConfigSchema = z.object({
     .optional(),
   /** SA iterations (0 = skip SA) */
   saIterations: z.number().int().min(0).max(100_000).default(10_000),
+  /** L2: SE/ENTÃO rules (react-querybuilder → json-rules-engine) */
+  l2Rules: L2RulesSchema.optional(),
+  /** L3: Custom formulas (expr-eval — safe parser, no eval) */
+  l3Formulas: L3FormulasSchema.optional(),
+  /** L4: Concept definitions ("atrasado" = custom formula per factory) */
+  l4Definitions: L4DefinitionsSchema.optional(),
+  /** L5: Governance & approvals (who approves what, L0-L5) */
+  l5Governance: L5GovernanceSchema.optional(),
+  /** L6: Multi-step strategy (sequence of dispatch rules like Asprova) */
+  l6Strategy: L6StrategySchema.optional(),
 });
 
 /** Inferred TypeScript type from the Zod schema */
@@ -109,6 +186,32 @@ export const POLICY_URGENT: Partial<SchedulingConfig> = {
   saIterations: 2000,
 };
 
+/** Incompol Standard: factory default for Incompol (5 prensas, 59 ferramentas) */
+export const POLICY_INCOMPOL_STANDARD: Partial<SchedulingConfig> = {
+  weights: { otd: 0.7, setup: 0.2, utilization: 0.1 },
+  dispatchRule: 'ATCS',
+  direction: 'forward',
+  frozenHorizonDays: 5,
+  lotEconomicoMode: 'relaxed',
+  emergencyNightShift: false,
+  constraints: {
+    setupCrew: { mode: 'hard' },
+    toolTimeline: { mode: 'hard' },
+    calcoTimeline: { mode: 'hard' },
+    operatorPool: { mode: 'hard' },
+  },
+  saIterations: 10_000,
+  l5Governance: {
+    defaultLevel: 'L1',
+    approvalRules: [
+      { action: 'edit_plan_frozen', requiredLevel: 'L4', approvers: [] },
+      { action: 'edit_plan_slushy', requiredLevel: 'L3', approvers: [] },
+      { action: 'enable_night_shift', requiredLevel: 'L4', approvers: [] },
+      { action: 'override_priority', requiredLevel: 'L3', approvers: [] },
+    ],
+  },
+};
+
 // ── Validation ──────────────────────────────────────────
 
 /**
@@ -132,12 +235,17 @@ export function migrateConfig(old: unknown, fromVersion: number): SchedulingConf
     return DEFAULT_SCHEDULING_CONFIG;
   }
 
-  // v1 → current: no migration needed yet, just validate
+  // v1 → v2: add version bump, L2-L6 are optional (no-op migration)
   if (fromVersion === 1) {
+    const patched = { ...(old as Record<string, unknown>), version: 2 };
+    return SchedulingConfigSchema.parse(patched);
+  }
+
+  // v2 → current: validate as-is
+  if (fromVersion === 2) {
     return SchedulingConfigSchema.parse(old);
   }
 
-  // Future: add fromVersion === 2 → 3, etc.
   // Unknown future version: strip unknown fields, parse what we can
   return SchedulingConfigSchema.parse(old);
 }

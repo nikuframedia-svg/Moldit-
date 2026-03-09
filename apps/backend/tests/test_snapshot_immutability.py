@@ -14,6 +14,22 @@ from src.domain.snapshot.repository import SnapshotRepository
 from src.main import app
 
 
+def _pg_available() -> bool:
+    """Check if PostgreSQL is accessible."""
+    try:
+        from src.db.base import SessionLocal
+
+        db = SessionLocal()
+        db.execute("SELECT 1")  # type: ignore[arg-type]
+        db.close()
+        return True
+    except Exception:
+        return False
+
+
+requires_pg = pytest.mark.skipif(not _pg_available(), reason="PostgreSQL not available")
+
+
 @pytest.fixture
 def client():
     return TestClient(app)
@@ -32,6 +48,7 @@ def db_session():
         db.close()
 
 
+@requires_pg
 def test_seal_snapshot(db_session: Session):
     """Testa que selar snapshot funciona"""
     # Criar snapshot de teste
@@ -54,6 +71,7 @@ def test_seal_snapshot(db_session: Session):
     assert sealed.snapshot_id == snapshot.snapshot_id
 
 
+@requires_pg
 def test_seal_already_sealed_fails(db_session: Session):
     """Testa que selar snapshot já selado falha"""
     # Criar snapshot selado
@@ -78,6 +96,7 @@ def test_seal_already_sealed_fails(db_session: Session):
     assert "already sealed" in exc_info.value.detail.lower()
 
 
+@requires_pg
 def test_update_check_immutability_sealed(db_session: Session):
     """Testa que tentar atualizar snapshot selado falha"""
     # Criar snapshot selado
@@ -102,6 +121,7 @@ def test_update_check_immutability_sealed(db_session: Session):
     assert "sealed" in exc_info.value.detail.lower() or "immutable" in exc_info.value.detail.lower()
 
 
+@requires_pg
 def test_update_check_immutability_not_sealed(db_session: Session):
     """Testa que snapshot não selado pode ser atualizado (check passa)"""
     # Criar snapshot não selado

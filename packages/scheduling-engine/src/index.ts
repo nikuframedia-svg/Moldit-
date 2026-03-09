@@ -35,6 +35,7 @@ export {
   DEFAULT_SCHEDULING_CONFIG,
   migrateConfig,
   POLICY_BALANCED,
+  POLICY_INCOMPOL_STANDARD,
   POLICY_MAX_OTD,
   POLICY_MIN_SETUPS,
   POLICY_URGENT,
@@ -190,6 +191,9 @@ export type { ScheduleAllInput, ScheduleAllResult } from './scheduler/scheduler.
 // ── Scheduler (CORE) ──
 export { scheduleAll, scheduleFromEngineData } from './scheduler/scheduler.js';
 export { computeShippingDeadlines } from './scheduler/shipping-cutoff.js';
+export type { UCB1Arm, UCB1ArmStats, UCB1State } from './scheduler/ucb1-selector.js';
+// ── UCB1 Selector ──
+export { DISPATCH_BANDIT, UCB1Selector } from './scheduler/ucb1-selector.js';
 export { computeDeficitEvolution, computeWorkContent } from './scheduler/work-content.js';
 // ── Normalize ──
 export { FactoryLookup, normalizeNikufraData } from './transform/normalize.js';

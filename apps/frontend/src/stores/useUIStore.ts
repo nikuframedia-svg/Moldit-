@@ -10,6 +10,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type TemporalZoom = 'shift' | 'day' | 'week';
+export type ThemeMode = 'light' | 'dark';
 
 export interface FocusContext {
   machine?: string | null;
@@ -29,6 +30,8 @@ export interface UIActions {
   closeContextPanel: () => void;
   setTemporalZoom: (zoom: TemporalZoom) => void;
   setSelectedDayIdx: (idx: number) => void;
+  setTheme: (theme: ThemeMode) => void;
+  toggleTheme: () => void;
 }
 
 interface UIStoreState {
@@ -38,6 +41,7 @@ interface UIStoreState {
   contextEntity: { type: string; id: string } | null;
   temporalZoom: TemporalZoom;
   selectedDayIdx: number;
+  theme: ThemeMode;
   actions: UIActions;
 }
 
@@ -50,6 +54,7 @@ export const useUIStore = create<UIStoreState>()(
       contextEntity: null,
       temporalZoom: 'day',
       selectedDayIdx: 0,
+      theme: 'light',
 
       actions: {
         openCommandPalette: () => set({ commandPaletteOpen: true }),
@@ -61,6 +66,8 @@ export const useUIStore = create<UIStoreState>()(
         closeContextPanel: () => set({ contextPanelOpen: false, contextEntity: null }),
         setTemporalZoom: (zoom) => set({ temporalZoom: zoom }),
         setSelectedDayIdx: (idx) => set({ selectedDayIdx: idx }),
+        setTheme: (theme) => set({ theme }),
+        toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
       },
     }),
     {
@@ -68,6 +75,7 @@ export const useUIStore = create<UIStoreState>()(
       partialize: (state) => ({
         temporalZoom: state.temporalZoom,
         selectedDayIdx: state.selectedDayIdx,
+        theme: state.theme,
       }),
     },
   ),
@@ -79,4 +87,5 @@ export const useContextPanelOpen = () => useUIStore((s) => s.contextPanelOpen);
 export const useContextEntity = () => useUIStore((s) => s.contextEntity);
 export const useFocus = () => useUIStore((s) => s.focus);
 export const useSelectedDayIdx = () => useUIStore((s) => s.selectedDayIdx);
+export const useTheme = () => useUIStore((s) => s.theme);
 export const useUIActions = () => useUIStore((s) => s.actions);

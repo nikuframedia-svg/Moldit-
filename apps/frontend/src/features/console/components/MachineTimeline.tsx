@@ -3,6 +3,7 @@
  * Blocks positioned absolutely based on startMin/endMin relative to S0-S1.
  */
 
+import { useMemo } from 'react';
 import type { MachineLoad } from '@/hooks/useDayData';
 import type { Block, EngineData } from '@/lib/engine';
 import { fmtMin, S0, S1, T1 } from '@/lib/engine';
@@ -12,6 +13,11 @@ const RANGE = S1 - S0; // 1020 min
 
 const SCALE_TICKS = ['07:00', '10:00', '13:00', '15:30', '18:00', '21:00', '24:00'];
 const SHIFT_LINE_PCT = ((T1 - S0) / RANGE) * 100;
+
+function getNowMin(): number {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
 
 interface MachineTimelineProps {
   engine: EngineData;
@@ -30,6 +36,11 @@ export function MachineTimeline({
   onBlockClick,
   onMachineClick,
 }: MachineTimelineProps) {
+  const nowMin = useMemo(() => getNowMin(), []);
+  const isToday = date === new Date().toISOString().slice(0, 10);
+  const nowInRange = isToday && nowMin >= S0 && nowMin <= S1;
+  const nowPct = nowInRange ? ((nowMin - S0) / RANGE) * 100 : -1;
+
   return (
     <div className="mtl" data-testid="machine-timeline">
       <div className="mtl__header">
@@ -62,6 +73,8 @@ export function MachineTimeline({
             <div className="mtl__bar">
               {/* Shift separator at T1 (15:30) */}
               <div className="mtl__shift-line" style={{ left: `${SHIFT_LINE_PCT}%` }} />
+              {/* Now line */}
+              {nowPct >= 0 && <div className="mtl__now-line" style={{ left: `${nowPct}%` }} />}
 
               {mBlocks.map((b, i) => {
                 // Clamp to visible range
@@ -103,7 +116,7 @@ export function MachineTimeline({
                       />
                     )}
                     <div
-                      className={`mtl__block mtl__block--${blockType}`}
+                      className={`mtl__block mtl__block--${blockType}${nowInRange ? (b.endMin <= nowMin ? ' mtl__block--past' : b.startMin >= nowMin ? ' mtl__block--future' : '') : ''}`}
                       style={{ left: `${left}%`, width: `${Math.max(width, 0.2)}%` }}
                       title={`${b.toolId} · ${b.sku} · ${b.qty.toLocaleString()} pcs · ${fmtMin(b.startMin)}–${fmtMin(b.endMin)} · ${b.shift}`}
                       onClick={() => onBlockClick(b)}

@@ -1,4 +1,4 @@
-/* App Layout — Sidebar + Content */
+/* App Layout — Sidebar + Header + Content */
 
 .app-layout {
   min-height: 100vh;
@@ -9,7 +9,39 @@
 
 .app-layout__main {
   flex: 1;
-  padding: 0;
   margin-left: var(--sidebar-width, 220px);
   margin-bottom: 32px; /* Space for FocusStrip */
+  overflow-x: hidden;
+}
+
+/* ── Header ── */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-topbar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-12) var(--space-24);
+  background-color: var(--bg-base);
+  border-bottom: 1px solid var(--border-subtle);
+  backdrop-filter: blur(8px);
+}
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.app-header__search {
+  width: 220px;
+}
+
+/* ── Content ── */
+
+.app-layout__content {
+  max-width: var(--page-max-width, 1600px);
+  padding: var(--space-24);
 }

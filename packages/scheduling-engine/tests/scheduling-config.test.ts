@@ -50,7 +50,7 @@ function makeCtx(overrides: Partial<SchedulingContext> = {}): SchedulingContext 
 describe('SchedulingConfigSchema', () => {
   it('parses empty object with defaults', () => {
     const config = SchedulingConfigSchema.parse({});
-    expect(config.version).toBe(1);
+    expect(config.version).toBe(2);
     expect(config.weights.otd).toBe(0.7);
     expect(config.weights.setup).toBe(0.2);
     expect(config.weights.utilization).toBe(0.1);

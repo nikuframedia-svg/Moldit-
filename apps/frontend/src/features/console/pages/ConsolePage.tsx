@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonCard, SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { StatusBanner } from '@/components/Common/StatusBanner';
@@ -14,20 +15,23 @@ import { useScheduleData } from '@/hooks/useScheduleData';
 import type { Block } from '@/lib/engine';
 import { C, DAY_CAP } from '@/lib/engine';
 import { useUIStore } from '@/stores/useUIStore';
+import { ActiveDecisions } from '../components/ActiveDecisions';
+import { AlertsFeed } from '../components/AlertsFeed';
 import { AlertsPanel } from '../components/AlertsPanel';
 import { D1Preparation } from '../components/D1Preparation';
 import { DayOrders } from '../components/DayOrders';
 import { DaySelector } from '../components/DaySelector';
 import { KPIGrid } from '../components/KPIGrid';
+import { MachineStatusGrid } from '../components/MachineStatusGrid';
 import { MachineTimeline } from '../components/MachineTimeline';
 import { OperatorPanel } from '../components/OperatorPanel';
-import { SystemDecisions } from '../components/SystemDecisions';
 import { TransparencyPanel } from '../components/TransparencyPanel';
+import { WorkforceNeeds } from '../components/WorkforceNeeds';
 import './ConsolePage.css';
 
 export function ConsolePage() {
   const { dayData, loading, error } = useDayData();
-  const { engine, cap, blocks: allBlocks } = useScheduleData();
+  const { engine, cap, blocks: allBlocks, metrics, validation } = useScheduleData();
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
   const setSelectedDayIdx = useUIStore((s) => s.actions.setSelectedDayIdx);
   const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
@@ -49,6 +53,47 @@ export function ConsolePage() {
       return totalCap > 0 ? totalUsed / totalCap : 0;
     });
   }, [engine, cap]);
+
+  // Sparkline data: last 7 days of KPIs relative to selected day
+  const sparklines = useMemo(() => {
+    if (!engine || !cap || !dayData) return undefined;
+    const idx = dayData.dayIdx;
+    const pcs: number[] = [];
+    const ops: number[] = [];
+    const util: number[] = [];
+    const setup: number[] = [];
+    const alerts: number[] = [];
+
+    for (let d = Math.max(0, idx - 6); d <= idx; d++) {
+      let dPcs = 0,
+        dOps = 0,
+        dSetup = 0,
+        dUsed = 0,
+        dCap = 0;
+      for (const m of engine.machines) {
+        const load = cap[m.id]?.[d];
+        if (load) {
+          dPcs += load.pcs;
+          dOps += load.ops;
+          dSetup += load.setup;
+          dUsed += load.prod + load.setup;
+          dCap += DAY_CAP;
+        }
+      }
+      pcs.push(dPcs);
+      ops.push(dOps);
+      util.push(dCap > 0 ? dUsed / dCap : 0);
+      setup.push(dSetup);
+
+      const dayViolations =
+        validation?.violations.filter((v) => v.affectedOps.some((a) => a.dayIdx === d)).length ?? 0;
+      alerts.push(dayViolations);
+    }
+    return { pcs, ops, util, setup, alerts, operators: [] };
+  }, [engine, cap, dayData, validation]);
+
+  // OTD from global metrics
+  const otd = metrics?.otdDelivery;
 
   // Feasibility score for this day (ok blocks / total blocks)
   const dayFeasibilityScore = useMemo(() => {
@@ -99,6 +144,17 @@ export function ConsolePage() {
       setFocus({ machine: machineId });
     },
     [openContextPanel, setFocus],
+  );
+
+  const handleNavigateToBlock = useCallback(
+    (opId: string) => {
+      const block = allBlocks.find((b) => b.opId === opId);
+      if (block) {
+        openContextPanel({ type: 'tool', id: block.toolId });
+        setFocus({ machine: block.machineId, toolId: block.toolId, dayIdx: block.dayIdx });
+      }
+    },
+    [allBlocks, openContextPanel, setFocus],
   );
 
   // Loading state
@@ -192,6 +248,13 @@ export function ConsolePage() {
 
         <StatusBanner variant={bannerVariant} message={bannerMessage} />
 
+        <Link
+          to={`/console/day/${dayData.date}`}
+          style={{ fontSize: 11, color: C.ac, textDecoration: 'none', alignSelf: 'flex-end' }}
+        >
+          Ver dia completo →
+        </Link>
+
         <KPIGrid
           totalPcs={dayData.totalPcs}
           totalOps={dayData.totalOps}
@@ -202,8 +265,17 @@ export function ConsolePage() {
           overflowCount={dayData.overflowBlocks.length}
           operatorsByArea={dayData.operatorsByArea}
           operatorCapacity={dayData.operatorCapacity}
+          sparklines={sparklines}
+          otd={otd}
         />
       </div>
+
+      {/* Machine status cards */}
+      <MachineStatusGrid
+        engine={dayData.engine}
+        blocks={dayData.blocks}
+        machineLoads={dayData.machineLoads}
+      />
 
       {/* Two-column body */}
       <div className="cmd__body">
@@ -236,13 +308,23 @@ export function ConsolePage() {
             dayName={dayData.dayName}
           />
 
+          <AlertsFeed />
+
           <AlertsPanel
             violations={dayData.violations}
             infeasibilities={dayData.infeasibilities}
             feasibilityScore={dayFeasibilityScore}
           />
 
-          <SystemDecisions decisions={dayData.systemDecisions} />
+          <ActiveDecisions
+            decisions={dayData.systemDecisions}
+            onNavigateToBlock={handleNavigateToBlock}
+          />
+
+          <WorkforceNeeds
+            forecast={dayData.d1Forecast}
+            operatorCapacity={dayData.operatorCapacity}
+          />
 
           <D1Preparation
             forecast={dayData.d1Forecast}
