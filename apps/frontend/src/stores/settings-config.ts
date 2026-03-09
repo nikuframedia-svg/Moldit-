@@ -10,6 +10,7 @@ import type {
   DispatchRule,
   MOStrategy,
   ServiceLevelOption,
+  SettingsState,
 } from './settings-types';
 import { useSettingsStore } from './useSettingsStore';
 
@@ -136,4 +137,12 @@ export function getTransformConfig(): TransformConfigFromSettings {
     moCustomPG2: s.moCustomPG2,
     demandSemantics: s.demandSemantics,
   };
+}
+
+// ── Settings Hash Selector ──
+
+/** Zustand selector that produces a stable hash of all scheduling-relevant settings. */
+export function settingsHashSelector(s: SettingsState): string {
+  const { actions: _, autoReplanConfig: __, ...rest } = s;
+  return JSON.stringify(rest);
 }
