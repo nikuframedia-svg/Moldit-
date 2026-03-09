@@ -1,0 +1,197 @@
+import { X } from 'lucide-react';
+import { C } from '../../../../lib/engine';
+import type { EditingDown } from './whatif-types';
+
+export function DownPeriodEditor({
+  editingDown,
+  setEditingDown,
+  dates,
+  dnames,
+  wdi,
+  wiDownStartDay,
+  setWiDownStartDay,
+  wiDownEndDay,
+  setWiDownEndDay,
+  getResourceDownDays,
+  setResourceDown,
+  clearResourceDown,
+  setRes,
+}: {
+  editingDown: NonNullable<EditingDown>;
+  setEditingDown: (ed: EditingDown) => void;
+  dates: string[];
+  dnames: string[];
+  wdi: number[];
+  wiDownStartDay: number;
+  setWiDownStartDay: (d: number) => void;
+  wiDownEndDay: number;
+  setWiDownEndDay: (d: number) => void;
+  getResourceDownDays: (type: 'machine' | 'tool', id: string) => Set<number>;
+  setResourceDown: (type: 'machine' | 'tool', id: string, days: number[]) => void;
+  clearResourceDown: (type: 'machine' | 'tool', id: string) => void;
+  setRes: (r: null) => void;
+}) {
+  const currentDown = getResourceDownDays(editingDown.type, editingDown.id);
+  const selectStyle = {
+    padding: '3px 6px',
+    borderRadius: 4,
+    border: `1px solid ${C.bd}`,
+    background: C.bg,
+    color: C.t1,
+    fontSize: 10,
+    fontFamily: 'inherit',
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: 10,
+        borderRadius: 8,
+        background: 'rgba(255,255,255,0.03)',
+        border: `1px solid ${C.bd}`,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 8,
+        }}
+      >
+        <span style={{ fontSize: 11, fontWeight: 600, color: C.t1 }}>
+          Período DOWN:{' '}
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", color: C.rd }}>
+            {editingDown.id}
+          </span>
+          <span style={{ fontSize: 9, fontWeight: 400, color: C.t4, marginLeft: 6 }}>
+            ({editingDown.type === 'machine' ? 'máquina' : 'ferramenta'})
+          </span>
+        </span>
+        <button
+          onClick={() => setEditingDown(null)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.t4, padding: 2 }}
+        >
+          <X size={12} />
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 10, color: C.t3, minWidth: 30 }}>De:</span>
+        <select
+          value={wiDownStartDay}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setWiDownStartDay(v);
+            if (wiDownEndDay < v) setWiDownEndDay(v);
+          }}
+          style={selectStyle}
+        >
+          {wdi.map((i) => (
+            <option key={i} value={i}>
+              {dnames[i]} {dates[i]}
+            </option>
+          ))}
+        </select>
+        <span style={{ fontSize: 10, color: C.t4 }}>até</span>
+        <select
+          value={wiDownEndDay}
+          onChange={(e) => setWiDownEndDay(Number(e.target.value))}
+          style={selectStyle}
+        >
+          {wdi
+            .filter((i) => i >= wiDownStartDay)
+            .map((i) => (
+              <option key={i} value={i}>
+                {dnames[i]} {dates[i]}
+              </option>
+            ))}
+        </select>
+        <button
+          onClick={() => {
+            const days: number[] = [];
+            for (let d = wiDownStartDay; d <= wiDownEndDay; d++) days.push(d);
+            setResourceDown(editingDown.type, editingDown.id, days);
+            setRes(null);
+          }}
+          style={{
+            padding: '3px 10px',
+            borderRadius: 4,
+            border: 'none',
+            background: C.rd,
+            color: C.t1,
+            fontSize: 9,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          Aplicar
+        </button>
+      </div>
+      {currentDown.size > 0 && (
+        <div style={{ display: 'flex', gap: 2, marginBottom: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 9, color: C.t4, minWidth: 30 }}>Dias:</span>
+          {dates.map((_d: string, i: number) => (
+            <div
+              key={i}
+              style={{
+                width: 6,
+                height: 18,
+                borderRadius: 2,
+                background: currentDown.has(i) ? C.rd : `${C.bd}44`,
+              }}
+              title={`${dnames[i]} ${dates[i]}${currentDown.has(i) ? ' — DOWN' : ''}`}
+            />
+          ))}
+          <span style={{ fontSize: 9, color: C.rd, fontWeight: 600, marginLeft: 4 }}>
+            {currentDown.size}d
+          </span>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button
+          onClick={() => {
+            setResourceDown(
+              editingDown.type,
+              editingDown.id,
+              dates.map((_: string, i: number) => i),
+            );
+            setRes(null);
+          }}
+          style={{
+            padding: '3px 10px',
+            borderRadius: 4,
+            border: `1px solid ${C.rd}44`,
+            background: C.rdS,
+            color: C.rd,
+            fontSize: 9,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontWeight: 600,
+          }}
+        >
+          Tudo DOWN
+        </button>
+        <button
+          onClick={() => {
+            clearResourceDown(editingDown.type, editingDown.id);
+            setRes(null);
+          }}
+          style={{
+            padding: '3px 10px',
+            borderRadius: 4,
+            border: `1px solid ${C.bd}`,
+            background: 'transparent',
+            color: C.t3,
+            fontSize: 9,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          Limpar
+        </button>
+      </div>
+    </div>
+  );
+}
