@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { C } from '../../../../lib/engine';
-import type { IntelData } from '../../intel-compute';
+import type { IntelData } from '../../compute';
 import { StatRow } from '../intel-atoms';
 import { cardSt, clientColorMap, fmtMin, fmtQty, MC, mono } from '../intel-helpers';
 

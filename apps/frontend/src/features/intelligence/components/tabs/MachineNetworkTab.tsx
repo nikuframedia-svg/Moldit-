@@ -1,5 +1,5 @@
 import { C } from '../../../../lib/engine';
-import type { IntelData } from '../../intel-compute';
+import type { IntelData } from '../../compute';
 import { StatRow } from '../intel-atoms';
 import { cardSt, mono } from '../intel-helpers';
 

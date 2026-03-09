@@ -1,6 +1,6 @@
 import React from 'react';
 import { C, TC } from '../../../../lib/engine';
-import type { IntelData } from '../../intel-compute';
+import type { IntelData } from '../../compute';
 import { StatRow } from '../intel-atoms';
 import { cardSt, labelSt, MC, mono, toolFamily } from '../intel-helpers';
 

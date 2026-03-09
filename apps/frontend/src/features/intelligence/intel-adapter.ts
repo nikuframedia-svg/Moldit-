@@ -13,7 +13,7 @@ import type {
   SnapshotRoutingOp,
   SnapshotSeriesEntry,
   SnapshotTool,
-} from './intel-compute';
+} from './compute';
 
 // ── Date conversion ──────────────────────────────────────────────────
 

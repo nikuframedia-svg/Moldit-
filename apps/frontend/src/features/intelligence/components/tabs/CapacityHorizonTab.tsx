@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { C, DAY_CAP } from '../../../../lib/engine';
-import type { IntelData } from '../../intel-compute';
+import type { IntelData } from '../../compute';
 import { MachineLegend, StatRow } from '../intel-atoms';
 import { fmtDate, fmtMin, MC, mono } from '../intel-helpers';
 
