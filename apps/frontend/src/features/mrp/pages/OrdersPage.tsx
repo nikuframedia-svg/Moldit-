@@ -9,42 +9,13 @@ import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { useScheduleData } from '@/hooks/useScheduleData';
+import type { Block, EngineData } from '@/lib/engine';
 import { C, computeMRP, computeMRPSkuView } from '@/lib/engine';
 import { KCard } from '../components/KCard';
-import { PeggingTree } from '../components/PeggingTree';
-import { fmtQty, mono } from '../utils/mrp-helpers';
-import type { ClientOrderGroup, OrderEntry } from '../utils/orders-compute';
+import { OrderTableRow } from '../components/OrderTableRow';
+import { mono } from '../utils/mrp-helpers';
+import type { ClientOrderGroup } from '../utils/orders-compute';
 import { computeOrderEntries, groupOrdersByClient } from '../utils/orders-compute';
-
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  done: { label: 'Concluída', color: C.ac, bg: `${C.ac}18` },
-  'on-time': { label: 'On-time', color: C.ac, bg: `${C.ac}18` },
-  'at-risk': { label: 'At-risk', color: C.yl, bg: `${C.yl}18` },
-  late: { label: 'Late', color: C.rd, bg: `${C.rd}18` },
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CFG[status] ?? STATUS_CFG['on-time'];
-  return (
-    <span
-      style={{
-        fontSize: 8,
-        fontWeight: 600,
-        padding: '2px 6px',
-        borderRadius: 3,
-        background: cfg.bg,
-        color: cfg.color,
-      }}
-    >
-      {cfg.label}
-    </span>
-  );
-}
-
-function OTDBadge({ pct }: { pct: number }) {
-  const color = pct >= 90 ? C.ac : pct >= 70 ? C.yl : C.rd;
-  return <span style={{ ...mono, fontSize: 10, fontWeight: 700, color }}>{pct}%</span>;
-}
 
 function ClientAccordion({
   group,
@@ -52,11 +23,12 @@ function ClientAccordion({
   blocks,
 }: {
   group: ClientOrderGroup;
-  engine: NonNullable<ReturnType<typeof useScheduleData>['engine']>;
-  blocks: ReturnType<typeof useScheduleData>['blocks'];
+  engine: EngineData;
+  blocks: Block[];
 }) {
   const [open, setOpen] = useState(false);
   const [selectedOp, setSelectedOp] = useState<string | null>(null);
+  const otdColor = group.otdPercent >= 90 ? C.ac : group.otdPercent >= 70 ? C.yl : C.rd;
 
   return (
     <div style={{ marginBottom: 4 }}>
@@ -72,7 +44,9 @@ function ClientAccordion({
         </span>
         <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <span style={{ fontSize: 10, color: C.t2 }}>{group.totalOrders} encomendas</span>
-          <OTDBadge pct={group.otdPercent} />
+          <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: otdColor }}>
+            {group.otdPercent}%
+          </span>
           {group.lateCount > 0 && (
             <span style={{ fontSize: 9, color: C.rd, fontWeight: 600 }}>
               {group.lateCount} late
@@ -83,115 +57,33 @@ function ClientAccordion({
           )}
         </span>
       </div>
-
       {open && (
-        <OrderTable
-          entries={group.entries}
-          selectedOp={selectedOp}
-          onSelectOp={(opId) => setSelectedOp(selectedOp === opId ? null : opId)}
-          engine={engine}
-          blocks={blocks}
-        />
+        <table className="mrp__table" style={{ marginTop: 4, marginBottom: 8 }}>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th style={{ textAlign: 'right' }}>Qtd</th>
+              <th>Data Pedida</th>
+              <th>Data Prevista</th>
+              <th>Estado</th>
+              <th style={{ textAlign: 'right' }}>Gap</th>
+            </tr>
+          </thead>
+          <tbody>
+            {group.entries.map((e) => (
+              <OrderTableRow
+                key={e.opId}
+                entry={e}
+                isSelected={selectedOp === e.opId}
+                onSelect={() => setSelectedOp(selectedOp === e.opId ? null : e.opId)}
+                engine={engine}
+                blocks={blocks}
+              />
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
-  );
-}
-
-function OrderTable({
-  entries,
-  selectedOp,
-  onSelectOp,
-  engine,
-  blocks,
-}: {
-  entries: OrderEntry[];
-  selectedOp: string | null;
-  onSelectOp: (opId: string) => void;
-  engine: NonNullable<ReturnType<typeof useScheduleData>['engine']>;
-  blocks: ReturnType<typeof useScheduleData>['blocks'];
-}) {
-  return (
-    <table className="mrp__table" style={{ marginTop: 4, marginBottom: 8 }}>
-      <thead>
-        <tr>
-          <th>SKU</th>
-          <th style={{ textAlign: 'right' }}>Qtd</th>
-          <th>Data Pedida</th>
-          <th>Data Prevista</th>
-          <th>Estado</th>
-          <th style={{ textAlign: 'right' }}>Gap</th>
-        </tr>
-      </thead>
-      <tbody>
-        {entries.map((e) => (
-          <OrderTableRow
-            key={e.opId}
-            entry={e}
-            isSelected={selectedOp === e.opId}
-            onSelect={() => onSelectOp(e.opId)}
-            engine={engine}
-            blocks={blocks}
-          />
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function OrderTableRow({
-  entry: e,
-  isSelected,
-  onSelect,
-  engine,
-  blocks,
-}: {
-  entry: OrderEntry;
-  isSelected: boolean;
-  onSelect: () => void;
-  engine: NonNullable<ReturnType<typeof useScheduleData>['engine']>;
-  blocks: ReturnType<typeof useScheduleData>['blocks'];
-}) {
-  return (
-    <>
-      <tr
-        style={{ cursor: 'pointer' }}
-        onClick={onSelect}
-        className={e.status === 'late' ? 'mrp__row--stockout' : ''}
-      >
-        <td>
-          <span style={{ ...mono, fontSize: 10, fontWeight: 600, color: C.t1 }}>{e.sku}</span>
-          {e.isTwin && <span style={{ fontSize: 8, color: C.yl, marginLeft: 4 }}>Twin</span>}
-        </td>
-        <td style={{ textAlign: 'right', ...mono, fontSize: 10, color: C.t1 }}>
-          {fmtQty(e.orderQty)}
-        </td>
-        <td style={{ ...mono, fontSize: 10, color: C.t2 }}>{e.deadline ?? '-'}</td>
-        <td style={{ ...mono, fontSize: 10, color: e.gapDays > 0 ? C.rd : C.t2 }}>
-          {e.scheduledEndDate ?? '-'}
-        </td>
-        <td>
-          <StatusBadge status={e.status} />
-        </td>
-        <td
-          style={{
-            textAlign: 'right',
-            ...mono,
-            fontSize: 10,
-            fontWeight: 600,
-            color: e.gapDays > 0 ? C.rd : e.gapDays < 0 ? C.ac : C.t3,
-          }}
-        >
-          {e.gapDays !== 0 ? `${e.gapDays > 0 ? '+' : ''}${e.gapDays}d` : '-'}
-        </td>
-      </tr>
-      {isSelected && (
-        <tr className="mrp__detail-row">
-          <td colSpan={6}>
-            <PeggingTree entry={e} engine={engine} blocks={blocks} />
-          </td>
-        </tr>
-      )}
-    </>
   );
 }
 
@@ -201,12 +93,10 @@ export function OrdersPage() {
 
   const mrp = useMemo(() => (engine ? computeMRP(engine) : null), [engine]);
   const skuView = useMemo(() => (mrp ? computeMRPSkuView(mrp) : null), [mrp]);
-
   const allEntries = useMemo(() => {
     if (!engine || !mrp || !skuView) return [];
     return computeOrderEntries(engine, mrp, skuView, blocks);
   }, [engine, mrp, skuView, blocks]);
-
   const filtered = useMemo(() => {
     if (!search) return allEntries;
     const q = search.toLowerCase();
@@ -217,7 +107,6 @@ export function OrdersPage() {
         e.customerName?.toLowerCase().includes(q),
     );
   }, [allEntries, search]);
-
   const clientGroups = useMemo(() => groupOrdersByClient(filtered), [filtered]);
 
   if (loading)
@@ -237,14 +126,8 @@ export function OrdersPage() {
     );
   }
 
-  const totalOTD =
-    allEntries.length > 0
-      ? Math.round(
-          (allEntries.filter((e) => e.status === 'on-time' || e.status === 'done').length /
-            allEntries.length) *
-            100,
-        )
-      : 100;
+  const onTimeDone = allEntries.filter((e) => e.status === 'on-time' || e.status === 'done').length;
+  const totalOTD = allEntries.length > 0 ? Math.round((onTimeDone / allEntries.length) * 100) : 100;
   const lateCount = allEntries.filter((e) => e.status === 'late').length;
   const atRiskCount = allEntries.filter((e) => e.status === 'at-risk').length;
 
