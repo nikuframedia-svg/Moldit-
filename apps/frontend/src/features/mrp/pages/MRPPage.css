@@ -402,6 +402,12 @@
   color: #6b7280;
 }
 
+/* ── Coverage Timeline ──────────────────────────────── */
+.mrp__cov-row:hover {
+  background: var(--hover-overlay);
+  border-radius: var(--radius-xs);
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .mrp__kpis {

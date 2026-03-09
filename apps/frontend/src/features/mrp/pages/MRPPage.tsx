@@ -9,23 +9,26 @@ import { useUIStore } from '@/stores/useUIStore';
 import { CTPTab } from '../tabs/CTPTab';
 import { EncomendasTab } from '../tabs/EncomendasTab';
 import { MachineTableTab, SKUTableTab, ToolTableTab } from '../tabs/MRPTableTab';
+import { StocksTab } from '../tabs/StocksTab';
 import { mono } from '../utils/mrp-helpers';
 import './MRPPage.css';
 
-type Tab = 'table' | 'encomendas' | 'ctp';
+type Tab = 'stocks' | 'table' | 'encomendas' | 'ctp';
 type Filter = 'all' | 'stockout' | 'backlog';
 type ViewMode = 'sku' | 'tool' | 'machine';
 
 const TAB_LABELS: Record<Tab, string> = {
+  stocks: 'Stocks',
   table: 'Tabela MRP',
   encomendas: 'Encomendas',
   ctp: 'CTP',
 };
 const TAB_TOOLTIPS: Partial<Record<Tab, string>> = {
+  stocks: 'Dashboard de stocks: cobertura, projecções e alertas',
   encomendas: 'Encomendas em risco, sugestões e calendário de produção',
   ctp: 'Capable-to-Promise: verificar viabilidade de encomenda',
 };
-const ALL_TABS: Tab[] = ['table', 'encomendas', 'ctp'];
+const ALL_TABS: Tab[] = ['stocks', 'table', 'encomendas', 'ctp'];
 const VIEW_LABELS: Record<ViewMode, string> = {
   sku: 'SKU',
   tool: 'Ferramenta',
@@ -35,7 +38,7 @@ const VIEW_LABELS: Record<ViewMode, string> = {
 export function MRPPage() {
   const { engine, blocks, loading, error } = useScheduleData();
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
-  const [tab, setTab] = useState<Tab>('encomendas');
+  const [tab, setTab] = useState<Tab>('stocks');
   const [viewMode, setViewMode] = useState<ViewMode>('sku');
   const [filter, setFilter] = useState<Filter>('all');
   const [machineFilter, setMachineFilter] = useState('all');
@@ -209,6 +212,11 @@ export function MRPPage() {
           ))}
         </div>
       </div>
+
+      {/* Stocks Tab */}
+      {tab === 'stocks' && (
+        <StocksTab engine={engine} mrp={mrp} skuView={skuView} blocks={blocks} />
+      )}
 
       {/* Table Tab */}
       {tab === 'table' && viewMode === 'sku' && (
