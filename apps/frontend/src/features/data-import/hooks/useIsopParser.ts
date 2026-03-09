@@ -30,6 +30,7 @@ export function useIsopParser() {
 
   const [uploadState, setUploadState] = useState<UploadState>({ step: 'idle' });
   const [dragActive, setDragActive] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const hasData = nikufraData !== null;
@@ -79,10 +80,12 @@ export function useIsopParser() {
 
   const handleApply = useCallback(async () => {
     if (uploadState.step !== 'preview') return;
+    const isFirstImport = !hasData;
     await setNikufraData(uploadState.data, uploadState.fileName, uploadState.meta);
     invalidateScheduleCache();
     setUploadState({ step: 'idle' });
-  }, [uploadState, setNikufraData]);
+    if (isFirstImport) setWizardOpen(true);
+  }, [uploadState, setNikufraData, hasData]);
 
   const handleClear = useCallback(() => {
     clearData();
@@ -105,5 +108,7 @@ export function useIsopParser() {
     handleFileInput,
     handleApply,
     handleClear,
+    wizardOpen,
+    closeWizard: useCallback(() => setWizardOpen(false), []),
   };
 }

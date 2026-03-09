@@ -1,12 +1,15 @@
 import { CalendarDays } from 'lucide-react';
+import { useMemo } from 'react';
 import type { DemandSemantics } from '../../../stores/useSettingsStore';
 import { useSettingsStore } from '../../../stores/useSettingsStore';
 import { useUIStore } from '../../../stores/useUIStore';
 import { SEMANTICS_OPTIONS, useIsopParser } from '../hooks/useIsopParser';
+import { generatePresetsFromISOP } from '../utils/generate-presets';
 import { DataPreview } from './DataPreview';
 import { DataValidation } from './DataValidation';
 import { FileUploader } from './FileUploader';
 import { ImportConfirmation } from './ImportConfirmation';
+import { ImportWizard } from './ImportWizard';
 import { MOStrategySection } from './MOStrategySection';
 import { MRPSupplySection } from './MRPSupplySection';
 import { OptimizationProfileSection } from './OptimizationProfileSection';
@@ -27,6 +30,7 @@ export function DataImportPage() {
     setDragActive,
     fileRef,
     hasData,
+    nikufraData,
     loadedAt,
     storedFileName,
     storedMeta,
@@ -34,7 +38,14 @@ export function DataImportPage() {
     handleFileInput,
     handleApply,
     handleClear,
+    wizardOpen,
+    closeWizard,
   } = useIsopParser();
+
+  const presets = useMemo(
+    () => (storedMeta && nikufraData ? generatePresetsFromISOP(storedMeta, nikufraData) : null),
+    [storedMeta, nikufraData],
+  );
 
   return (
     <div className={`carregar-dados${panelOpen ? ' carregar-dados--panel-open' : ''}`}>
@@ -143,6 +154,8 @@ export function DataImportPage() {
       <MOStrategySection />
       <OverflowRoutingSection />
       <MRPSupplySection />
+
+      <ImportWizard open={wizardOpen} presets={presets} onClose={closeWizard} />
     </div>
   );
 }

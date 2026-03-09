@@ -23,3 +23,4 @@ export {
   useStandingCount,
   useUnackCount,
 } from './useAlertStore';
+export { useStockAlertGenerator } from './useStockAlertGenerator';

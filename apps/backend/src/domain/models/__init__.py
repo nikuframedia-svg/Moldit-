@@ -3,6 +3,7 @@
 from ..learning.models import LearningProposal
 from ..ledger.models import DecisionEntry
 from ..run_events.models import RunEvent, RunEventType
+from ..stock_alerts.models import StockAlert
 from .audit import AuditLog
 from .plan import Plan, PlanOperation, WorkOrder
 from .snapshot import (
@@ -27,4 +28,6 @@ __all__ = [
     "DecisionEntry",
     # Learning
     "LearningProposal",
+    # Stock Alerts
+    "StockAlert",
 ]

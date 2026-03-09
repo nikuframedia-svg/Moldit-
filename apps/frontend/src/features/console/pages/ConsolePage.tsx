@@ -5,7 +5,7 @@
  * KPIs, machines, operations, operators, alerts, decisions, D+1, transparency.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonCard, SkeletonTable } from '@/components/Common/SkeletonLoader';
@@ -13,11 +13,14 @@ import { StatusBanner } from '@/components/Common/StatusBanner';
 import { useDayData } from '@/hooks/useDayData';
 import { useScheduleData } from '@/hooks/useScheduleData';
 import type { Block } from '@/lib/engine';
-import { C, DAY_CAP } from '@/lib/engine';
+import { C, chooseLayer, DAY_CAP } from '@/lib/engine';
+import { useAndonDowntimes } from '@/stores/useAndonStore';
+import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { ActiveDecisions } from '../components/ActiveDecisions';
 import { AlertsFeed } from '../components/AlertsFeed';
 import { AlertsPanel } from '../components/AlertsPanel';
+import { AndonDrawer } from '../components/AndonDrawer';
 import { D1Preparation } from '../components/D1Preparation';
 import { DayOrders } from '../components/DayOrders';
 import { DaySelector } from '../components/DaySelector';
@@ -156,6 +159,37 @@ export function ConsolePage() {
     },
     [allBlocks, openContextPanel, setFocus],
   );
+
+  // ── Andon replan evaluation ──
+  const downtimes = useAndonDowntimes();
+  const addToast = useToastStore((s) => s.actions.addToast);
+  const prevDowntimeCount = useRef(0);
+
+  useEffect(() => {
+    const keys = Object.keys(downtimes);
+    if (keys.length <= prevDowntimeCount.current) {
+      prevDowntimeCount.current = keys.length;
+      return;
+    }
+    prevDowntimeCount.current = keys.length;
+
+    // Evaluate the most recently added downtime
+    const latest = downtimes[keys[keys.length - 1]];
+    if (!latest) return;
+
+    const delayMin = latest.estimatedMin ?? 120; // "Nao sei" defaults to layer 3
+    const layer = chooseLayer(delayMin);
+
+    if (layer === 1) {
+      addToast(`${latest.machineId}: right-shift automatico aplicado (<30min)`, 'info');
+    } else {
+      addToast(
+        `${latest.machineId}: replaneamento necessario (camada ${layer}). Ver pagina Scheduling.`,
+        'warning',
+        6000,
+      );
+    }
+  }, [downtimes, addToast]);
 
   // Loading state
   if (loading) {
@@ -334,6 +368,8 @@ export function ConsolePage() {
           />
         </div>
       </div>
+
+      <AndonDrawer />
     </div>
   );
 }

@@ -10,7 +10,14 @@ import { persist } from 'zustand/middleware';
 
 // ── Types ──
 
-export type PolicyId = 'max_otd' | 'min_setups' | 'balanced' | 'urgent' | 'custom';
+export type PolicyId =
+  | 'incompol_standard'
+  | 'max_otd'
+  | 'min_setups'
+  | 'balanced'
+  | 'urgent'
+  | 'friday'
+  | 'custom';
 
 export interface ConfigWeights {
   otd: number;
@@ -82,10 +89,25 @@ interface ConfigPreviewState {
 // ── Policy weight presets ──
 
 export const POLICY_WEIGHTS: Record<Exclude<PolicyId, 'custom'>, ConfigWeights> = {
+  incompol_standard: { otd: 70, setup: 20, utilization: 10 },
   max_otd: { otd: 90, setup: 5, utilization: 5 },
   min_setups: { otd: 30, setup: 60, utilization: 10 },
   balanced: { otd: 50, setup: 30, utilization: 20 },
   urgent: { otd: 80, setup: 10, utilization: 10 },
+  friday: { otd: 85, setup: 10, utilization: 5 },
+};
+
+export const POLICY_LABELS: Record<PolicyId, { name: string; desc: string }> = {
+  incompol_standard: {
+    name: 'Incompol Standard',
+    desc: 'Equilibrio OTD/setup, auto-gerado do ISOP.',
+  },
+  max_otd: { name: 'Maximo OTD', desc: 'Prioriza entregas a tempo acima de tudo.' },
+  min_setups: { name: 'Minimizar Setups', desc: 'Agrupa producao para reduzir mudancas.' },
+  balanced: { name: 'Equilibrada', desc: 'Compromisso entre OTD, setups e utilizacao.' },
+  urgent: { name: 'Modo Urgente', desc: 'Emergencia: ignora lote economico, foca OTD.' },
+  friday: { name: 'Sexta-Feira', desc: 'Prioriza conclusao de encomendas da semana.' },
+  custom: { name: 'Personalizar', desc: 'Ajuste manual dos pesos.' },
 };
 
 const DEFAULT_WEIGHTS: ConfigWeights = { otd: 70, setup: 20, utilization: 10 };

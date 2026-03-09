@@ -14,6 +14,7 @@ from .nikufra import nikufra_router
 from .plan import router as plan_router
 from .snapshots import router as snapshots_router
 from .solver import solver_router
+from .stock_alerts import stock_alerts_router
 from .version import router as version_router
 
 # Router principal para v1
@@ -33,3 +34,4 @@ router.include_router(firewall_router)
 router.include_router(dqa_router)
 router.include_router(learning_router)
 router.include_router(solver_router)
+router.include_router(stock_alerts_router)

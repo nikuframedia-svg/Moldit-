@@ -2,9 +2,11 @@ import { MoonOutlined, SearchOutlined, SunOutlined } from '@ant-design/icons';
 import { Breadcrumb, Input, Switch } from 'antd';
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { NotificationBell } from '../components/Common/NotificationBell';
 import { TrustGateBanner } from '../components/Common/TrustGateBanner';
 import { ContextPanel } from '../components/ContextPanel/ContextPanel';
 import { FocusStrip } from '../components/FocusStrip/FocusStrip';
+import { useStockAlertGenerator } from '../features/alerts/useStockAlertGenerator';
 import { useTheme, useUIActions } from '../stores/useUIStore';
 import { Sidebar } from './Sidebar';
 import './Layout.css';
@@ -35,6 +37,7 @@ const ROUTE_LABELS: Record<string, string> = {
 };
 
 function AppHeader() {
+  useStockAlertGenerator();
   const theme = useTheme();
   const { toggleTheme } = useUIActions();
   const location = useLocation();
@@ -56,6 +59,7 @@ function AppHeader() {
     <header className="app-header">
       <Breadcrumb items={breadcrumbItems} />
       <div className="app-header__actions">
+        <NotificationBell />
         <Input
           prefix={<SearchOutlined />}
           placeholder="Pesquisar..."
