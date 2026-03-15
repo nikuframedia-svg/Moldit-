@@ -21,17 +21,30 @@ type Step = 1 | 2 | 3;
 
 const STRATEGY_OPTIONS: PolicyId[] = ['incompol_standard', 'balanced', 'max_otd', 'min_setups'];
 
+function StepDots({ current }: { current: Step }) {
+  return (
+    <div className="import-wizard__dots">
+      {([1, 2, 3] as const).map((s) => (
+        <div
+          key={s}
+          className={`import-wizard__dot${s === current ? ' import-wizard__dot--active' : ''}${s < current ? ' import-wizard__dot--done' : ''}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function ImportWizard({ open, presets, onClose }: ImportWizardProps) {
   const [step, setStep] = useState<Step>(1);
   const [selectedPolicy, setSelectedPolicy] = useState<PolicyId>('incompol_standard');
-  const [tierChoice, setTierChoice] = useState<'top' | 'equal'>('top');
+  const [_tierChoice, setTierChoice] = useState<'top' | 'equal'>('top');
   const setPolicy = useConfigPreview((s) => s.setPolicy);
   const addToast = useToastStore((s) => s.actions.addToast);
 
   const handleClose = useCallback(() => {
     setStep(1);
     setSelectedPolicy('incompol_standard');
-    setTierChoice('top');
+    setTierChoice('top'); // reset for next open
     onClose();
   }, [onClose]);
 
@@ -51,11 +64,11 @@ export function ImportWizard({ open, presets, onClose }: ImportWizardProps) {
       onCancel={handleClose}
       footer={null}
       width={520}
-      title={
-        <span style={{ fontWeight: 700, fontSize: 16 }}>Configuracao Rapida — Passo {step}/3</span>
-      }
+      title={`Configuracao Rapida — Passo ${step}/3`}
       destroyOnClose
     >
+      <StepDots current={step} />
+
       {step === 1 && (
         <div className="import-wizard__step">
           <p className="import-wizard__text">Detectamos os seguintes dados no ISOP:</p>
@@ -86,17 +99,17 @@ export function ImportWizard({ open, presets, onClose }: ImportWizardProps) {
           <div className="import-wizard__actions">
             <button
               type="button"
-              className="import-wizard__btn import-wizard__btn--primary"
-              onClick={() => setStep(2)}
-            >
-              Sim, continuar
-            </button>
-            <button
-              type="button"
               className="import-wizard__btn import-wizard__btn--secondary"
               onClick={handleClose}
             >
               Ajustar manualmente
+            </button>
+            <button
+              type="button"
+              className="import-wizard__btn import-wizard__btn--primary"
+              onClick={() => setStep(2)}
+            >
+              Continuar
             </button>
           </div>
         </div>
@@ -104,31 +117,36 @@ export function ImportWizard({ open, presets, onClose }: ImportWizardProps) {
 
       {step === 2 && (
         <div className="import-wizard__step">
-          <p className="import-wizard__text">
-            O cliente com mais encomendas e <strong>{topClient.name || topClient.id}</strong> (
-            {topClient.orderCount} operacoes).
-          </p>
+          <p className="import-wizard__text">Cliente com mais encomendas:</p>
+          <div className="import-wizard__client-badge">
+            <span className="import-wizard__client-name">
+              {topClient.name || topClient.id}
+            </span>
+            <span className="import-wizard__client-count">
+              {topClient.orderCount} operacoes
+            </span>
+          </div>
           <p className="import-wizard__text">Definir como prioridade maxima?</p>
-          <div className="import-wizard__actions import-wizard__actions--col">
+          <div className="import-wizard__actions">
             <button
               type="button"
-              className={`import-wizard__btn import-wizard__btn--primary${tierChoice === 'top' ? ' import-wizard__btn--selected' : ''}`}
-              onClick={() => {
-                setTierChoice('top');
-                setStep(3);
-              }}
-            >
-              Sim — Tier 1
-            </button>
-            <button
-              type="button"
-              className={`import-wizard__btn import-wizard__btn--secondary${tierChoice === 'equal' ? ' import-wizard__btn--selected' : ''}`}
+              className="import-wizard__btn import-wizard__btn--secondary"
               onClick={() => {
                 setTierChoice('equal');
                 setStep(3);
               }}
             >
               Todos iguais
+            </button>
+            <button
+              type="button"
+              className="import-wizard__btn import-wizard__btn--primary"
+              onClick={() => {
+                setTierChoice('top');
+                setStep(3);
+              }}
+            >
+              Sim — Tier 1
             </button>
           </div>
         </div>
@@ -157,17 +175,17 @@ export function ImportWizard({ open, presets, onClose }: ImportWizardProps) {
           <div className="import-wizard__actions">
             <button
               type="button"
-              className="import-wizard__btn import-wizard__btn--primary"
-              onClick={handleFinish}
-            >
-              Aplicar
-            </button>
-            <button
-              type="button"
               className="import-wizard__btn import-wizard__btn--secondary"
               onClick={handleClose}
             >
               Personalizar depois
+            </button>
+            <button
+              type="button"
+              className="import-wizard__btn import-wizard__btn--primary"
+              onClick={handleFinish}
+            >
+              Aplicar
             </button>
           </div>
         </div>

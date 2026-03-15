@@ -34,7 +34,8 @@ export type DecisionType =
   | 'TWIN_VALIDATION_ANOMALY' // Twin piece validation failed
   | 'WORKFORCE_FORECAST_D1' // D+1 workforce overload warning
   | 'WORKFORCE_COVERAGE_MISSING' // Overtime/3rd shift without workforce configured
-  | 'LABOR_GROUP_UNMAPPED'; // Machine not mapped to any labor group
+  | 'LABOR_GROUP_UNMAPPED' // Machine not mapped to any labor group
+  | 'SCHEDULE_REPAIR'; // Post-scheduling violation repair (setup overlap or overcapacity)
 
 /** An alternative action the user could choose instead of the system's decision */
 export interface AlternativeAction {

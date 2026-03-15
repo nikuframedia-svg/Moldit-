@@ -119,7 +119,7 @@ export function Dashboard() {
           <span style={{ fontSize: 12, fontWeight: 600, color: C.rd }}>
             {metrics.lostPcs > 0
               ? `Deadline comprometida — ${metrics.tardinessDays.toFixed(1)} dias de atraso acumulado`
-              : `OTD ${metrics.otdDelivery.toFixed(1)}% — entregas em risco`}
+              : `OTD-D ${metrics.otdDelivery.toFixed(1)}% — entregas em risco`}
           </span>
           {metrics.overflows > 0 && (
             <span style={{ fontSize: 10, color: C.yl, marginLeft: 'auto' }}>

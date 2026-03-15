@@ -28,7 +28,7 @@ function Section({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="ctx-panel__section">
-      <div className="ctx-panel__section-header" onClick={() => setOpen((o) => !o)}>
+      <div className="ctx-panel__section-header" role="button" tabIndex={0} onClick={() => setOpen((o) => !o)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((o) => !o); } }}>
         <span className="ctx-panel__section-title">{title}</span>
         <span
           className={`ctx-panel__section-chevron ${open ? 'ctx-panel__section-chevron--open' : ''}`}

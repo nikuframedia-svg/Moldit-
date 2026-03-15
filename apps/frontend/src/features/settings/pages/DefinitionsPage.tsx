@@ -1,15 +1,16 @@
 /**
  * DefinitionsPage — Concept definitions (L4): what means "late", "urgent", etc.
  * Route: /settings/definitions
+ * Persisted in useSettingsStore (localStorage).
  */
 
 import { Parser } from 'expr-eval';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { useScheduleData } from '@/hooks/useScheduleData';
-import type { ConceptDefinition } from '../components/DefinitionEditor';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 import { DefinitionEditor } from '../components/DefinitionEditor';
 
 function defaultTierFromName(name: string): number {
@@ -19,45 +20,6 @@ function defaultTierFromName(name: string): number {
   if (!name || name === 'Sem cliente') return 5;
   return 3;
 }
-
-const DEFAULT_DEFINITIONS: ConceptDefinition[] = [
-  {
-    id: 'atrasado',
-    question: 'O que significa ATRASADO nesta fábrica?',
-    label: 'Atrasado',
-    expression: 'completionDay > deadline + toleranceHours / 17',
-    variables: ['completionDay', 'deadline', 'toleranceHours', 'clientTier'],
-    version: 1,
-    versions: [],
-  },
-  {
-    id: 'urgente',
-    question: 'O que significa URGENTE?',
-    label: 'Urgente',
-    expression: 'slackHours < 24 and clientTier <= 2',
-    variables: ['slackHours', 'clientTier', 'demandTotal', 'stock'],
-    version: 1,
-    versions: [],
-  },
-  {
-    id: 'turno_noite',
-    question: 'Quando é necessário TURNO NOITE?',
-    label: 'Turno Noite',
-    expression: 'load2Shifts > capacity2Shifts * 0.95',
-    variables: ['load2Shifts', 'capacity2Shifts', 'pendingOrders'],
-    version: 1,
-    versions: [],
-  },
-  {
-    id: 'robusto',
-    question: 'Quando é que o plano é ROBUSTO?',
-    label: 'Robusto',
-    expression: 'stressTestOTD > 0.85 and stressTestCascade < 3',
-    variables: ['stressTestOTD', 'stressTestCascade', 'bufferHours', 'violations'],
-    version: 1,
-    versions: [],
-  },
-];
 
 /** Per-operation concepts: evaluate expression for each op, return count of truthy results */
 function evaluatePerOp(
@@ -106,7 +68,8 @@ function evaluatePerOp(
 
 export function DefinitionsPage() {
   const { engine, loading, error } = useScheduleData();
-  const [definitions, setDefinitions] = useState<ConceptDefinition[]>(DEFAULT_DEFINITIONS);
+  const definitions = useSettingsStore((s) => s.definitions);
+  const updateDefinition = useSettingsStore((s) => s.actions.updateDefinition);
 
   const impacts = useMemo(() => {
     if (!engine) return {};
@@ -116,10 +79,6 @@ export function DefinitionsPage() {
     }
     return result;
   }, [engine, definitions]);
-
-  const updateDefinition = (updated: ConceptDefinition) => {
-    setDefinitions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-  };
 
   if (loading)
     return (

@@ -58,6 +58,7 @@ export function DayRangePicker({
         </span>
         <button
           onClick={() => setEditingDown(null)}
+          aria-label="Fechar editor"
           style={{
             background: 'none',
             border: 'none',

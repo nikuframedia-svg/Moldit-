@@ -5,7 +5,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Copy workspace config
-COPY package.json pnpm-workspace.yaml .npmrc ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY packages/scheduling-engine/package.json packages/scheduling-engine/
 COPY apps/frontend/package.json apps/frontend/
 

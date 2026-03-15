@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import type {
+  AutoReplanResult,
   Block,
   buildResourceTimelines,
   EngineData,
@@ -29,6 +30,7 @@ export function useReplanOrchestrator(
     React.SetStateAction<Array<{ toolId: string; sku: string; qty: number; deadline: number }>>
   >,
   neMetrics: (OptResult & { blocks: Block[] }) | null,
+  setAppliedReplan: (result: AutoReplanResult | null) => void,
 ) {
   const {
     entries: replanEntries,
@@ -97,6 +99,7 @@ export function useReplanOrchestrator(
     replanTimelines,
     profiles,
     setRushOrders,
+    setAppliedReplan,
     onReplanComplete,
   );
 

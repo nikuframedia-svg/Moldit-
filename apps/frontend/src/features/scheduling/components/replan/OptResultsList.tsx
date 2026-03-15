@@ -45,7 +45,7 @@ export function OptResultsList({ optResults, applyOptResult }: OptResultsListPro
             </div>
             <div style={{ display: 'flex', gap: 8, fontSize: 10 }}>
               <span style={{ color: C.t3 }}>
-                OTD{' '}
+                OTD-D{' '}
                 <span
                   style={{
                     fontWeight: 600,

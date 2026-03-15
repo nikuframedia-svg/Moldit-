@@ -51,7 +51,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 }
 
 const VARIANT_COLORS: Record<PillVariant, string> = {
-  green: '#22C55E',
+  green: C.gn,
   amber: C.yl,
   red: C.rd,
   teal: C.ac,
@@ -111,7 +111,7 @@ export function PulseStrip() {
 
     return [
       {
-        label: 'OTD',
+        label: 'OTD-D',
         value: `${metrics.otdDelivery.toFixed(1)}%`,
         variant: metrics.otdDelivery >= 95 ? 'green' : metrics.otdDelivery >= 85 ? 'amber' : 'red',
       },

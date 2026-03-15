@@ -8,17 +8,23 @@ export function Pill({
   active,
   onClick,
   size = 'sm',
+  title,
+  'aria-label': ariaLabel,
 }: {
   children: React.ReactNode;
   color: string;
   active?: boolean;
   onClick?: () => void;
   size?: 'sm' | 'md';
+  title?: string;
+  'aria-label'?: string;
 }) {
   const s = size === 'sm';
   return (
     <button
       onClick={onClick}
+      title={title}
+      aria-label={ariaLabel}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

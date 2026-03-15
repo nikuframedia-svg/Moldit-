@@ -11,12 +11,14 @@ import type {
   DecisionEntry,
   EngineData,
   FeasibilityReport,
+  LateDeliveryAnalysis,
   MoveAction,
   MRPResult,
   ScheduleValidationReport,
   TransparencyReport,
 } from '../lib/engine';
 import {
+  analyzeLateDeliveries,
   auditCoverage,
   capAnalysis,
   DEFAULT_WORKFORCE_CONFIG,
@@ -26,7 +28,9 @@ import {
 import type { CacheEntry, DataSourceLike } from '../lib/schedule-pipeline';
 import { runSchedulePipeline } from '../lib/schedule-pipeline';
 import { getTransformConfig, settingsHashSelector } from '../stores/settings-config';
+import { useBanditStore } from '../stores/useBanditStore';
 import { useDataStore } from '../stores/useDataStore';
+import { useMasterDataStore, overridesVersionSelector } from '../stores/useMasterDataStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useDataSource } from './useDataSource';
 
@@ -38,10 +42,12 @@ export interface ScheduleData {
   decisions: DecisionEntry[];
   feasibilityReport: FeasibilityReport | null;
   transparencyReport: TransparencyReport | null;
+  thirdShiftRecommended: boolean;
   cap: Record<string, DayLoad[]>;
   metrics: ReturnType<typeof scoreSchedule> | null;
   validation: ScheduleValidationReport | null;
   coverageAudit: CoverageAuditResult | null;
+  lateDeliveries: LateDeliveryAnalysis | null;
   mrp: MRPResult | null;
   loading: boolean;
   error: string | null;
@@ -51,13 +57,17 @@ export interface ScheduleData {
 let cached: CacheEntry | null = null;
 let cachePromise: Promise<void> | null = null;
 let cachedDataVersion: string | null = null;
+let cachedOverridesVersion: number | null = null;
+let cachedSettingsHash: string | null = null;
 let cacheVersion = 0;
 
 export function useScheduleData(): ScheduleData {
   const ds = useDataSource();
   const dataVersion = useDataStore((s) => s.loadedAt);
   const isMerging = useDataStore((s) => s.isMerging);
+  const hasHydrated = useDataStore((s) => s._hasHydrated);
   const settingsHash = useSettingsStore(settingsHashSelector);
+  const overridesVersion = useMasterDataStore(overridesVersionSelector);
 
   const [engine, setEngine] = useState<EngineData | null>(cached?.engine ?? null);
   const [blocks, setBlocks] = useState<Block[]>(cached?.blocks ?? []);
@@ -71,19 +81,34 @@ export function useScheduleData(): ScheduleData {
     cached?.transparencyReport ?? null,
   );
   const [mrpData, setMrpData] = useState<MRPResult | null>(cached?.mrp ?? null);
+  const [thirdShiftRecommended, setThirdShiftRecommended] = useState(
+    cached?.thirdShiftRecommended ?? false,
+  );
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Wait for Zustand persist to hydrate from localStorage before running pipeline
+    if (!hasHydrated) {
+      setLoading(true);
+      return;
+    }
+
     if (isMerging) {
       setLoading(true);
       return;
     }
 
-    if (dataVersion !== cachedDataVersion) {
+    if (
+      dataVersion !== cachedDataVersion ||
+      overridesVersion !== cachedOverridesVersion ||
+      settingsHash !== cachedSettingsHash
+    ) {
       cached = null;
       cachePromise = null;
       cachedDataVersion = dataVersion;
+      cachedOverridesVersion = overridesVersion;
+      cachedSettingsHash = settingsHash;
       cacheVersion++;
     }
 
@@ -96,6 +121,7 @@ export function useScheduleData(): ScheduleData {
       setDecisions(cached.decisions);
       setFeasibilityReport(cached.feasibilityReport);
       setTransparencyReport(cached.transparencyReport);
+      setThirdShiftRecommended(cached.thirdShiftRecommended);
       setMrpData(cached.mrp);
     };
 
@@ -124,6 +150,35 @@ export function useScheduleData(): ScheduleData {
 
     cachePromise = runSchedulePipeline(ds as DataSourceLike, getTransformConfig()).then((entry) => {
       if (computeVersion === cacheVersion) cached = entry;
+
+      // UCB1 learning feedback: process previous snapshot, then snapshot current
+      try {
+        const wfc = entry.engine.workforceConfig ?? DEFAULT_WORKFORCE_CONFIG;
+        const score = scoreSchedule(
+          entry.blocks,
+          entry.engine.ops,
+          entry.engine.mSt,
+          wfc,
+          entry.engine.machines,
+          entry.engine.toolMap,
+          undefined,
+          undefined,
+          entry.engine.nDays,
+        );
+        const banditActions = useBanditStore.getState().actions;
+        banditActions.processLearning({
+          otd: score.otd,
+          otdDelivery: score.otdDelivery,
+          tardinessDays: score.tardinessDays,
+        });
+        banditActions.snapshotCurrentPlan(entry.resolvedDispatchRule, {
+          otd: score.otd,
+          otdDelivery: score.otdDelivery,
+          tardinessDays: score.tardinessDays,
+        });
+      } catch {
+        // Non-critical: don't break scheduling if bandit update fails
+      }
     });
 
     cachePromise
@@ -140,10 +195,11 @@ export function useScheduleData(): ScheduleData {
         setDecisions([]);
         setFeasibilityReport(null);
         setTransparencyReport(null);
+        setThirdShiftRecommended(false);
         setMrpData(null);
       })
       .finally(() => setLoading(false));
-  }, [ds, dataVersion, settingsHash, isMerging]);
+  }, [ds, dataVersion, settingsHash, isMerging, overridesVersion, hasHydrated]);
 
   const cap = useMemo(
     () => (engine ? capAnalysis(blocks, engine.machines, engine.nDays) : {}),
@@ -183,6 +239,12 @@ export function useScheduleData(): ScheduleData {
     return auditCoverage(blocks, engine.ops, engine.toolMap, engine.twinGroups);
   }, [blocks, engine]);
 
+  const clientTiers = useSettingsStore((s) => s.clientTiers);
+  const lateDeliveries = useMemo(() => {
+    if (!engine || blocks.length === 0) return null;
+    return analyzeLateDeliveries(blocks, engine.ops, engine.dates, clientTiers);
+  }, [blocks, engine, clientTiers]);
+
   return {
     engine,
     blocks,
@@ -191,10 +253,12 @@ export function useScheduleData(): ScheduleData {
     decisions,
     feasibilityReport,
     transparencyReport,
+    thirdShiftRecommended,
     cap,
     metrics,
     validation,
     coverageAudit,
+    lateDeliveries,
     mrp: mrpData,
     loading,
     error,

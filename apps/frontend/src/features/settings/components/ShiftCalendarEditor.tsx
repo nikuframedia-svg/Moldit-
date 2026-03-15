@@ -3,6 +3,7 @@
  */
 
 import { useState } from 'react';
+import './ShiftCalendarEditor.css';
 
 export interface ShiftSlot {
   active: boolean;

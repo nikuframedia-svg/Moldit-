@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/Common/ErrorBoundary';
 import { SkeletonCard } from '@/components/Common/SkeletonLoader';
+import { CommandPalette } from '@/components/ui/CommandPalette';
 import { ToastContainer } from '@/components/Toast/Toast';
 import { useTheme } from '@/stores/useUIStore';
 import { getIndustrialTheme } from '@/theme/industrial-theme';
@@ -106,7 +107,7 @@ export function App() {
                 {/* Redirect root to console */}
                 <Route path="/" element={<Navigate to="/console" replace />} />
 
-                {/* Console */}
+                {/* Console / Overview */}
                 <Route path="/console" element={<ConsolePage />} />
                 <Route path="/console/day/:date" element={<ConsoleDay />} />
 
@@ -116,7 +117,7 @@ export function App() {
                 <Route path="/plan/whatif" element={<WhatIfPage />} />
                 <Route path="/plan/data" element={<DataPage />} />
 
-                {/* MRP */}
+                {/* MRP / Materials */}
                 <Route path="/mrp" element={<MRPPage />} />
                 <Route path="/mrp/orders" element={<OrdersPage />} />
                 <Route path="/mrp/stock/:sku" element={<StockDetailPage />} />
@@ -139,6 +140,7 @@ export function App() {
             </Suspense>
           </ErrorBoundary>
         </AppLayout>
+        <CommandPalette />
         <ToastContainer />
       </Router>
     </ConfigProvider>

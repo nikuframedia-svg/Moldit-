@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import './SetupMatrixEditor.css';
 
 export type SkillLevel = 'autonomous' | 'supervised' | 'unqualified';
 

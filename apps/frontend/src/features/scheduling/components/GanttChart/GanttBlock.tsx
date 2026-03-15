@@ -1,5 +1,5 @@
-import { AlertTriangle, Layers, Lock, Sparkles } from 'lucide-react';
-import React from 'react';
+import { AlertTriangle, Clock, Layers, Lock, Sparkles, Zap } from 'lucide-react';
+import React, { memo } from 'react';
 import type { Block, EngineData } from '../../../../lib/engine';
 import { C, S0 } from '../../../../lib/engine';
 import { fmtT } from '../atoms';
@@ -15,9 +15,14 @@ export interface GanttBlockProps {
   data: EngineData;
   setHov: (v: string | null) => void;
   setSelOp: (v: string | null) => void;
+  onDragStart?: (block: Block, e: React.MouseEvent) => void;
+  /** Map opId → 3-letter client abbreviation for block label */
+  clientMap?: Record<string, string>;
+  /** L4 definition IDs that match this block (from useClassifications) */
+  classifications?: Set<string>;
 }
 
-export function GanttBlock({
+export const GanttBlock = memo(function GanttBlock({
   b,
   bi,
   ppm,
@@ -28,6 +33,9 @@ export function GanttBlock({
   data,
   setHov,
   setSelOp,
+  onDragStart,
+  clientMap,
+  classifications,
 }: GanttBlockProps) {
   const isH = hov === `${b.opId}-${selDay}`;
   const isSel = selOp === b.opId;
@@ -51,11 +59,21 @@ export function GanttBlock({
             justifyContent: 'center',
           }}
         >
-          <span style={{ fontSize: 8, color: col, fontWeight: 700 }}>SET</span>
+          <span style={{ fontSize: 8, color: col, fontWeight: 700 }}>
+            {(() => {
+              const sw = Math.max((b.setupE! - b.setupS!) * ppm, 4);
+              const sd = Math.round(b.setupE! - b.setupS!);
+              if (sw >= 90) return `Setup ${b.toolId} · ${sd}min`;
+              if (sw >= 60) return `Setup · ${sd}min`;
+              return 'SET';
+            })()}
+          </span>
         </div>
       )}
       <div
+        data-block-id={b.opId}
         onClick={() => setSelOp(selOp === b.opId ? null : b.opId)}
+        onMouseDown={(e) => onDragStart?.(b, e)}
         onMouseEnter={() => setHov(`${b.opId}-${selDay}`)}
         onMouseLeave={() => setHov(null)}
         style={{
@@ -93,11 +111,20 @@ export function GanttBlock({
             textShadow: '0 1px 3px #0009',
           }}
         >
-          {b.toolId}
+          {(() => {
+            const w = Math.max((b.endMin - b.startMin) * ppm, 12);
+            const sku10 = (b.sku || b.toolId).slice(0, 10);
+            const client3 = (clientMap?.[b.opId] || b.nm)?.slice(0, 3)?.toUpperCase();
+            const op = data.ops.find((o) => o.id === b.opId);
+            const td = op ? op.d.reduce((a, v) => a + Math.max(v, 0), 0) + Math.max(op.atr, 0) : 0;
+            const pct = td > 0 ? Math.min(100, Math.round((b.qty / td) * 100)) : null;
+            if (w >= 140 && client3) return `${sku10} · ${client3} · ${pct ?? ''}%`;
+            if (w >= 100) return pct != null ? `${sku10} · ${pct}%` : sku10;
+            if (w >= 50) return b.toolId;
+            if (w >= 25 && pct != null) return `${pct}%`;
+            return '';
+          })()}
         </span>
-        {(b.endMin - b.startMin) * ppm > 70 && (
-          <span style={{ fontSize: 8, color: C.t2, marginLeft: 5 }}>{b.qty.toLocaleString()}</span>
-        )}
         {b.overflow && (
           <span
             style={{
@@ -126,7 +153,7 @@ export function GanttBlock({
         {b.isTwinProduction && (b.endMin - b.startMin) * ppm > 40 && (
           <span
             style={{
-              color: '#fff9',
+              color: 'var(--text-inverse, #fff9)',
               marginLeft: 'auto',
               paddingRight: 3,
               display: 'inline-flex',
@@ -136,13 +163,37 @@ export function GanttBlock({
             <Layers size={9} strokeWidth={2} />
           </span>
         )}
-        {isH && <BlockTooltip b={b} col={col} data={data} />}
+        {b.shift === 'Z' && (
+          <span
+            style={{
+              fontSize: 7,
+              fontWeight: 800,
+              color: 'var(--text-inverse, #fffc)',
+              marginLeft: b.isTwinProduction ? 0 : 'auto',
+              paddingRight: 3,
+              textShadow: '0 1px 2px #000a',
+            }}
+          >
+            N
+          </span>
+        )}
+        {classifications?.has('atrasado') && (b.endMin - b.startMin) * ppm > 25 && (
+          <span style={{ color: C.rd, marginLeft: 2, display: 'inline-flex', alignItems: 'center' }}>
+            <Clock size={8} strokeWidth={2.5} />
+          </span>
+        )}
+        {classifications?.has('urgente') && (b.endMin - b.startMin) * ppm > 25 && (
+          <span style={{ color: C.yl, marginLeft: 2, display: 'inline-flex', alignItems: 'center' }}>
+            <Zap size={8} strokeWidth={2.5} />
+          </span>
+        )}
+        {isH && <BlockTooltip b={b} col={col} data={data} classifications={classifications} />}
       </div>
     </React.Fragment>
   );
-}
+});
 
-function BlockTooltip({ b, col, data }: { b: Block; col: string; data: EngineData }) {
+function BlockTooltip({ b, col, data, classifications }: { b: Block; col: string; data: EngineData; classifications?: Set<string> }) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -180,6 +231,7 @@ function BlockTooltip({ b, col, data }: { b: Block; col: string; data: EngineDat
             ['Setup', b.setupS != null && b.setupE != null ? `${b.setupE - b.setupS}min` : '—'],
             ['Ops', b.operators],
             ['Máq', b.machineId],
+            ['Turno', b.shift === 'Z' ? 'Noite' : b.shift === 'X' ? 'Manhã' : 'Tarde'],
           ] as [string, unknown][]
         ).map(([k, v], i) => (
           <div key={i} style={{ color: C.t3 }}>
@@ -229,6 +281,23 @@ function BlockTooltip({ b, col, data }: { b: Block; col: string; data: EngineDat
               <span style={{ color: C.t1, fontWeight: 600 }}>{o.qty.toLocaleString()} pcs</span>
             </div>
           ))}
+        </div>
+      )}
+      {classifications && classifications.size > 0 && (
+        <div style={{ borderTop: `1px solid ${col}33`, marginTop: 6, paddingTop: 6, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {classifications.has('atrasado') && (
+            <span style={{ fontSize: 8, fontWeight: 700, color: C.rd, background: `${C.rd}18`, padding: '1px 5px', borderRadius: 3, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+              <Clock size={7} strokeWidth={2.5} /> Atrasado
+            </span>
+          )}
+          {classifications.has('urgente') && (
+            <span style={{ fontSize: 8, fontWeight: 700, color: C.yl, background: `${C.yl}18`, padding: '1px 5px', borderRadius: 3, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+              <Zap size={7} strokeWidth={2.5} /> Urgente
+            </span>
+          )}
+          {classifications.has('robusto') && (
+            <span style={{ fontSize: 8, fontWeight: 700, color: C.ac, background: `${C.ac}18`, padding: '1px 5px', borderRadius: 3 }}>Robusto</span>
+          )}
         </div>
       )}
     </div>

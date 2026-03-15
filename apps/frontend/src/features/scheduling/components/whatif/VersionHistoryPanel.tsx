@@ -123,7 +123,7 @@ export function VersionHistoryPanel({
                   hour: '2-digit',
                   minute: '2-digit',
                 })}
-                {' · '}OTD {v.kpis.otd.toFixed(1)}% · OTD-D {v.kpis.otdDelivery.toFixed(1)}% ·{' '}
+                {' · '}OTD-D {v.kpis.otdDelivery.toFixed(1)}% · OTD {v.kpis.otd.toFixed(1)}% ·{' '}
                 {v.kpis.setupCount} setups · tard {v.kpis.tardinessDays.toFixed(1)}d
               </div>
               <div style={{ display: 'flex', gap: 4, marginTop: 4, alignItems: 'center' }}>

@@ -71,6 +71,7 @@ export function DownPeriodEditor({
         </span>
         <button
           onClick={() => setEditingDown(null)}
+          aria-label="Fechar editor"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.t4, padding: 2 }}
         >
           <X size={12} />

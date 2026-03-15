@@ -17,8 +17,12 @@ export const EQUIPMENT_STATE = {
   transition: '#F59E0B',
   /** Manual / local control */
   manual: '#3B82F6',
-  /** Out of service / maintenance */
+  /** Out of service */
   outOfService: '#6B7280',
+  /** Planned maintenance (ISA-101 blue) */
+  maintenance: '#3B82F6',
+  /** Idle — no production assigned */
+  idle: '#6B7280',
 } as const;
 
 /** ISA-101 alarm priorities */
@@ -80,10 +84,10 @@ export const TEXT = {
 
 /** Primary brand / action color */
 export const PRIMARY = {
-  base: '#1E40AF',
-  hover: '#1E3A8A',
-  light: '#DBEAFE',
-  dark: '#1E3A8A',
+  base: '#818CF8',
+  hover: '#6366F1',
+  light: 'rgba(129, 140, 248, 0.12)',
+  dark: '#4F46E5',
 } as const;
 
 /** Consolidated export */

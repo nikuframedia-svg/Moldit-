@@ -1,13 +1,14 @@
-import { Check, Zap } from 'lucide-react';
+import { AlertTriangle, Check, Moon, Server, Zap } from 'lucide-react';
+import { useScheduleData } from '../../../hooks/useScheduleData';
 import type { ScheduleValidationReport } from '../../../lib/engine';
 import { C } from '../../../lib/engine';
+import { useSettingsStore } from '../../../stores/useSettingsStore';
 import { dot, Pill } from './atoms';
 
 type Tab = { id: string; l: string };
 
 const TABS: Tab[] = [
-  { id: 'plan', l: 'Plan' },
-  { id: 'gantt', l: 'Gantt' },
+  { id: 'plan', l: 'Plano' },
   { id: 'replan', l: 'Replan' },
   { id: 'whatif', l: 'What-If' },
 ];
@@ -22,6 +23,8 @@ export function SchedulingHeader({
   opsCount,
   machineCount,
   validation,
+  otd,
+  lateDeliveriesCount,
 }: {
   view: string;
   setView: (v: string) => void;
@@ -32,7 +35,14 @@ export function SchedulingHeader({
   opsCount: number;
   machineCount: number;
   validation: ScheduleValidationReport | null;
+  otd?: number;
+  lateDeliveriesCount?: number;
 }) {
+  const useServer = useSettingsStore((s) => s.useServerSolver);
+  const setUseServer = useSettingsStore((s) => s.actions.setUseServerSolver);
+  const thirdShiftDefault = useSettingsStore((s) => s.thirdShiftDefault);
+  const { thirdShiftRecommended } = useScheduleData();
+
   return (
     <div
       style={{
@@ -66,19 +76,40 @@ export function SchedulingHeader({
             {tab.id === 'replan' && (movesCount > 0 || blkOps > 0) && (
               <TabDot color={blkOps > 0 ? C.rd : C.ac} />
             )}
-            {tab.id === 'gantt' && validation && !validation.valid && <TabDot color={C.rd} />}
+            {tab.id === 'plan' && validation && !validation.valid && <TabDot color={C.rd} />}
           </button>
         ))}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {otd != null && (
+          <Pill
+            color={otd >= 0.95 ? C.gn : otd >= 0.80 ? C.yl : C.rd}
+            active
+            title={`On-Time Delivery: ${(otd * 100).toFixed(1)}%`}
+          >
+            OTD-D {(otd * 100).toFixed(0)}%
+          </Pill>
+        )}
+        {(lateDeliveriesCount ?? 0) > 0 && (
+          <Pill color={C.rd} active title={`${lateDeliveriesCount} entrega${lateDeliveriesCount! > 1 ? 's' : ''} em atraso`}>
+            <AlertTriangle size={10} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
+            {lateDeliveriesCount} atraso{lateDeliveriesCount! > 1 ? 's' : ''}
+          </Pill>
+        )}
+        {thirdShiftRecommended && !thirdShiftDefault && (
+          <Pill color={C.yl} active>
+            <Moon size={10} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
+            Noite recomendada
+          </Pill>
+        )}
         {downC > 0 && (
-          <Pill color={C.rd} active>
+          <Pill color={C.rd} active title={`${downC} maquina${downC > 1 ? 's' : ''} parada${downC > 1 ? 's' : ''} — pode afectar entregas`}>
             <span style={dot(C.rd, true)} />
             {downC} DOWN
           </Pill>
         )}
         {movesCount > 0 && (
-          <Pill color={C.ac} active>
+          <Pill color={C.ac} active title={`${movesCount} operacao${movesCount > 1 ? 'es' : ''} redistribuida${movesCount > 1 ? 's' : ''} para manter entregas`}>
             <Check
               size={10}
               strokeWidth={2}
@@ -88,7 +119,7 @@ export function SchedulingHeader({
           </Pill>
         )}
         {autoMovesCount > 0 && (
-          <Pill color={C.bl} active>
+          <Pill color={C.bl} active title={`${autoMovesCount} movimentacao${autoMovesCount > 1 ? 'oes' : ''} automatica${autoMovesCount > 1 ? 's' : ''} pelo motor de optimizacao`}>
             <Zap
               size={10}
               strokeWidth={1.5}
@@ -98,7 +129,7 @@ export function SchedulingHeader({
           </Pill>
         )}
         {blkOps > 0 && (
-          <Pill color={C.rd} active>
+          <Pill color={C.rd} active title={`${blkOps} operacao${blkOps > 1 ? 'es' : ''} bloqueada${blkOps > 1 ? 's' : ''} — sem maquina disponivel`}>
             {blkOps} bloq
           </Pill>
         )}
@@ -108,6 +139,28 @@ export function SchedulingHeader({
         <Pill color={C.bl} active>
           {machineCount} máq
         </Pill>
+        <button
+          onClick={() => setUseServer(!useServer)}
+          title={useServer ? 'CP-SAT server solver active' : 'Using client-side scheduling'}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '3px 8px',
+            borderRadius: 4,
+            border: `1px solid ${useServer ? C.ac : C.bd}`,
+            background: useServer ? C.ac + '18' : 'transparent',
+            color: useServer ? C.ac : C.t3,
+            cursor: 'pointer',
+            fontSize: 10,
+            fontWeight: 600,
+            fontFamily: 'inherit',
+            letterSpacing: '.02em',
+          }}
+        >
+          <Server size={10} strokeWidth={2} />
+          CP-SAT
+        </button>
       </div>
     </div>
   );

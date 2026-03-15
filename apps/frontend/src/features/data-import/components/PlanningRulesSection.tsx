@@ -6,7 +6,7 @@ const DISPATCH_OPTIONS: { value: DispatchRule; label: string; desc: string }[] =
   {
     value: 'EDD',
     label: 'EDD — Earliest Due Date',
-    desc: 'Prioriza prazos de entrega (recomendado OTD)',
+    desc: 'Prioriza prazos de entrega (recomendado OTD-D)',
   },
   {
     value: 'CR',

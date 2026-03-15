@@ -23,6 +23,7 @@ const CATEGORY_LABELS: Record<AndonCategory, string> = {
   setup_prolongado: 'Setup Prolongado',
   falta_material: 'Falta de Material',
   problema_qualidade: 'Problema de Qualidade',
+  manutencao_preventiva: 'Manutencao Preventiva',
 };
 
 export async function postMachineDown(

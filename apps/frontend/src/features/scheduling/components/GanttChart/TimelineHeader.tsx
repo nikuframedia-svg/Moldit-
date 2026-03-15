@@ -1,4 +1,5 @@
-import { C, S0, S1, T1 } from '../../../../lib/engine';
+import { memo } from 'react';
+import { C, S0, S1, S2, T1 } from '../../../../lib/engine';
 
 export interface TimelineHeaderProps {
   hours: number[];
@@ -6,9 +7,10 @@ export interface TimelineHeaderProps {
   selDay: number;
   dnames: string[];
   dates: string[];
+  thirdShift?: boolean;
 }
 
-export function TimelineHeader({ hours, ppm, selDay, dnames, dates }: TimelineHeaderProps) {
+export const TimelineHeader = memo(function TimelineHeader({ hours, ppm, selDay, dnames, dates, thirdShift }: TimelineHeaderProps) {
   return (
     <div
       style={{
@@ -57,7 +59,7 @@ export function TimelineHeader({ hours, ppm, selDay, dnames, dates }: TimelineHe
                   left: 4,
                 }}
               >
-                {String(h).padStart(2, '0')}:00
+                {String(h % 24).padStart(2, '0')}:00
               </span>
             </div>
           );
@@ -93,7 +95,7 @@ export function TimelineHeader({ hours, ppm, selDay, dnames, dates }: TimelineHe
         >
           <span
             style={{
-              fontSize: 7,
+              fontSize: 8,
               color: C.yl,
               position: 'absolute',
               top: 2,
@@ -101,7 +103,7 @@ export function TimelineHeader({ hours, ppm, selDay, dnames, dates }: TimelineHe
               fontWeight: 600,
             }}
           >
-            T.Y
+            Turno B (15:30–00:00)
           </span>
         </div>
         <span
@@ -109,15 +111,51 @@ export function TimelineHeader({ hours, ppm, selDay, dnames, dates }: TimelineHe
             position: 'absolute',
             top: 2,
             left: 4,
-            fontSize: 7,
+            fontSize: 8,
             color: C.ac,
             fontWeight: 600,
             opacity: 0.6,
           }}
         >
-          T.X
+          Turno A (07:00–15:30)
         </span>
+        {thirdShift && (
+          <>
+            <div
+              style={{
+                position: 'absolute',
+                left: (S1 - S0) * ppm,
+                top: 0,
+                width: (S2 - S1) * ppm,
+                height: '100%',
+                background: 'var(--border-subtle)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                left: (S1 - S0) * ppm,
+                top: 0,
+                height: '100%',
+                borderLeft: `2px solid ${C.yl}66`,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 8,
+                  color: C.t3,
+                  position: 'absolute',
+                  top: 2,
+                  left: 4,
+                  fontWeight: 600,
+                }}
+              >
+                Turno C (00:00–07:00)
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
-}
+});

@@ -21,6 +21,33 @@ pnpm dev | pnpm build | pnpm test | pnpm lint | pnpm format
 ## ═══ PRIORIDADE Nº1 ═══
 ENTREGAR TUDO A TEMPO. Sem excepção. Tudo o resto é subordinado.
 
+## ═══ OTD-DELIVERY = 100% (OBRIGATÓRIO) ═══
+
+### Definição
+- **OTD** (global) = total produzido >= total procura → 100%
+- **OTD-D** (por dia) = em CADA dia com procura, produção acumulada >= procura acumulada → 100%
+- OTD-D é mais exigente: não basta produzir tudo, tem de estar pronto A TEMPO para cada entrega
+- Qualquer regressão abaixo de 100% é um BUG
+
+### Como funciona (autoRouteOverflow — 3 Tiers)
+- **Tier 1**: Resolve overflow (antecipar produção + mover para máquina alternativa)
+- **Tier 2**: Resolve tardiness por bloco (advance + alt + combo + batch)
+- **Tier 3**: Resolve OTD-Delivery — 7 fases (A-G) + busca multi-regra (EDD/ATCS/CR/SPT/WSPT)
+- Selecção final: grid leveling × deadlines, escolhe combinação com menor OTD-D failures
+
+### Parâmetros OBRIGATÓRIOS
+Sempre passar ao `autoRouteOverflow`:
+- `orderBased: true` — trata cada encomenda individualmente com o seu prazo
+- `twinValidationReport` — informação de peças gémeas para co-produção correcta
+- Sem estes, o motor agrupa encomendas e perde noção dos prazos individuais
+
+### Verificação
+- Testes: `late-delivery-analysis.test.ts` (asserts otdDelivery=100)
+- Frozen: `OTD_TOLERANCE = 1.0` (invariante frozen em `frozen-invariants.test.ts`)
+- Pipeline: `schedule-pipeline.ts` passa ambos parâmetros nos 3 call sites
+- Engine: `computeOtdDeliveryFailures()` valida em cada iteração do Tier 3
+- 865/865 testes engine passam, build limpo
+
 ## ═══ DADOS ISOP ═══
 
 Colunas: A(Cliente) B(Nome) C(SKU) D(Designação) E(Lote Eco—SOFT)

@@ -224,7 +224,7 @@ describe('ISOP Full Pipeline Analysis', () => {
       workday_flags: merged.workday_flags,
     };
 
-    const engineData = transformPlanState(planState);
+    const engineData = transformPlanState(planState, { demandSemantics: 'raw_np' });
 
     // Compute MRP for supply priority
     const mrp = computeMRP(engineData);

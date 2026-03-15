@@ -84,6 +84,7 @@ const TYPE_TO_CATEGORY: Record<DecisionType, DecisionCategory> = {
   WORKFORCE_FORECAST_D1: 'workforce_forecast',
   WORKFORCE_COVERAGE_MISSING: 'workforce_forecast',
   LABOR_GROUP_UNMAPPED: 'workforce_forecast',
+  SCHEDULE_REPAIR: 'capacity_computation',
 };
 
 const CATEGORY_LABELS: Record<DecisionCategory, string> = {

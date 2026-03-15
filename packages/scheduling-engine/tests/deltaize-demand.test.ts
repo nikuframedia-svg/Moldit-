@@ -343,6 +343,21 @@ describe('rawNPtoOrderDemand', () => {
   });
 });
 
+// ── Fixture format (raw NP: null=empty, negative=demand) ────────────
+
+describe('rawNPtoOrderDemand fixture format', () => {
+  it('fixture OP01 raw NP produces correct demand', () => {
+    // Fixture d: [null, -1490, null, -3200, null, -3200, -16960, null]
+    const result = rawNPtoOrderDemand([null, -1490, null, -3200, null, -3200, -16960, null], 0);
+    expect(result).toEqual([0, 1490, 0, 3200, 0, 3200, 16960, 0]);
+  });
+
+  it('all-null fixture ops produce zero demand', () => {
+    const result = rawNPtoOrderDemand([null, null, null, null, null, null, null, null], 0);
+    expect(result).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+  });
+});
+
 // ── Non-negativity property (defence-in-depth) ──────────────────────
 
 describe('rawNPtoDailyDemand non-negativity', () => {

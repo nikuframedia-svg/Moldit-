@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
+import { FeatureErrorBoundary } from '@/components/Common/FeatureErrorBoundary';
 import { SkeletonCard, SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { StatusBanner } from '@/components/Common/StatusBanner';
 import { useDayData } from '@/hooks/useDayData';
@@ -20,6 +21,7 @@ import { useUIStore } from '@/stores/useUIStore';
 import { ActiveDecisions } from '../components/ActiveDecisions';
 import { AlertsFeed } from '../components/AlertsFeed';
 import { AlertsPanel } from '../components/AlertsPanel';
+import { DeliveryRiskPanel } from '../components/DeliveryRiskPanel';
 import { AndonDrawer } from '../components/AndonDrawer';
 import { D1Preparation } from '../components/D1Preparation';
 import { DayOrders } from '../components/DayOrders';
@@ -34,7 +36,7 @@ import './ConsolePage.css';
 
 export function ConsolePage() {
   const { dayData, loading, error } = useDayData();
-  const { engine, cap, blocks: allBlocks, metrics, validation } = useScheduleData();
+  const { engine, cap, blocks: allBlocks, metrics, validation, lateDeliveries } = useScheduleData();
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
   const setSelectedDayIdx = useUIStore((s) => s.actions.setSelectedDayIdx);
   const openContextPanel = useUIStore((s) => s.actions.openContextPanel);
@@ -97,6 +99,16 @@ export function ConsolePage() {
 
   // OTD from global metrics
   const otd = metrics?.otdDelivery;
+
+  // ClientMap: opId → client name (for MachineCard context)
+  const clientMap = useMemo(() => {
+    if (!engine) return {};
+    const m: Record<string, string> = {};
+    for (const op of engine.ops) {
+      if (op.cl) m[op.id] = op.clNm || op.cl;
+    }
+    return m;
+  }, [engine]);
 
   // Feasibility score for this day (ok blocks / total blocks)
   const dayFeasibilityScore = useMemo(() => {
@@ -181,10 +193,10 @@ export function ConsolePage() {
     const layer = chooseLayer(delayMin);
 
     if (layer === 1) {
-      addToast(`${latest.machineId}: right-shift automatico aplicado (<30min)`, 'info');
+      addToast(`${latest.machineId} parada. Atraso <30min — plano ajustado automaticamente.`, 'info');
     } else {
       addToast(
-        `${latest.machineId}: replaneamento necessario (camada ${layer}). Ver pagina Scheduling.`,
+        `${latest.machineId} parada. Atraso estimado >30min — vai a pagina Scheduling para redistribuir carga.`,
         'warning',
         6000,
       );
@@ -243,9 +255,9 @@ export function ConsolePage() {
         </div>
         <EmptyState
           icon="error"
-          title="Sem dados de scheduling"
+          title="Ainda nao ha dados carregados"
           description={
-            error ?? 'O engine nao tem dados carregados. Carregue um ISOP ou verifique a fixture.'
+            error ?? 'Para comecar, carrega o ficheiro ISOP do ERP. O PP1 analisa os dados e cria o plano automaticamente.'
           }
         />
       </div>
@@ -253,6 +265,7 @@ export function ConsolePage() {
   }
 
   return (
+    <FeatureErrorBoundary module="Console">
     <div className={`cmd${panelOpen ? ' cmd--panel-open' : ''}`} data-testid="comando-diario-page">
       {/* Header */}
       <div className="cmd__header">
@@ -283,7 +296,7 @@ export function ConsolePage() {
         <StatusBanner variant={bannerVariant} message={bannerMessage} />
 
         <Link
-          to={`/console/day/${dayData.date}`}
+          to={`/console/day/${dayData.date.split('/').join('_')}`}
           style={{ fontSize: 11, color: C.ac, textDecoration: 'none', alignSelf: 'flex-end' }}
         >
           Ver dia completo →
@@ -301,6 +314,10 @@ export function ConsolePage() {
           operatorCapacity={dayData.operatorCapacity}
           sparklines={sparklines}
           otd={otd}
+          activeMachines={engine.machines.length - Object.keys(downtimes).length}
+          totalMachines={engine.machines.length}
+          setupCount={dayData.blocks.filter(b => b.setupS != null).length}
+          lateDeliveriesCount={lateDeliveries?.unresolvedCount ?? 0}
         />
       </div>
 
@@ -309,6 +326,7 @@ export function ConsolePage() {
         engine={dayData.engine}
         blocks={dayData.blocks}
         machineLoads={dayData.machineLoads}
+        clientMap={clientMap}
       />
 
       {/* Two-column body */}
@@ -344,6 +362,13 @@ export function ConsolePage() {
 
           <AlertsFeed />
 
+          {lateDeliveries && lateDeliveries.entries.length > 0 && (
+            <DeliveryRiskPanel
+              lateDeliveries={lateDeliveries}
+              onNavigateToBlock={handleNavigateToBlock}
+            />
+          )}
+
           <AlertsPanel
             violations={dayData.violations}
             infeasibilities={dayData.infeasibilities}
@@ -371,5 +396,6 @@ export function ConsolePage() {
 
       <AndonDrawer />
     </div>
+    </FeatureErrorBoundary>
   );
 }

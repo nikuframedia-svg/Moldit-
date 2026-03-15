@@ -1,5 +1,6 @@
 import type { PolicyId } from '../useConfigPreview';
 import { POLICY_LABELS, useConfigPreview } from '../useConfigPreview';
+import './PolicySelector.css';
 
 const POLICY_ORDER: PolicyId[] = [
   'incompol_standard',

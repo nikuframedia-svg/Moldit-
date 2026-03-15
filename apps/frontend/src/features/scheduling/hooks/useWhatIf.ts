@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import type {
   AreaCaps,
@@ -7,6 +7,7 @@ import type {
   ETool,
   ObjectiveProfile,
   OptResult,
+  SAInput,
   ScoreWeights,
 } from '../../../lib/engine';
 import {
@@ -15,6 +16,7 @@ import {
   quickValidate,
   runOptimization,
 } from '../../../lib/engine';
+import { useSchedulingWorker } from '../../../hooks/useSchedulingWorker';
 import { useSettingsStore } from '../../../stores/useSettingsStore';
 
 export interface WhatIfScenario {
@@ -33,6 +35,8 @@ export interface WhatIfState {
   res: { top3: OptResult[]; moveable: ReturnType<typeof moveableOps> } | null;
   run: boolean;
   prog: number;
+  saRunning: boolean;
+  saProg: number | null;
   editingDown: { type: 'machine' | 'tool'; id: string } | null;
   wdi: number[];
   wiDownStartDay: number;
@@ -105,7 +109,11 @@ export function useWhatIf(
   const areaCaps: AreaCaps = { PG1: sc.t1 + sc.p1, PG2: sc.t2 + sc.p2 };
   const avOps = areaCaps.PG1 + areaCaps.PG2;
 
+  const { runSA, progress: saProg, isRunning: saRunning, cancel: cancelSA } = useSchedulingWorker();
+  const saInputRef = useRef<SAInput | null>(null);
+
   const optimize = useCallback(() => {
+    cancelSA();
     setRun(true);
     setProg(0);
     setRes(null);
@@ -121,6 +129,9 @@ export function useWhatIf(
     );
     const profile = profiles.find((p) => p.id === objProfile);
     const wts = profile ? { ...profile.weights } : null;
+    const thirdShift = data.thirdShift ?? useSettingsStore.getState().thirdShiftDefault;
+    const mTimelines = replanTimelines?.machineTimelines ?? data.machineTimelines;
+    const tTimelines = replanTimelines?.toolTimelines ?? data.toolTimelines;
     const opt = runOptimization({
       ops,
       mSt: bM,
@@ -137,9 +148,9 @@ export function useWhatIf(
       rule: dispatchRule,
       N,
       K: 3,
-      thirdShift: data.thirdShift ?? useSettingsStore.getState().thirdShiftDefault,
-      machineTimelines: replanTimelines?.machineTimelines ?? data.machineTimelines,
-      toolTimelines: replanTimelines?.toolTimelines ?? data.toolTimelines,
+      thirdShift,
+      machineTimelines: mTimelines,
+      toolTimelines: tTimelines,
       twinValidationReport: data.twinValidationReport,
       dates: data.dates,
       orderBased: data.orderBased,
@@ -148,6 +159,44 @@ export function useWhatIf(
       (top3) => {
         setRes({ top3, moveable: opt.moveable });
         setRun(false);
+
+        // Phase 2: SA refinement on best greedy result (off main thread)
+        const best = top3[0];
+        if (!best) return;
+        const saInput: SAInput = {
+          ops,
+          mSt: bM,
+          tSt: bT,
+          machines,
+          TM,
+          workdays: data.workdays,
+          nDays: data.nDays,
+          workforceConfig: data.workforceConfig ?? DEFAULT_WORKFORCE_CONFIG,
+          weights: wts ? (wts as Partial<ScoreWeights>) : undefined,
+          rule: dispatchRule,
+          thirdShift,
+          machineTimelines: mTimelines,
+          toolTimelines: tTimelines,
+          twinValidationReport: data.twinValidationReport,
+          dates: data.dates,
+          orderBased: data.orderBased,
+          initialBlocks: best.blocks,
+          initialMoves: best.moves,
+        };
+        saInputRef.current = saInput;
+        runSA(saInput, { maxIter: 10_000 })
+          .then((saResult) => {
+            if (saInputRef.current !== saInput) return; // stale
+            if (saResult.metrics.score > best.score) {
+              setRes((prev) => {
+                if (!prev) return prev;
+                const updated = [...prev.top3];
+                updated[0] = saResult.metrics;
+                return { ...prev, top3: updated };
+              });
+            }
+          })
+          .catch(() => { /* SA failed — keep greedy result */ });
       },
       (p) => setProg(p),
     );
@@ -166,6 +215,8 @@ export function useWhatIf(
     getResourceDownDays,
     focusT,
     profiles,
+    runSA,
+    cancelSA,
   ]);
 
   const selBlocks = res?.top3[sel]?.blocks ?? [];
@@ -180,6 +231,8 @@ export function useWhatIf(
       res,
       run,
       prog,
+      saRunning,
+      saProg,
       editingDown,
       wdi,
       wiDownStartDay,

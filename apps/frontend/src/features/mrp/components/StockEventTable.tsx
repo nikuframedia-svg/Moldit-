@@ -10,7 +10,7 @@ import type { StockEvent, StockEventType } from '../utils/stock-detail-compute';
 const TYPE_CONFIG: Record<StockEventType, { label: string; color: string; sign: string }> = {
   production: { label: 'Produção', color: C.ac, sign: '+' },
   shipment: { label: 'Expedição', color: C.rd, sign: '-' },
-  receipt: { label: 'Receção', color: '#3B82F6', sign: '+' },
+  receipt: { label: 'Receção', color: 'var(--semantic-blue)', sign: '+' },
 };
 
 interface StockEventTableProps {

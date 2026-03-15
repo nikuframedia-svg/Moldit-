@@ -23,4 +23,6 @@ export {
   useStandingCount,
   useUnackCount,
 } from './useAlertStore';
+export { useDeliveryAlertGenerator } from './useDeliveryAlertGenerator';
+export { useNightShiftAlertGenerator } from './useNightShiftAlertGenerator';
 export { useStockAlertGenerator } from './useStockAlertGenerator';

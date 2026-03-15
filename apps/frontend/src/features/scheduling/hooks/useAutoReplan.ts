@@ -67,6 +67,7 @@ export function useAutoReplan(
   tSt: Record<string, string>,
   applyMove: (opId: string, toM: string) => void,
   replanTimelines: ReturnType<typeof import('../../../lib/engine').buildResourceTimelines> | null,
+  setAppliedReplan: (result: AutoReplanResult | null) => void,
   onReplanComplete?: (info: {
     trigger: string;
     triggerType: string;
@@ -229,20 +230,27 @@ export function useAutoReplan(
 
   const handleArApplyAll = useCallback(() => {
     if (!arResult) return;
-    const mvs = arResult.autoMoves;
-    for (const mv of mvs) applyMove(mv.opId, mv.toM);
+    setAppliedReplan(arResult);
+    for (const mv of arResult.autoMoves) applyMove(mv.opId, mv.toM);
+    const summary = [
+      arResult.autoMoves.length > 0 && `${arResult.autoMoves.length} movimentos`,
+      arResult.autoAdvances.length > 0 && `${arResult.autoAdvances.length} avanços`,
+      arResult.overtimeActions.length > 0 && `${arResult.overtimeActions.length} horas extra`,
+      arResult.splitActions.length > 0 && `${arResult.splitActions.length} splits`,
+      arResult.thirdShiftActivated && '3º turno activado',
+    ].filter(Boolean).join(', ');
     useToastStore
       .getState()
-      .actions.addToast(`Auto-replan aplicado: ${mvs.length} movimentos`, 'success', 5000);
+      .actions.addToast(`Auto-replan aplicado: ${summary || 'sem alterações'}`, 'success', 5000);
     onReplanComplete?.({
       trigger: 'Auto-Replan',
       triggerType: 'manual',
       strategy: 'auto_replan',
       strategyLabel: 'AUTO',
-      movesCount: mvs.length,
-      moves: mvs.map((mv) => ({ opId: mv.opId, toM: mv.toM })),
+      movesCount: arResult.autoMoves.length,
+      moves: arResult.autoMoves.map((mv) => ({ opId: mv.opId, toM: mv.toM })),
     });
-  }, [arResult, applyMove, onReplanComplete]);
+  }, [arResult, applyMove, setAppliedReplan, onReplanComplete]);
 
   return {
     state: {

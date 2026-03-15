@@ -1,9 +1,4 @@
-/**
- * useGanttDragDrop — Native drag-and-drop for Gantt blocks.
- *
- * Manages drag state, undo stack (max 20), and proposed move detection.
- * Does NOT mutate blocks — returns proposed move for DeviationPanel confirmation.
- */
+/** useGanttDragDrop — Drag-and-drop for Gantt blocks with 5px threshold + DeviationPanel integration. */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Block, EMachine } from '../../../lib/engine';
@@ -25,13 +20,10 @@ export interface ProposedMove {
   isFrozen: boolean;
 }
 
-interface UndoEntry {
-  description: string;
-  timestamp: number;
-}
-
+interface UndoEntry { description: string; timestamp: number }
 const MAX_UNDO = 20;
 const RANGE = S1 - S0;
+const DRAG_THRESHOLD = 5;
 
 export function useGanttDragDrop(machines: EMachine[], rowHeight: number, ppm: number) {
   const [drag, setDrag] = useState<DragState>({
@@ -45,32 +37,62 @@ export function useGanttDragDrop(machines: EMachine[], rowHeight: number, ppm: n
   const [proposedMove, setProposedMove] = useState<ProposedMove | null>(null);
   const undoStack = useRef<UndoEntry[]>([]);
 
+  // Pending drag: tracks mousedown before threshold is reached
+  const pending = useRef<{
+    block: Block;
+    startX: number;
+    startY: number;
+    rect: DOMRect;
+  } | null>(null);
+
   const startDrag = useCallback((block: Block, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const rect = (e.target as HTMLElement).closest('[data-block-id]')?.getBoundingClientRect();
+    if (block.freezeStatus === 'frozen') return; // Don't allow drag on frozen blocks
+    const el = (e.target as HTMLElement).closest('[data-block-id]');
+    const rect = el?.getBoundingClientRect();
     if (!rect) return;
-    setDrag({
-      isDragging: true,
-      block,
-      offsetX: e.clientX - rect.left,
-      offsetY: e.clientY - rect.top,
-      ghostX: rect.left,
-      ghostY: rect.top,
-    });
+    pending.current = { block, startX: e.clientX, startY: e.clientY, rect };
   }, []);
 
-  const onMouseMove = useCallback(
-    (e: MouseEvent) => {
+  // Global listeners for pending drag detection + active drag
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      if (pending.current) {
+        const dx = e.clientX - pending.current.startX;
+        const dy = e.clientY - pending.current.startY;
+        if (Math.abs(dx) + Math.abs(dy) >= DRAG_THRESHOLD) {
+          const { block, rect } = pending.current;
+          setDrag({
+            isDragging: true,
+            block,
+            offsetX: pending.current.startX - rect.left,
+            offsetY: pending.current.startY - rect.top,
+            ghostX: e.clientX - (pending.current.startX - rect.left),
+            ghostY: e.clientY - (pending.current.startY - rect.top),
+          });
+          pending.current = null;
+        }
+        return;
+      }
       if (!drag.isDragging) return;
       setDrag((d) => ({
         ...d,
         ghostX: e.clientX - d.offsetX,
         ghostY: e.clientY - d.offsetY,
       }));
-    },
-    [drag.isDragging],
-  );
+    };
+    const handleUp = () => {
+      pending.current = null;
+      if (drag.isDragging) {
+        // endDrag is called via onMouseUp on the container
+      }
+    };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [drag.isDragging]);
 
   const endDrag = useCallback(
     (containerRect: DOMRect | null) => {
@@ -80,27 +102,19 @@ export function useGanttDragDrop(machines: EMachine[], rowHeight: number, ppm: n
       }
 
       const block = drag.block;
-      // Calculate target machine from Y position
       const relY = drag.ghostY + drag.offsetY - containerRect.top;
       const machineIdx = Math.floor(relY / rowHeight);
       const targetMachine = machines[Math.max(0, Math.min(machineIdx, machines.length - 1))];
 
-      // Calculate target time from X position
-      const leftPanelWidth = 100; // matches GanttChart left panel
+      const leftPanelWidth = 100;
       const relX = drag.ghostX + drag.offsetX - containerRect.left - leftPanelWidth;
       const minOffset = relX / ppm;
       const toStartMin = Math.round(S0 + Math.max(0, Math.min(minOffset, RANGE)));
 
       const isFrozen = block.freezeStatus === 'frozen';
 
-      // Only propose if position actually changed
       if (targetMachine.id !== block.machineId || Math.abs(toStartMin - block.startMin) > 5) {
-        setProposedMove({
-          block,
-          toMachineId: targetMachine.id,
-          toStartMin,
-          isFrozen,
-        });
+        setProposedMove({ block, toMachineId: targetMachine.id, toStartMin, isFrozen });
       }
 
       setDrag((d) => ({ ...d, isDragging: false, block: null }));
@@ -120,18 +134,6 @@ export function useGanttDragDrop(machines: EMachine[], rowHeight: number, ppm: n
   const popUndo = useCallback((): UndoEntry | null => {
     return undoStack.current.pop() ?? null;
   }, []);
-
-  // Global mousemove/mouseup listeners during drag
-  useEffect(() => {
-    if (!drag.isDragging) return;
-    const handleUp = () => endDrag(null);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', handleUp);
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', handleUp);
-    };
-  }, [drag.isDragging, onMouseMove, endDrag]);
 
   return {
     drag,

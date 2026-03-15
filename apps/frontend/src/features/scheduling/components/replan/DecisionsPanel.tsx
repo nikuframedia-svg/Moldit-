@@ -47,7 +47,7 @@ export function DecisionsPanel({
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8 }}>
         {[
-          { l: 'OTD', v: `${otd}%`, c: parseFloat(otd) < 95 ? C.rd : C.ac },
+          { l: 'OTD-D', v: `${otd}%`, c: parseFloat(otd) < 95 ? C.rd : C.ac },
           {
             l: 'Decisões',
             v: decs.length,
@@ -61,8 +61,8 @@ export function DecisionsPanel({
             v: lP > 0 ? `${(lP / 1000).toFixed(0)}K` : '0',
             c: lP > 0 ? C.rd : C.ac,
           },
-        ].map((k, i) => (
-          <Card key={i}>
+        ].map((k) => (
+          <Card key={k.l}>
             <Metric label={k.l} value={k.v} sub={k.s} color={k.c} />
           </Card>
         ))}
@@ -77,11 +77,11 @@ export function DecisionsPanel({
               <div style={{ fontSize: 10, fontWeight: 600, color: C.ac, marginBottom: 4 }}>
                 Aplicadas ({moves.length})
               </div>
-              {moves.map((mv) => {
+              {moves.map((mv, i) => {
                 const op = ops.find((o) => o.id === mv.opId);
                 return (
                   <div
-                    key={mv.opId}
+                    key={`mv_${mv.opId}_${i}`}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}
                   >
                     <span
@@ -118,7 +118,7 @@ export function DecisionsPanel({
                       {mv.toM}
                     </span>
                     <span style={{ flex: 1, fontSize: 9, color: C.t3 }}>{op?.nm}</span>
-                    <Pill color={C.rd} active onClick={() => undoMove(mv.opId)} size="sm">
+                    <Pill color={C.rd} active onClick={() => undoMove(mv.opId)} size="sm" aria-label={`Desfazer movimentação de ${op?.t ?? mv.opId}`}>
                       <Undo2 size={9} strokeWidth={1.5} />
                     </Pill>
                   </div>
@@ -136,9 +136,9 @@ export function DecisionsPanel({
             </Card>
           )}
 
-          {decs.map((d) => (
+          {decs.map((d, i) => (
             <DecisionCard
-              key={d.id}
+              key={`${d.id}_${i}`}
               d={d}
               dnames={dnames}
               xai={xai}

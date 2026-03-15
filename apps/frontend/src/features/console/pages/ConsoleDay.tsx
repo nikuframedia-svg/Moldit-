@@ -16,6 +16,7 @@ import { useScheduleData } from '@/hooks/useScheduleData';
 import type { Block } from '@/lib/engine';
 import { fmtMin, T1 } from '@/lib/engine';
 import { useUIStore } from '@/stores/useUIStore';
+import { formatSetupTime, formatUtilization } from '@/utils/explicitText';
 import { MachineTimeline } from '../components/MachineTimeline';
 import { ShiftSummary } from '../components/ShiftSummary';
 import './ConsoleDay.css';
@@ -32,7 +33,8 @@ function utilColor(u: number): string {
 }
 
 export function ConsoleDay() {
-  const { date } = useParams<{ date: string }>();
+  const { date: rawDate } = useParams<{ date: string }>();
+  const date = rawDate?.split('_').join('/');
   const navigate = useNavigate();
 
   const { engine, blocks: allBlocks } = useScheduleData();
@@ -157,14 +159,14 @@ export function ConsoleDay() {
         <button
           className="cday__nav-btn"
           disabled={!prevDate}
-          onClick={() => prevDate && navigate(`/console/day/${prevDate}`)}
+          onClick={() => prevDate && navigate(`/console/day/${prevDate.split('/').join('_')}`)}
         >
           <ChevronLeft size={14} />
         </button>
         <button
           className="cday__nav-btn"
           disabled={!nextDate}
-          onClick={() => nextDate && navigate(`/console/day/${nextDate}`)}
+          onClick={() => nextDate && navigate(`/console/day/${nextDate.split('/').join('_')}`)}
         >
           <ChevronRight size={14} />
         </button>
@@ -185,14 +187,30 @@ export function ConsoleDay() {
 
       {/* KPIs */}
       <div className="cday__kpis">
-        <KPICard label="Pecas" value={dayData.totalPcs.toLocaleString()} unit="pcs" />
-        <KPICard label="Producao" value={fmtMin(dayData.totalProdMin)} unit="min" />
-        <KPICard label="Setup" value={fmtMin(dayData.totalSetupMin)} unit="min" />
+        <KPICard
+          label="Pecas"
+          value={dayData.totalPcs.toLocaleString()}
+          unit="pcs"
+          subtitle={dayData.totalPcs > 10000 ? 'Dia de alta carga' : 'Volume normal'}
+        />
+        <KPICard
+          label="Producao"
+          value={fmtMin(dayData.totalProdMin)}
+          unit="min"
+          subtitle={`${dayData.blocks.length} blocos em ${dayData.machineLoads.length} maq.`}
+        />
+        <KPICard
+          label="Setup"
+          value={fmtMin(dayData.totalSetupMin)}
+          unit="min"
+          subtitle={formatSetupTime(dayData.totalSetupMin, dayData.blocks.length).qualifier}
+        />
         <KPICard
           label="Utilizacao"
           value={`${(dayData.factoryUtil * 100).toFixed(0)}`}
           unit="%"
           statusColor={utilColor(dayData.factoryUtil)}
+          subtitle={formatUtilization(dayData.factoryUtil, dayData.machineLoads.filter((m) => m.utilization > 0).length, dayData.machineLoads.length).qualifier}
         />
       </div>
 
@@ -211,7 +229,7 @@ export function ConsoleDay() {
         <Collapsible title="Em Curso" defaultOpen badge={`${inProgress.length}`}>
           <div className="cday__ops-list">
             {inProgress.map((b) => (
-              <div key={b.opId} className="cday__op-row" onClick={() => handleBlockClick(b)}>
+              <div key={b.opId} className="cday__op-row" role="button" tabIndex={0} onClick={() => handleBlockClick(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBlockClick(b); } }}>
                 <span className="cday__op-sku">{b.sku}</span>
                 <span className="cday__op-machine">{b.machineId}</span>
                 <span className="cday__op-time">
@@ -231,7 +249,7 @@ export function ConsoleDay() {
         ) : (
           <div className="cday__ops-list">
             {pending.map((b) => (
-              <div key={b.opId} className="cday__op-row" onClick={() => handleBlockClick(b)}>
+              <div key={b.opId} className="cday__op-row" role="button" tabIndex={0} onClick={() => handleBlockClick(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBlockClick(b); } }}>
                 <span className="cday__op-sku">{b.sku}</span>
                 <span className="cday__op-machine">{b.machineId}</span>
                 <span className="cday__op-time">
@@ -251,7 +269,7 @@ export function ConsoleDay() {
         ) : (
           <div className="cday__ops-list">
             {completed.map((b) => (
-              <div key={b.opId} className="cday__op-row" onClick={() => handleBlockClick(b)}>
+              <div key={b.opId} className="cday__op-row" role="button" tabIndex={0} onClick={() => handleBlockClick(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBlockClick(b); } }}>
                 <span className="cday__op-sku">{b.sku}</span>
                 <span className="cday__op-machine">{b.machineId}</span>
                 <span className="cday__op-time">

@@ -1,15 +1,16 @@
 /**
  * FormulasPage — Custom formula editor for priority scoring, deviation cost, etc.
  * Route: /settings/formulas
+ * Persisted in useSettingsStore (localStorage).
  */
 
 import { Parser } from 'expr-eval';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { useScheduleData } from '@/hooks/useScheduleData';
-import type { FormulaConfig } from '../components/FormulaEditor';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 import { FormulaEditor } from '../components/FormulaEditor';
 
 function defaultTierFromName(name: string): number {
@@ -20,47 +21,8 @@ function defaultTierFromName(name: string): number {
   return 3;
 }
 
-const DEFAULT_FORMULAS: FormulaConfig[] = [
-  {
-    id: 'priorityScoring',
-    label: 'Priority Scoring',
-    description: 'Cálculo de prioridade de cada job no dispatch ATCS',
-    expression: '(clientTier * 10 + demandTotal / piecesPerHour) / (slack + 1)',
-    variables: ['slack', 'setup', 'clientTier', 'demandTotal', 'piecesPerHour', 'stock', 'wip'],
-    version: 1,
-    versions: [],
-  },
-  {
-    id: 'deviationCost',
-    label: 'Custo de Desvio',
-    description: 'Cálculo do custo de cada desvio no Decision Firewall',
-    expression: 'deviationHours * multiplier * (6 - clientTier)',
-    variables: ['deviationHours', 'clientTier', 'multiplier', 'originalPriority'],
-    version: 1,
-    versions: [],
-  },
-  {
-    id: 'nightShiftTrigger',
-    label: 'Trigger Turno Noite',
-    description: 'Condição para sinalizar necessidade de turno noite',
-    expression: 'load2Shifts / (capacity2Shifts + 1) * 100',
-    variables: ['load2Shifts', 'capacity2Shifts', 'pendingOrders', 'avgSlack'],
-    version: 1,
-    versions: [],
-  },
-  {
-    id: 'robustnessScore',
-    label: 'Score de Robustez',
-    description: 'Avaliação de robustez do plano (0-100)',
-    expression: 'otdScore * 50 + (10 - cascadeRisk) * 3 + bufferHours / 10',
-    variables: ['otdScore', 'cascadeRisk', 'bufferHours', 'violations'],
-    version: 1,
-    versions: [],
-  },
-];
-
 function computePreview(
-  formula: FormulaConfig,
+  formula: { expression: string },
   ops: Array<{ t: string; clNm?: string; d: number[]; stk?: number; wip?: number }>,
   toolMap: Record<string, { sH: number; pH: number }>,
   nDays: number,
@@ -105,7 +67,8 @@ function computePreview(
 
 export function FormulasPage() {
   const { engine, loading, error } = useScheduleData();
-  const [formulas, setFormulas] = useState<FormulaConfig[]>(DEFAULT_FORMULAS);
+  const formulas = useSettingsStore((s) => s.formulas);
+  const updateFormula = useSettingsStore((s) => s.actions.updateFormula);
 
   const previews = useMemo(() => {
     if (!engine) return {};
@@ -115,10 +78,6 @@ export function FormulasPage() {
     }
     return result;
   }, [engine, formulas]);
-
-  const updateFormula = (updated: FormulaConfig) => {
-    setFormulas((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
-  };
 
   if (loading)
     return (

@@ -257,6 +257,7 @@ interface DataStoreState {
   fileName: string | null;
   meta: LoadMeta | null;
   isMerging: boolean;
+  _hasHydrated: boolean;
   actions: DataActions;
 }
 
@@ -269,6 +270,7 @@ export const useDataStore = create<DataStoreState>()(
       fileName: null,
       meta: null,
       isMerging: false,
+      _hasHydrated: false,
 
       actions: {
         setNikufraData: async (data, fileName, meta) => {
@@ -299,10 +301,19 @@ export const useDataStore = create<DataStoreState>()(
     }),
     {
       name: 'pp1-loaded-data',
-      partialize: ({ actions: _, ...data }) => data,
+      partialize: ({ actions: _, isMerging: __, _hasHydrated: ___, ...data }) => data,
     },
   ),
 );
+
+// Reliable hydration tracking via persist API (fires even if hydration already completed)
+useDataStore.persist.onFinishHydration(() => {
+  useDataStore.setState({ _hasHydrated: true });
+});
+// If already hydrated (e.g. synchronous storage), set immediately
+if (useDataStore.persist.hasHydrated()) {
+  useDataStore.setState({ _hasHydrated: true });
+}
 
 // Clean up legacy master data store (removed in favour of fixture-only approach)
 if (typeof window !== 'undefined') {
@@ -314,3 +325,4 @@ if (typeof window !== 'undefined') {
 export const useNikufraData = () => useDataStore((s) => s.nikufraData);
 export const useIsMerging = () => useDataStore((s) => s.isMerging);
 export const useDataActions = () => useDataStore((s) => s.actions);
+export const useHasHydrated = () => useDataStore((s) => s._hasHydrated);

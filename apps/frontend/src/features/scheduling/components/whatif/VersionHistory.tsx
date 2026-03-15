@@ -88,7 +88,7 @@ export function VersionActionBar({
           );
           const id = usePlanVersionStore
             .getState()
-            .actions.savePlan(s as any, decs, params, s.label);
+            .actions.savePlan(s, decs, params, s.label);
           useToastStore
             .getState()
             .actions.addToast(`Versão guardada: ${s.label} (${id.slice(0, 8)})`, 'success', 4000);

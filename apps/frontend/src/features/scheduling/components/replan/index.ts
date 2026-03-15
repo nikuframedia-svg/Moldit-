@@ -4,5 +4,7 @@ export { DayRangePicker } from './DayRangePicker';
 export { DecisionsPanel } from './DecisionsPanel';
 export { FailureFormCard } from './FailureFormCard';
 export { OptimalRoutingCard } from './OptimalRoutingCard';
+export { QualityBanner } from './QualityBanner';
 export { ResourceDownCard } from './ResourceDownCard';
 export { RushOrderCard } from './RushOrderCard';
+export { SimpleReplanView } from './SimpleReplanView';

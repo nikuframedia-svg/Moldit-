@@ -1,5 +1,6 @@
 import type { ConfigConstraints } from '../useConfigPreview';
 import { useConfigPreview } from '../useConfigPreview';
+import './ConstraintToggles.css';
 
 interface ConstraintDef {
   key: keyof ConfigConstraints;

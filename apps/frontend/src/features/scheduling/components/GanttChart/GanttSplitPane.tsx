@@ -13,6 +13,7 @@ import type {
   ScheduleValidationReport,
 } from '../../../../lib/engine';
 import { DEFAULT_WORKFORCE_CONFIG, scoreSchedule } from '../../../../lib/engine';
+import { useClassifications } from '../../../../hooks/useClassifications';
 import { useGanttDragDrop } from '../../hooks/useGanttDragDrop';
 import { CapacityHistogram } from './CapacityHistogram';
 import { DeviationPanel } from './DeviationPanel';
@@ -70,6 +71,7 @@ export function GanttSplitPane({
     }
   }, [neMetrics, blocks, ops, data]);
 
+  const { blockDefinitions } = useClassifications();
   const { proposedMove, clearProposal, pushUndo } = useGanttDragDrop(data.machines, 44, 1);
 
   const handleSelectBlock = useCallback((block: Block) => {
@@ -106,6 +108,8 @@ export function GanttSplitPane({
               applyMove={applyMove}
               undoMove={undoMove}
               validation={validation}
+              currentMetrics={currentMetrics}
+              blockClassifications={blockDefinitions}
             />
           </div>
           <div className="gantt-split__histogram">

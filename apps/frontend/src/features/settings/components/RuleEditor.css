@@ -1,0 +1,124 @@
+/* Rule Editor */
+
+.rule-editor {
+  display: flex;
+  gap: var(--space-16);
+  min-height: 400px;
+}
+
+.rule-editor__list {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.rule-editor__list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.rule-editor__list-item:hover {
+  border-color: var(--border-hover);
+}
+
+.rule-editor__list-item--active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.rule-editor__list-item--disabled {
+  opacity: 0.5;
+}
+
+.rule-editor__list-name {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rule-editor__badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.rule-editor__badge--on {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--semantic-green);
+}
+
+.rule-editor__badge--off {
+  background: var(--bg-base);
+  color: var(--text-muted);
+}
+
+.rule-editor__panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.rule-editor__test-bar {
+  padding: var(--space-8) var(--space-12);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  color: var(--accent-light);
+}
+
+/* react-querybuilder dark theme overrides */
+
+.rule-editor__panel .queryBuilder {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.rule-editor__panel .queryBuilder .ruleGroup {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: var(--space-8);
+  gap: var(--space-8);
+}
+
+.rule-editor__panel .queryBuilder select,
+.rule-editor__panel .queryBuilder input[type="text"],
+.rule-editor__panel .queryBuilder input[type="number"] {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  border-radius: var(--radius-xs);
+  padding: var(--space-4) var(--space-8);
+  font-size: var(--text-sm);
+}
+
+.rule-editor__panel .queryBuilder button {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  border-radius: var(--radius-xs);
+  padding: var(--space-4) var(--space-8);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.rule-editor__panel .queryBuilder button:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}

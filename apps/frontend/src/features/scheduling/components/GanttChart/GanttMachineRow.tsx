@@ -1,5 +1,7 @@
+import { memo } from 'react';
 import type { Block, DayLoad, EMachine, EngineData, ETool } from '../../../../lib/engine';
-import { C, DAY_CAP, S0, T1 } from '../../../../lib/engine';
+import { C, DAY_CAP, S0, S1, T1 } from '../../../../lib/engine';
+import { blockKey } from '../../../../domain/configurable-logic-eval';
 import { dot, toolColor } from '../atoms';
 import { GanttBlock } from './GanttBlock';
 
@@ -15,11 +17,15 @@ export interface GanttMachineRowProps {
   hov: string | null;
   selOp: string | null;
   tools: ETool[];
+  thirdShift?: boolean;
   setHov: (v: string | null) => void;
   setSelOp: (v: string | null) => void;
+  onDragStart?: (block: Block, e: React.MouseEvent) => void;
+  isDragOver?: boolean;
+  blockClassifications?: Map<string, Set<string>>;
 }
 
-export function GanttMachineRow({
+export const GanttMachineRow = memo(function GanttMachineRow({
   mc,
   mB,
   mSt,
@@ -31,14 +37,32 @@ export function GanttMachineRow({
   hov,
   selOp,
   tools,
+  thirdShift,
   setHov,
   setSelOp,
+  onDragStart,
+  isDragOver,
+  blockClassifications,
 }: GanttMachineRowProps) {
   const isDown = mSt[mc.id] === 'down';
   const rowH = Math.max(44, mB.length * 22 + 10);
   const mC = cap[mc.id]?.[selDay];
   const total = mC ? mC.prod + mC.setup : 0;
-  const u = total / DAY_CAP;
+  const dayCap = thirdShift ? DAY_CAP + 420 : DAY_CAP;
+  const u = total / dayCap;
+  const stateText = isDown
+    ? 'Parada'
+    : mB.length === 0
+      ? 'Inactiva'
+      : 'A produzir';
+  const stateColor = isDown ? C.rd : mB.length === 0 ? C.t4 : C.ac;
+  const avgPH = (() => {
+    const pHs = [...new Set(mB.map((bl) => bl.toolId))]
+      .map((tid) => data.toolMap[tid]?.pH)
+      .filter((v): v is number => v != null && v > 0);
+    if (pHs.length === 0) return null;
+    return Math.round(pHs.reduce((a, b) => a + b, 0) / pHs.length);
+  })();
 
   return (
     <div
@@ -75,29 +99,30 @@ export function GanttMachineRow({
             {mc.id}
           </span>
         </div>
-        <div style={{ fontSize: 9, color: C.t3 }}>
-          {mc.area} · {mB.length} ops
+        <div style={{ fontSize: 9, color: stateColor, fontWeight: 600 }}>
+          {stateText}
         </div>
-        {total > 0 && (
-          <div
-            style={{
-              fontSize: 10,
-              color: u > 1 ? C.rd : u > 0.85 ? C.yl : C.ac,
-              fontWeight: 600,
-            }}
-          >
-            {(u * 100).toFixed(0)}%
+        <div style={{ fontSize: 9, color: C.t3 }}>
+          {mB.length} lote{mB.length !== 1 ? 's' : ''}
+        </div>
+        {avgPH != null && (
+          <div style={{ fontSize: 9, color: C.t3, fontFamily: 'monospace' }}>
+            {avgPH.toLocaleString()} pç/h
           </div>
         )}
       </div>
 
       {/* Timeline area */}
       <div
+        data-machine-id={mc.id}
         style={{
           position: 'relative',
           flex: 1,
           height: rowH,
-          background: isDown ? C.rdS : 'transparent',
+          background: isDragOver ? `${C.ac}15` : isDown ? C.rdS : 'transparent',
+          outline: isDragOver ? `2px dashed ${C.ac}66` : undefined,
+          outlineOffset: -2,
+          transition: 'background 0.15s, outline 0.15s',
         }}
       >
         {hours.map((h) => (
@@ -121,6 +146,17 @@ export function GanttMachineRow({
             borderLeft: `2px solid ${C.yl}33`,
           }}
         />
+        {thirdShift && (
+          <div
+            style={{
+              position: 'absolute',
+              left: (S1 - S0) * ppm,
+              top: 0,
+              bottom: 0,
+              borderLeft: `2px solid ${C.yl}33`,
+            }}
+          />
+        )}
         {isDown && (
           <div
             style={{
@@ -143,6 +179,8 @@ export function GanttMachineRow({
             data={data}
             setHov={setHov}
             setSelOp={setSelOp}
+            onDragStart={onDragStart}
+            classifications={blockClassifications?.get(blockKey(b))}
           />
         ))}
         {!isDown && total > 0 && (
@@ -169,4 +207,4 @@ export function GanttMachineRow({
       </div>
     </div>
   );
-}
+});

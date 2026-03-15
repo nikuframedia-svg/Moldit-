@@ -206,6 +206,7 @@ export function sortAndMergeGroups(
   rule: DispatchRule,
   supplyBoosts?: Map<string, { boost: number }>,
   atcsParams?: ATCSParams,
+  disableToolMerge?: boolean,
 ): ToolGroup[] {
   // For ATCS, pre-compute averages from the group set (needed by the priority formula)
   const atcsContext =
@@ -215,7 +216,7 @@ export function sortAndMergeGroups(
   const comparator = createGroupComparator(rule, supplyBoosts, atcsContext);
   const sorted = [...groups].sort(comparator);
 
-  const toolMerged = mergeConsecutiveTools(sorted);
+  const toolMerged = disableToolMerge ? sorted : mergeConsecutiveTools(sorted);
   const mpMerged = mergeMaterialParts(toolMerged);
 
   sortSkusWithinGroups(mpMerged);

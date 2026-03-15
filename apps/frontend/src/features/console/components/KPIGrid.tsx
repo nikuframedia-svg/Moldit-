@@ -4,6 +4,12 @@
  */
 
 import { KPICard } from '@/components/Industrial/KPICard';
+import {
+  formatOTD,
+  formatUtilization,
+  formatSetupTime,
+  formatAlerts,
+} from '@/utils/explicitText';
 import './KPIGrid.css';
 
 export interface KPISparklines {
@@ -28,25 +34,17 @@ interface KPIGridProps {
   sparklines?: KPISparklines;
   otd?: number;
   otdSparkline?: number[];
+  activeMachines?: number;
+  totalMachines?: number;
+  setupCount?: number;
+  lateDeliveriesCount?: number;
 }
 
-function utilColor(v: number): string {
-  if (v >= 0.85) return 'var(--semantic-amber)';
-  if (v >= 0.6) return 'var(--semantic-green)';
-  return 'var(--accent)';
-}
-
-function otdColor(v: number): string {
-  if (v >= 0.95) return 'var(--semantic-green)';
-  if (v >= 0.85) return 'var(--semantic-amber)';
-  return 'var(--semantic-red)';
-}
-
-function alertColor(n: number): string {
-  if (n === 0) return 'var(--semantic-green)';
-  if (n <= 3) return 'var(--semantic-amber)';
-  return 'var(--semantic-red)';
-}
+const semanticColor = (s: 'good' | 'warning' | 'critical' | 'neutral'): string =>
+  s === 'good' ? 'var(--semantic-green)'
+    : s === 'warning' ? 'var(--semantic-amber)'
+    : s === 'critical' ? 'var(--semantic-red)'
+    : 'var(--accent)';
 
 export function KPIGrid(props: KPIGridProps) {
   const {
@@ -60,25 +58,40 @@ export function KPIGrid(props: KPIGridProps) {
     sparklines,
     otd,
     otdSparkline,
+    activeMachines = 5,
+    totalMachines = 5,
+    setupCount = 0,
+    lateDeliveriesCount = 0,
   } = props;
 
-  const alertCount = violationCount + infeasibleCount;
-  const setupH = Math.floor(totalSetupMin / 60);
-  const setupM = Math.round(totalSetupMin % 60);
+  const otdE = otd != null ? formatOTD(otd) : null;
+  const utilE = formatUtilization(factoryUtil, activeMachines, totalMachines);
+  const setupE = formatSetupTime(totalSetupMin, setupCount);
+  const alertE = formatAlerts(violationCount, infeasibleCount, overflowCount);
 
   return (
     <div className="kpi-grid" data-testid="kpi-grid">
       <KPICard
-        label="OTD"
-        value={otd != null ? `${otd.toFixed(0)}` : '—'}
-        unit="%"
+        label="OTD-D"
+        value={otdE?.formatted ?? '—'}
+        subtitle={otdE?.qualifier}
+        contextLine={
+          lateDeliveriesCount > 0
+            ? `${lateDeliveriesCount} atraso${lateDeliveriesCount > 1 ? 's' : ''} pendente${lateDeliveriesCount > 1 ? 's' : ''}`
+            : otdE?.context
+        }
         sparkline={otdSparkline}
-        statusColor={otd != null ? otdColor(otd / 100) : undefined}
+        statusColor={
+          lateDeliveriesCount > 0
+            ? semanticColor('critical')
+            : otdE ? semanticColor(otdE.semantic) : undefined
+        }
       />
       <KPICard
         label="Producao"
         value={totalPcs.toLocaleString()}
         unit="pcs"
+        subtitle={`${totalOps} operacoes`}
         sparkline={sparklines?.pcs}
         statusColor="var(--accent)"
       />
@@ -90,27 +103,32 @@ export function KPIGrid(props: KPIGridProps) {
       />
       <KPICard
         label="Utilizacao"
-        value={`${(factoryUtil * 100).toFixed(0)}`}
-        unit="%"
+        value={utilE.formatted}
+        subtitle={utilE.qualifier}
+        contextLine={utilE.context}
         sparkline={sparklines?.util}
-        statusColor={utilColor(factoryUtil)}
+        statusColor={semanticColor(utilE.semantic)}
       />
       <KPICard
         label="Setup"
-        value={`${setupH}h${setupM > 0 ? `${setupM}m` : ''}`}
+        value={setupE.formatted}
+        subtitle={setupE.qualifier}
+        contextLine={setupE.context}
         sparkline={sparklines?.setup}
-        statusColor="var(--accent)"
+        statusColor={semanticColor(setupE.semantic)}
       />
       <KPICard
         label="Alertas"
-        value={alertCount}
+        value={alertE.formatted}
+        subtitle={alertE.qualifier}
+        contextLine={alertE.context}
         trend={
           overflowCount > 0
             ? { direction: 'up' as const, label: `${overflowCount} overflow` }
             : undefined
         }
         sparkline={sparklines?.alerts}
-        statusColor={alertColor(alertCount)}
+        statusColor={semanticColor(alertE.semantic)}
       />
     </div>
   );

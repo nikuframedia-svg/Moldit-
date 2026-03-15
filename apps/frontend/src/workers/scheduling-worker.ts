@@ -5,12 +5,12 @@
 //  sends back progress updates and final SAResult.
 // ═══════════════════════════════════════════════════════════
 
-import type { SAConfig, SAInput, SAResult } from '@prodplan/scheduling-engine';
+import type { SAConfig, SAInput, SAResult } from '../lib/engine';
 import {
   DEFAULT_WORKFORCE_CONFIG,
   runSimulatedAnnealing,
   scheduleAll,
-} from '@prodplan/scheduling-engine';
+} from '../lib/engine';
 
 // ── Message protocol ──────────────────────────────────────
 

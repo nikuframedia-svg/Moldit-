@@ -35,6 +35,8 @@ export interface TransformConfig {
    *    applies max(0,-NP), then deltaizes to incremental daily demand.
    */
   demandSemantics: 'daily' | 'cumulative_np' | 'raw_np';
+  /** Number of working days to prepend before ISOP D0 for pre-start production */
+  preStartBufferDays?: number;
 }
 
 export const DEFAULT_TRANSFORM_CONFIG: TransformConfig = {
@@ -329,6 +331,38 @@ export function transformPlanState(ps: PlanState, config?: Partial<TransformConf
   }));
   const twinValidation = validateTwinReferences(twinInput);
 
+  // ── Pre-Start Buffer expansion ─────────────────────────
+  // Prepend N synthetic working days before ISOP D0 so the scheduler
+  // can start production earlier for urgent orders.
+  const preN = cfg.preStartBufferDays ?? 0;
+  let finalNDays = nDays;
+  if (preN > 0) {
+    // Synthetic date labels: "D-3", "D-2", "D-1"
+    const preDates = Array.from({ length: preN }, (_, i) => `D-${preN - i}`);
+    const preDnames = Array.from({ length: preN }, () => 'Pre');
+    const preWorkdays = Array.from({ length: preN }, () => true);
+
+    dates.unshift(...preDates);
+    dnames.unshift(...preDnames);
+    workdays.unshift(...preWorkdays);
+    finalNDays += preN;
+
+    // Prepend zeros to each op's demand array (no demand in pre-start window)
+    const zeros = new Array<number>(preN).fill(0);
+    for (const op of ops) {
+      op.d = [...zeros, ...op.d];
+    }
+
+    // Extend MO arrays if present
+    if (mo) {
+      const moZeros = new Array<number>(preN).fill(0);
+      mo.PG1 = [...moZeros.map(() => nomPG1), ...mo.PG1];
+      mo.PG2 = [...moZeros.map(() => nomPG2), ...mo.PG2];
+      if (mo.poolPG1) mo.poolPG1 = [...moZeros.map(() => nomPG1), ...mo.poolPG1];
+      if (mo.poolPG2) mo.poolPG2 = [...moZeros.map(() => nomPG2), ...mo.poolPG2];
+    }
+  }
+
   return {
     machines,
     tools,
@@ -339,7 +373,7 @@ export function transformPlanState(ps: PlanState, config?: Partial<TransformConf
     focusIds,
     workdays,
     mo,
-    nDays,
+    nDays: finalNDays,
     thirdShift: ps.thirdShift,
     mSt,
     tSt,
@@ -347,5 +381,6 @@ export function transformPlanState(ps: PlanState, config?: Partial<TransformConf
     twinValidationReport: twinValidation,
     workforceConfig: ps.workforceConfig ?? DEFAULT_WORKFORCE_CONFIG,
     orderBased: cfg.demandSemantics === 'raw_np',
+    _preStartDays: preN > 0 ? preN : undefined,
   };
 }

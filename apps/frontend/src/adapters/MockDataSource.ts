@@ -21,7 +21,9 @@ import type { IDataSource } from '../stores/useAppStore';
 export type { CreatePRParams, CreateScenarioParams, ScenarioExtended } from '../domain/types';
 
 // ── Data Store (user-loaded ISOP data) ──
+import { applyMasterOverrides } from '../domain/apply-master-overrides';
 import { useDataStore } from '../stores/useDataStore';
+import { useMasterDataStore } from '../stores/useMasterDataStore';
 
 // ── Fixture loader ──
 
@@ -144,7 +146,9 @@ export const MockDataSource: IDataSource = {
   // Schedule and KPIs are NOT fabricated here; NikufraEngine computes them.
   async getPlanState(): Promise<PlanState> {
     const nk = await loadNikufraData();
-    return buildPlanState(nk);
+    const { toolOverrides, machineOverrides } = useMasterDataStore.getState();
+    const overridden = applyMasterOverrides(nk, toolOverrides, machineOverrides);
+    return buildPlanState(overridden);
   },
 
   // Replan — apply moves + machine/tool status, persist to data store
@@ -180,6 +184,8 @@ export const MockDataSource: IDataSource = {
     useDataStore.setState({ nikufraData: modified });
     nikufraCache = null;
 
-    return buildPlanState(modified);
+    const { toolOverrides, machineOverrides } = useMasterDataStore.getState();
+    const overridden = applyMasterOverrides(modified, toolOverrides, machineOverrides);
+    return buildPlanState(overridden);
   },
 };

@@ -2,7 +2,7 @@
  * stock-compute.ts — Pure computation for stock dashboard.
  */
 
-import type { Block, EngineData, MRPResult, MRPSkuViewResult } from '@/lib/engine';
+import type { Block, EngineData, MRPResult, MRPSkuViewRecord, MRPSkuViewResult } from '@/lib/engine';
 import { C } from '@/lib/engine';
 
 export type StockRisk = 'stockout' | 'critical' | 'warning' | 'ok';
@@ -47,16 +47,53 @@ export function coverageColor(days: number, stockoutDay: number | null): string 
   return C.ac;
 }
 
+/** Coverage including planned production from schedule blocks. */
+function augmentedCoverage(
+  rec: MRPSkuViewRecord,
+  skuProd: Map<number, number> | undefined,
+): { coverageDays: number; stockoutDay: number | null } {
+  const netStock = Math.max(0, rec.currentStock - rec.backlog);
+  let available = netStock;
+  const numDays = rec.buckets.length;
+
+  for (let d = 0; d < numDays; d++) {
+    const demand = rec.buckets[d]?.grossRequirement ?? 0;
+    const prod = skuProd?.get(rec.buckets[d]?.dayIndex ?? d) ?? 0;
+    available += prod - demand;
+    if (available < 0) {
+      const prevAvail = available + demand - prod;
+      const deficit = demand - prod;
+      const frac = deficit > 0 ? prevAvail / deficit : 0;
+      const covDays = Math.round((d + frac) * 10) / 10;
+      return { coverageDays: Math.max(0, covDays), stockoutDay: d };
+    }
+  }
+  return { coverageDays: numDays, stockoutDay: null };
+}
+
 export function computeStockRows(
   engine: EngineData,
   _mrp: MRPResult,
   skuView: MRPSkuViewResult,
   blocks: Block[],
 ): StockRow[] {
+  // Production by SKU for today (day 0) — used for stockFinalToday
   const todayBlocks = blocks.filter((b) => b.dayIdx === 0 && b.type !== 'blocked');
   const prodBySku = new Map<string, number>();
   for (const b of todayBlocks) {
     prodBySku.set(b.sku, (prodBySku.get(b.sku) ?? 0) + b.qty);
+  }
+
+  // Full production map by SKU × dayIndex — used for augmented coverage
+  const fullProdBySku = new Map<string, Map<number, number>>();
+  for (const b of blocks) {
+    if (b.type === 'blocked') continue;
+    let skuMap = fullProdBySku.get(b.sku);
+    if (!skuMap) {
+      skuMap = new Map();
+      fullProdBySku.set(b.sku, skuMap);
+    }
+    skuMap.set(b.dayIdx, (skuMap.get(b.dayIdx) ?? 0) + b.qty);
   }
 
   const rows: StockRow[] = [];
@@ -75,6 +112,8 @@ export function computeStockRows(
       }
     }
 
+    const cov = augmentedCoverage(rec, fullProdBySku.get(rec.sku));
+
     rows.push({
       sku: rec.sku,
       name: rec.name,
@@ -87,9 +126,9 @@ export function computeStockRows(
       stockFinalToday,
       nextOrderQty,
       nextOrderDeadline,
-      coverageDays: rec.coverageDays,
-      stockoutDay: rec.stockoutDay,
-      riskLevel: classifyStockRisk(rec.stockoutDay, rec.coverageDays),
+      coverageDays: cov.coverageDays,
+      stockoutDay: cov.stockoutDay,
+      riskLevel: classifyStockRisk(cov.stockoutDay, cov.coverageDays),
       ratePerHour: rec.ratePerHour,
     });
   }

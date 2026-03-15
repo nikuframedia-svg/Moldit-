@@ -48,7 +48,7 @@ export function ScenarioRadar({ baseline, scenario, fragilityScore }: ScenarioRa
     return {
       radar: {
         indicator: [
-          { name: 'OTD', max: 100 },
+          { name: 'OTD-D', max: 100 },
           { name: 'Setup Eff.', max: 100 },
           { name: 'Pontualidade', max: 100 },
           { name: 'Utilizacao', max: 100 },

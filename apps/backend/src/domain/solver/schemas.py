@@ -1,7 +1,7 @@
 # CP-SAT Solver — Pydantic schemas
 
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class OperationInput(BaseModel):
@@ -13,6 +13,7 @@ class OperationInput(BaseModel):
     duration_min: int = Field(..., ge=0, description="Tempo de produção (minutos)")
     setup_min: int = Field(0, ge=0, description="Tempo de setup (minutos)")
     operators: int = Field(1, ge=0)
+    calco_code: str | None = None
 
 
 class JobInput(BaseModel):
@@ -34,6 +35,33 @@ class MachineInput(BaseModel):
     )
 
 
+class TwinPairInput(BaseModel):
+    """Par de peças gémeas que produzem simultaneamente."""
+
+    op_id_a: str
+    op_id_b: str
+    machine_id: str
+    tool_id: str
+
+
+class ConstraintConfigInput(BaseModel):
+    """Activação das 4 constraints Incompol."""
+
+    setup_crew: bool = True
+    tool_timeline: bool = True
+    calco_timeline: bool = True
+    operator_pool: bool = False
+
+
+class ShiftConfig(BaseModel):
+    """Configuração de turnos e capacidade de operadores."""
+
+    shift_x_start: int = Field(420, description="Turno X início (minutos desde 00:00)")
+    shift_change: int = Field(930, description="Mudança de turno X→Y (minutos)")
+    shift_y_end: int = Field(1440, description="Fim turno Y (minutos)")
+    operators_by_machine_shift: dict[str, dict[str, int]] | None = None
+
+
 class SolverConfig(BaseModel):
     """Configuração do solver."""
 
@@ -52,6 +80,32 @@ class SolverRequest(BaseModel):
     machines: list[MachineInput]
     setup_matrix: dict[str, dict[str, int]] | None = None
     config: SolverConfig = Field(default_factory=SolverConfig)
+    twin_pairs: list[TwinPairInput] = []
+    constraints: ConstraintConfigInput = Field(default_factory=ConstraintConfigInput)
+    shifts: ShiftConfig = Field(default_factory=ShiftConfig)
+
+    @model_validator(mode="after")
+    def validate_twin_pairs_ops_exist(self) -> "SolverRequest":
+        """Validate that all op_ids in twin_pairs reference existing operations."""
+        if not self.twin_pairs:
+            return self
+        # Collect all operation IDs from jobs
+        all_op_ids: set[str] = set()
+        for job in self.jobs:
+            for op in job.operations:
+                all_op_ids.add(op.id)
+        # Check each twin pair
+        for pair in self.twin_pairs:
+            missing = []
+            if pair.op_id_a not in all_op_ids:
+                missing.append(pair.op_id_a)
+            if pair.op_id_b not in all_op_ids:
+                missing.append(pair.op_id_b)
+            if missing:
+                raise ValueError(
+                    f"Twin pair references non-existent op_id(s): {missing}"
+                )
+        return self
 
 
 class ScheduledOp(BaseModel):
@@ -66,6 +120,8 @@ class ScheduledOp(BaseModel):
     setup_min: int
     is_tardy: bool
     tardiness_min: int
+    is_twin_production: bool = False
+    twin_partner_op_id: str | None = None
 
 
 class SolverResult(BaseModel):
@@ -80,3 +136,4 @@ class SolverResult(BaseModel):
     status: str  # optimal | feasible | infeasible | timeout
     objective_value: float
     n_ops: int
+    operator_warnings: list[dict] = []

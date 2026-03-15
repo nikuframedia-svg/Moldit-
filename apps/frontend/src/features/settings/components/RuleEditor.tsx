@@ -4,30 +4,11 @@
 
 import type { Field, RuleGroupType } from 'react-querybuilder';
 import { QueryBuilder } from 'react-querybuilder';
+import type { RuleActionType, RuleConfig } from '@/stores/settings-types';
 import 'react-querybuilder/dist/query-builder.css';
+import './RuleEditor.css';
 
-export type RuleActionType =
-  | 'set_priority'
-  | 'boost_priority'
-  | 'flag_night_shift'
-  | 'alert'
-  | 'require_approval'
-  | 'block';
-
-export interface RuleAction {
-  type: RuleActionType;
-  value: string | number;
-}
-
-export interface RuleConfig {
-  id: string;
-  name: string;
-  active: boolean;
-  query: RuleGroupType;
-  action: RuleAction;
-  version: number;
-  versions: Array<{ v: number; ts: string; query: RuleGroupType; action: RuleAction }>;
-}
+export type { RuleAction, RuleActionType, RuleConfig } from '@/stores/settings-types';
 
 interface RuleEditorProps {
   rule: RuleConfig;

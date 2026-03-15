@@ -1,6 +1,7 @@
 /**
  * RulesPage — SE/ENTÃO rules with visual query builder (L2).
  * Route: /settings/rules
+ * Persisted in useSettingsStore (localStorage).
  */
 
 import { Trash2 } from 'lucide-react';
@@ -10,7 +11,8 @@ import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { useScheduleData } from '@/hooks/useScheduleData';
-import type { RuleConfig } from '../components/RuleEditor';
+import type { RuleConfig } from '@/stores/settings-types';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 import { RuleEditor } from '../components/RuleEditor';
 
 function defaultTierFromName(name: string): number {
@@ -85,37 +87,13 @@ function evaluateQuery(group: RuleGroupType, ctx: Record<string, unknown>): bool
   return group.combinator === 'and' ? results.every(Boolean) : results.some(Boolean);
 }
 
-const DEFAULT_RULES: RuleConfig[] = [
-  {
-    id: 'r1',
-    name: 'Clientes Tier 1 → CRITICAL',
-    active: true,
-    query: { combinator: 'and', rules: [{ field: 'cliente.tier', operator: '=', value: '1' }] },
-    action: { type: 'set_priority', value: 'CRITICAL' },
-    version: 1,
-    versions: [],
-  },
-  {
-    id: 'r2',
-    name: 'Slack < 24h + Tier ≤ 2 → Alerta',
-    active: true,
-    query: {
-      combinator: 'and',
-      rules: [
-        { field: 'slack_hours', operator: '<', value: '24' },
-        { field: 'cliente.tier', operator: '<=', value: '2' },
-      ],
-    },
-    action: { type: 'alert', value: 'Operação urgente - verificar capacidade' },
-    version: 1,
-    versions: [],
-  },
-];
-
 export function RulesPage() {
   const { engine, loading, error } = useScheduleData();
-  const [rules, setRules] = useState<RuleConfig[]>(DEFAULT_RULES);
-  const [selectedId, setSelectedId] = useState<string | null>(DEFAULT_RULES[0]?.id ?? null);
+  const rules = useSettingsStore((s) => s.rules);
+  const updateRule = useSettingsStore((s) => s.actions.updateRule);
+  const addRuleToStore = useSettingsStore((s) => s.actions.addRule);
+  const deleteRuleFromStore = useSettingsStore((s) => s.actions.deleteRule);
+  const [selectedId, setSelectedId] = useState<string | null>(rules[0]?.id ?? null);
   const [testResult, setTestResult] = useState<{
     affected: number;
     breakdown: Record<string, number>;
@@ -134,21 +112,21 @@ export function RulesPage() {
       version: 1,
       versions: [],
     };
-    setRules((prev) => [...prev, newRule]);
+    addRuleToStore(newRule);
     setSelectedId(id);
     setTestResult(null);
   };
 
   const deleteRule = (id: string) => {
-    setRules((prev) => prev.filter((r) => r.id !== id));
+    deleteRuleFromStore(id);
     if (selectedId === id) {
       setSelectedId(rules.find((r) => r.id !== id)?.id ?? null);
       setTestResult(null);
     }
   };
 
-  const updateRule = (updated: RuleConfig) => {
-    setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+  const handleUpdateRule = (updated: RuleConfig) => {
+    updateRule(updated);
     setTestResult(null);
   };
 
@@ -242,7 +220,7 @@ export function RulesPage() {
         {selected ? (
           <RuleEditor
             rule={selected}
-            onChange={updateRule}
+            onChange={handleUpdateRule}
             onTest={runTest}
             testResult={testResult}
           />

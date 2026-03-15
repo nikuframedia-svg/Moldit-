@@ -194,7 +194,12 @@ export function parseISOPFile(
         invalidCellsThisRow++;
         return null;
       }
-      return parseNumeric(raw);
+      let val = parseNumeric(raw);
+      // Red font/fill on date cells = demand (positive displayed red = negative NP)
+      if (val > 0 && isCellRedHighlighted(ws, ri, ci)) {
+        val = -val;
+      }
+      return val;
     });
     if (invalidCellsThisRow > 0) {
       warnings.push(

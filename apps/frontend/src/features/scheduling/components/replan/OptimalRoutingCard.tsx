@@ -46,7 +46,7 @@ export function OptimalRoutingCard({
           />
           Optimização{' '}
           <span style={{ fontSize: 10, color: C.t4, fontWeight: 400 }}>
-            {optMoveable.length} ops movíveis
+            {optMoveable.length} operações móveis
           </span>
         </div>
       </div>
@@ -152,7 +152,7 @@ export function OptimalRoutingCard({
             padding: '8px 20px',
             borderRadius: 6,
             border: 'none',
-            background: saRunning ? C.s3 : '#1a6b3a',
+            background: saRunning ? C.s3 : 'var(--accent-dark, #1a6b3a)',
             color: saRunning ? C.t3 : C.t1,
             fontSize: 11,
             fontWeight: 600,
@@ -166,8 +166,8 @@ export function OptimalRoutingCard({
             style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }}
           />
           {saRunning
-            ? `SA ${saProgress != null ? `${saProgress}%` : '...'} (cancelar)`
-            : 'SA Otimizar'}
+            ? `Optimização ${saProgress != null ? `${saProgress}%` : '...'} (cancelar)`
+            : 'Optimização Rápida'}
         </button>
       </div>
 
@@ -179,14 +179,14 @@ export function OptimalRoutingCard({
               style={{
                 height: '100%',
                 width: `${saProgress}%`,
-                background: '#1a6b3a',
+                background: 'var(--accent-dark, #1a6b3a)',
                 borderRadius: 2,
                 transition: 'width 0.3s ease',
               }}
             />
           </div>
           <div style={{ fontSize: 10, color: C.t3, marginTop: 2 }}>
-            Simulated Annealing em execucao (Web Worker) — {saProgress}%
+            Optimização em execução — {saProgress}%
           </div>
         </div>
       )}
@@ -203,9 +203,9 @@ export function OptimalRoutingCard({
             }}
           >
             <div style={{ color: C.t4, fontSize: 9, fontWeight: 600 }}>Ferramenta</div>
-            <div style={{ color: C.t4, fontSize: 9, fontWeight: 600 }}>Prim.</div>
-            <div style={{ color: C.t4, fontSize: 9, fontWeight: 600 }}>Alt.</div>
-            <div style={{ color: C.t4, fontSize: 9, fontWeight: 600 }}>Pcs</div>
+            <div style={{ color: C.t4, fontSize: 9, fontWeight: 600 }}>Principal</div>
+            <div style={{ color: C.t4, fontSize: 9, fontWeight: 600 }}>Alternativa</div>
+            <div style={{ color: C.t4, fontSize: 9, fontWeight: 600 }}>Peças</div>
             <div style={{ color: C.t4, fontSize: 9, fontWeight: 600 }}>Horas</div>
             {optMoveable.slice(0, 12).map((mo) => (
               <React.Fragment key={mo.opId}>
@@ -246,7 +246,7 @@ export function OptimalRoutingCard({
 
       {optMoveable.length === 0 && (
         <div style={{ fontSize: 10, color: C.t4, textAlign: 'center', padding: 8 }}>
-          Sem operações movíveis (todas as ferramentas numa só máquina)
+          Sem operações móveis — todas as ferramentas estão na mesma máquina
         </div>
       )}
     </Card>

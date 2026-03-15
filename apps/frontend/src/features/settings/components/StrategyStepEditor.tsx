@@ -3,6 +3,7 @@
  */
 
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
+import './WorkflowTable.css';
 
 export type DispatchRule = 'ATCS' | 'EDD' | 'CR' | 'SPT' | 'WSPT';
 export type StepFilter = 'all' | 'deadline_close' | 'deadline_far' | 'capacity_free';
@@ -83,13 +84,13 @@ export function StrategyStepEditor({
           spellCheck={false}
         />
         <div className="strategy-step__controls">
-          <button type="button" onClick={onMoveUp} disabled={isFirst} title="Mover acima">
+          <button type="button" onClick={onMoveUp} disabled={isFirst} aria-label="Mover acima" title="Mover acima">
             <ArrowUp size={12} />
           </button>
-          <button type="button" onClick={onMoveDown} disabled={isLast} title="Mover abaixo">
+          <button type="button" onClick={onMoveDown} disabled={isLast} aria-label="Mover abaixo" title="Mover abaixo">
             <ArrowDown size={12} />
           </button>
-          <button type="button" onClick={onDelete} title="Eliminar">
+          <button type="button" onClick={onDelete} aria-label="Eliminar" title="Eliminar">
             <Trash2 size={12} />
           </button>
         </div>
@@ -157,7 +158,7 @@ export function StrategyStepEditor({
 
       <div className="strategy-step__sliders">
         <div className="strategy-step__slider-group">
-          <label>OTD: {step.weights.otd}</label>
+          <label>OTD-D: {step.weights.otd}</label>
           <input
             type="range"
             className="opt-sliders__track"

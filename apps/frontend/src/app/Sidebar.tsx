@@ -1,24 +1,25 @@
+import { Badge, Tooltip } from 'antd';
 import {
-  AppstoreOutlined,
-  ClockCircleOutlined,
-  CloudServerOutlined,
-  DashboardOutlined,
-  DatabaseOutlined,
-  ExperimentOutlined,
-  InboxOutlined,
-  ScheduleOutlined,
-  SettingOutlined,
-  ShoppingOutlined,
-  SwapOutlined,
-  TeamOutlined,
-  ToolOutlined,
-  UserSwitchOutlined,
-} from '@ant-design/icons';
-import { Badge } from 'antd';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Package,
+  CalendarRange,
+  Boxes,
+  Settings,
+  BarChart3,
+  Repeat,
+  FlaskConical,
+  Database,
+  ShoppingCart,
+  Clock,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { TrustIndexBadge } from '@/components/Common/TrustIndexBadge';
+import { useMrpRiskCount, useSidebarCollapsed, useSidebarMobileOpen, useUIActions } from '@/stores/useUIStore';
+import { badgeTooltip } from '@/utils/explicitText';
 import './Sidebar.css';
 
 interface NavItem {
@@ -32,64 +33,52 @@ interface NavModule {
   label: string;
   icon: React.ElementType;
   basePath: string;
-  items: NavItem[];
+  items?: NavItem[];
   badgeCount?: number;
 }
 
 const NAV_MODULES: NavModule[] = [
   {
-    id: 'console',
-    label: 'Console',
-    icon: DashboardOutlined,
+    id: 'overview',
+    label: 'Visão Geral',
+    icon: Eye,
     basePath: '/console',
-    items: [{ label: 'Dia-a-dia', path: '/console', icon: DashboardOutlined }],
+    items: [{ label: 'Dia-a-dia', path: '/console', icon: Eye }],
   },
   {
     id: 'plan',
-    label: 'Plan',
-    icon: ScheduleOutlined,
+    label: 'Plano',
+    icon: CalendarRange,
     basePath: '/plan',
     items: [
-      { label: 'Gantt', path: '/plan', icon: ScheduleOutlined },
-      { label: 'Replan', path: '/plan/replan', icon: SwapOutlined },
-      { label: 'What If', path: '/plan/whatif', icon: ExperimentOutlined },
-      { label: 'Dados', path: '/plan/data', icon: DatabaseOutlined },
+      { label: 'Gantt', path: '/plan', icon: BarChart3 },
+      { label: 'Replan', path: '/plan/replan', icon: Repeat },
+      { label: 'What If', path: '/plan/whatif', icon: FlaskConical },
+      { label: 'Dados', path: '/plan/data', icon: Database },
     ],
   },
   {
-    id: 'mrp',
-    label: 'MRP',
-    icon: InboxOutlined,
+    id: 'materials',
+    label: 'Materiais',
+    icon: Boxes,
     basePath: '/mrp',
     items: [
-      { label: 'Vista Geral', path: '/mrp', icon: InboxOutlined },
-      { label: 'Encomendas', path: '/mrp/orders', icon: ShoppingOutlined },
-      { label: 'CTP', path: '/mrp/ctp', icon: ClockCircleOutlined },
-    ],
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: SettingOutlined,
-    basePath: '/settings',
-    items: [
-      { label: 'Geral', path: '/settings', icon: SettingOutlined },
-      { label: 'Máquinas', path: '/settings/machines', icon: ToolOutlined },
-      { label: 'Turnos', path: '/settings/shifts', icon: ClockCircleOutlined },
-      { label: 'Setup Matrix', path: '/settings/setup-matrix', icon: AppstoreOutlined },
-      { label: 'Operadores', path: '/settings/operators', icon: TeamOutlined },
-      { label: 'Clientes', path: '/settings/customers', icon: UserSwitchOutlined },
-      { label: 'Scheduling', path: '/settings/scheduling', icon: CloudServerOutlined },
+      { label: 'Vista Geral', path: '/mrp', icon: Package },
+      { label: 'Encomendas', path: '/mrp/orders', icon: ShoppingCart },
+      { label: 'CTP', path: '/mrp/ctp', icon: Clock },
     ],
   },
 ];
 
 export function Sidebar() {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSidebarCollapsed();
+  const mobileOpen = useSidebarMobileOpen();
+  const { toggleSidebar, closeMobileSidebar } = useUIActions();
+  const mrpRiskCount = useMrpRiskCount();
   const [expandedModules, setExpandedModules] = useState<Set<string>>(() => {
     const active = NAV_MODULES.find((m) => location.pathname.startsWith(m.basePath));
-    return new Set(active ? [active.id] : ['console']);
+    return new Set(active ? [active.id] : ['overview']);
   });
 
   function isModuleActive(mod: NavModule): boolean {
@@ -100,9 +89,26 @@ export function Sidebar() {
     if (path === '/console') return location.pathname === '/console';
     if (path === '/plan') return location.pathname === '/plan';
     if (path === '/mrp') return location.pathname === '/mrp';
-    if (path === '/settings') return location.pathname === '/settings';
     return location.pathname.startsWith(path);
   }
+
+  const isSettingsActive = location.pathname.startsWith('/settings');
+
+  // Close mobile sidebar on navigation
+  const pathname = location.pathname;
+  useEffect(() => {
+    closeMobileSidebar();
+  }, [pathname, closeMobileSidebar]);
+
+  // Close mobile sidebar when resizing to desktop
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 769px)');
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) closeMobileSidebar();
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [closeMobileSidebar]);
 
   function toggleModule(id: string) {
     setExpandedModules((prev) => {
@@ -114,89 +120,122 @@ export function Sidebar() {
   }
 
   return (
-    <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
-      <div className="sidebar__logo">
-        <Link to="/console" className="sidebar__logo-link">
-          <span className="sidebar__logo-icon">PP1</span>
-          {!collapsed && <span className="sidebar__logo-text">ProdPlan</span>}
-        </Link>
-      </div>
-
-      <TrustIndexBadge collapsed={collapsed} />
-
-      <nav className="sidebar__nav">
-        {NAV_MODULES.map((mod) => {
-          const Icon = mod.icon;
-          const active = isModuleActive(mod);
-          const expanded = expandedModules.has(mod.id);
-
-          return (
-            <div
-              key={mod.id}
-              className={`sidebar__module ${active ? 'sidebar__module--active' : ''}`}
-            >
-              <button
-                type="button"
-                className={`sidebar__module-header ${active ? 'sidebar__module-header--active' : ''}`}
-                onClick={() => (collapsed ? setCollapsed(false) : toggleModule(mod.id))}
-                title={collapsed ? mod.label : undefined}
-              >
-                {mod.id === 'console' ? (
-                  <Badge count={mod.badgeCount} size="small" offset={[4, -4]}>
-                    <Icon style={{ fontSize: 18 }} />
-                  </Badge>
-                ) : (
-                  <Icon style={{ fontSize: 18 }} />
-                )}
-                {!collapsed && <span className="sidebar__module-label">{mod.label}</span>}
-                {!collapsed && (
-                  <ChevronDown
-                    size={14}
-                    className={`sidebar__chevron ${expanded ? 'sidebar__chevron--open' : ''}`}
-                  />
-                )}
-              </button>
-
-              {!collapsed && expanded && (
-                <div className="sidebar__items">
-                  {mod.items.map((item) => {
-                    const ItemIcon = item.icon;
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        className={`sidebar__item ${isItemActive(item.path) ? 'sidebar__item--active' : ''}`}
-                      >
-                        <ItemIcon style={{ fontSize: 14 }} />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
-
-      <div className="sidebar__footer">
-        <button
-          type="button"
-          className="sidebar__collapse-btn"
-          onClick={() => setCollapsed((c) => !c)}
-          title={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
-        >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </button>
-        <div className="sidebar__user">
-          <div className="sidebar__avatar">MN</div>
-          {!collapsed && (
-            <div className="sidebar__user-info">
-              <span className="sidebar__user-name">Martim Nicolau</span>
-            </div>
-          )}
+    <>
+      {mobileOpen && (
+        <div
+          className="sidebar-overlay"
+          role="presentation"
+          onClick={closeMobileSidebar}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') closeMobileSidebar();
+          }}
+        />
+      )}
+      <aside
+        className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''} ${mobileOpen ? 'sidebar--mobile-open' : ''}`}
+        aria-label="Navegação principal"
+      >
+        <div className="sidebar__logo">
+          <Link to="/console" className="sidebar__logo-link">
+            <span className="sidebar__logo-icon">PP1</span>
+            {!collapsed && <span className="sidebar__logo-text">ProdPlan</span>}
+          </Link>
         </div>
-      </div>
-    </aside>
+
+        <TrustIndexBadge collapsed={collapsed} />
+
+        <nav className="sidebar__nav" aria-label="Módulos do sistema">
+          {NAV_MODULES.map((mod) => {
+            const Icon = mod.icon;
+            const active = isModuleActive(mod);
+            const expanded = expandedModules.has(mod.id);
+
+            return (
+              <div
+                key={mod.id}
+                className={`sidebar__module ${active ? 'sidebar__module--active' : ''}`}
+              >
+                <button
+                  type="button"
+                  className={`sidebar__module-header ${active ? 'sidebar__module-header--active' : ''}`}
+                  onClick={() => (collapsed ? toggleSidebar() : toggleModule(mod.id))}
+                  title={collapsed ? mod.label : undefined}
+                >
+                  {(() => {
+                    const badge = mod.id === 'materials' ? mrpRiskCount : mod.badgeCount;
+                    const module = mod.id === 'materials' ? 'materials' as const
+                      : mod.id === 'plan' ? 'plan' as const
+                      : 'alerts' as const;
+                    return badge ? (
+                      <Tooltip title={badgeTooltip(module, badge)} placement="right">
+                        <Badge count={badge} size="small" offset={[4, -4]}>
+                          <Icon size={18} />
+                        </Badge>
+                      </Tooltip>
+                    ) : (
+                      <Icon size={18} />
+                    );
+                  })()}
+                  {!collapsed && <span className="sidebar__module-label">{mod.label}</span>}
+                  {!collapsed && mod.items && (
+                    <ChevronDown
+                      size={14}
+                      className={`sidebar__chevron ${expanded ? 'sidebar__chevron--open' : ''}`}
+                    />
+                  )}
+                </button>
+
+                {!collapsed && expanded && mod.items && (
+                  <div className="sidebar__items">
+                    {mod.items.map((item) => {
+                      const ItemIcon = item.icon;
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          className={`sidebar__item ${isItemActive(item.path) ? 'sidebar__item--active' : ''}`}
+                        >
+                          <ItemIcon size={14} />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar__footer">
+          <Link
+            to="/settings"
+            className={`sidebar__settings-btn ${isSettingsActive ? 'sidebar__settings-btn--active' : ''}`}
+            title={collapsed ? 'Settings' : undefined}
+            aria-label="Settings"
+          >
+            <Settings size={16} />
+            {!collapsed && <span>Settings</span>}
+          </Link>
+          <button
+            type="button"
+            className="sidebar__collapse-btn"
+            onClick={toggleSidebar}
+            title={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+            aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+          <div className="sidebar__user">
+            <div className="sidebar__avatar">MN</div>
+            {!collapsed && (
+              <div className="sidebar__user-info">
+                <span className="sidebar__user-name">Martim Nicolau</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

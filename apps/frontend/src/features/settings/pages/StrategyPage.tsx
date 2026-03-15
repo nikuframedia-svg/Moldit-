@@ -52,7 +52,7 @@ const DEFAULT_PRESETS: StrategyPreset[] = [
   { id: 'incompol_standard', name: 'Incompol Standard', steps: INCOMPOL_STANDARD, isCustom: false },
   {
     id: 'max_otd',
-    name: 'Maximo OTD',
+    name: 'Maximo OTD-D',
     steps: [
       {
         id: 'otd1',

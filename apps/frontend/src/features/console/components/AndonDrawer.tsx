@@ -5,7 +5,7 @@
  */
 
 import { Drawer } from 'antd';
-import { AlertOctagon, Clock, Package, Wrench } from 'lucide-react';
+import { AlertOctagon, Clock, HardHat, Package, Wrench } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import type { AndonCategory } from '@/stores/useAndonStore';
 import { useAndonActions, useAndonDrawerMachine } from '@/stores/useAndonStore';
@@ -31,7 +31,7 @@ const CATEGORIES: CategoryOption[] = [
   {
     key: 'setup_prolongado',
     label: 'Setup Prolongado',
-    color: '#F97316',
+    color: 'var(--semantic-amber)',
     icon: <Clock size={28} />,
   },
   {
@@ -43,8 +43,14 @@ const CATEGORIES: CategoryOption[] = [
   {
     key: 'problema_qualidade',
     label: 'Problema de Qualidade',
-    color: '#8B5CF6',
+    color: 'var(--semantic-purple, #8B5CF6)',
     icon: <AlertOctagon size={28} />,
+  },
+  {
+    key: 'manutencao_preventiva',
+    label: 'Manutencao Preventiva',
+    color: 'var(--semantic-blue)',
+    icon: <HardHat size={28} />,
   },
 ];
 
@@ -102,7 +108,7 @@ export function AndonDrawer() {
       open={machineId != null}
       onClose={handleClose}
       placement="bottom"
-      height="auto"
+      styles={{ wrapper: { height: 'auto' } }}
       title={
         machineId ? (
           <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>

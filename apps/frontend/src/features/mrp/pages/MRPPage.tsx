@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/Common/EmptyState';
+import { FeatureErrorBoundary } from '@/components/Common/FeatureErrorBoundary';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { StatusBanner } from '@/components/Common/StatusBanner';
 import type { MRPRecord, MRPSkuViewRecord } from '@/domain/mrp/mrp-types';
 import { useScheduleData } from '@/hooks/useScheduleData';
 import { C, computeMRP, computeMRPSkuView } from '@/lib/engine';
-import { useUIStore } from '@/stores/useUIStore';
+import { useUIActions, useUIStore } from '@/stores/useUIStore';
 import { MRPTrustBanner } from '../components/MRPTrustBanner';
 import { CTPTab } from '../tabs/CTPTab';
 import { EncomendasTab } from '../tabs/EncomendasTab';
@@ -37,7 +38,7 @@ const VIEW_LABELS: Record<ViewMode, string> = {
 };
 
 export function MRPPage() {
-  const { engine, blocks, loading, error } = useScheduleData();
+  const { engine, blocks, loading, error, metrics, lateDeliveries } = useScheduleData();
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
   const [tab, setTab] = useState<Tab>('stocks');
   const [viewMode, setViewMode] = useState<ViewMode>('sku');
@@ -55,6 +56,13 @@ export function MRPPage() {
     if (!mrp) return null;
     return computeMRPSkuView(mrp);
   }, [mrp]);
+
+  const { setMrpRiskCount } = useUIActions();
+  useEffect(() => {
+    if (skuView) {
+      setMrpRiskCount(skuView.summary.skusWithStockout);
+    }
+  }, [skuView, setMrpRiskCount]);
 
   const filteredRecords = useMemo(() => {
     if (!mrp) return [];
@@ -139,6 +147,7 @@ export function MRPPage() {
   }
 
   return (
+    <FeatureErrorBoundary module="MRP">
     <div className={`mrp${panelOpen ? ' mrp--panel-open' : ''}`} data-testid="mrp-page">
       <div className="mrp__header">
         <div>
@@ -149,10 +158,35 @@ export function MRPPage() {
             Cálculo de necessidades: quando e quanto produzir, e onde falta capacidade.
           </p>
         </div>
-        <span style={{ fontSize: 11, color: C.t3, ...mono }}>
-          {engine.dates[0]} — {engine.dates[engine.dates.length - 1]} · {skuView.summary.totalSkus}{' '}
-          SKUs · {mrp.records.length} tools
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {metrics?.otdDelivery != null && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color:
+                  metrics.otdDelivery >= 0.95 ? 'var(--semantic-green)'
+                    : metrics.otdDelivery >= 0.80 ? 'var(--semantic-amber)'
+                    : 'var(--semantic-red)',
+                padding: '2px 8px',
+                borderRadius: 4,
+                background:
+                  metrics.otdDelivery >= 0.95 ? 'rgba(34,197,94,0.1)'
+                    : metrics.otdDelivery >= 0.80 ? 'rgba(245,158,11,0.1)'
+                    : 'rgba(239,68,68,0.1)',
+              }}
+            >
+              OTD-D {(metrics.otdDelivery * 100).toFixed(0)}%
+              {(lateDeliveries?.unresolvedCount ?? 0) > 0 && (
+                <span style={{ fontWeight: 500 }}> · {lateDeliveries!.unresolvedCount} atraso{lateDeliveries!.unresolvedCount > 1 ? 's' : ''}</span>
+              )}
+            </span>
+          )}
+          <span style={{ fontSize: 11, color: C.t3, ...mono }}>
+            {engine.dates[0]} — {engine.dates[engine.dates.length - 1]} · {skuView.summary.totalSkus}{' '}
+            SKUs · {mrp.records.length} tools
+          </span>
+        </div>
       </div>
 
       <MRPTrustBanner />
@@ -282,5 +316,6 @@ export function MRPPage() {
       {/* CTP Tab */}
       {tab === 'ctp' && <CTPTab mrp={mrp} engine={engine} skuView={skuView} />}
     </div>
+    </FeatureErrorBoundary>
   );
 }

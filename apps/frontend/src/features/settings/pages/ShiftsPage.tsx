@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { useScheduleData } from '@/hooks/useScheduleData';
 import { DEFAULT_WORKFORCE_CONFIG } from '@/lib/engine';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 import { ShiftCalendarEditor } from '../components/ShiftCalendarEditor';
 
 interface ShiftException {
@@ -19,7 +20,9 @@ interface ShiftException {
 }
 
 export function ShiftsPage() {
-  const { engine, loading, error } = useScheduleData();
+  const { engine, loading, error, thirdShiftRecommended } = useScheduleData();
+  const thirdShiftDefault = useSettingsStore((s) => s.thirdShiftDefault);
+  const setThirdShiftDefault = useSettingsStore((s) => s.actions.setThirdShiftDefault);
   const [exceptions, setExceptions] = useState<ShiftException[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formDate, setFormDate] = useState('');
@@ -80,6 +83,48 @@ export function ShiftsPage() {
       >
         Calendário de Turnos
       </h2>
+
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          padding: '12px 16px',
+          border: `1px solid ${thirdShiftRecommended && !thirdShiftDefault ? 'var(--semantic-warning, #FF8C00)' : 'var(--border-default)'}`,
+          borderRadius: 8,
+          background: thirdShiftRecommended && !thirdShiftDefault ? 'rgba(255, 140, 0, 0.06)' : 'transparent',
+        }}
+      >
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 13,
+            fontWeight: 500,
+            color: 'var(--text-primary)',
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={thirdShiftDefault}
+            onChange={(e) => setThirdShiftDefault(e.target.checked)}
+          />
+          3.o turno (Z: 00:00-07:00) activo por defeito
+        </label>
+        {thirdShiftRecommended && !thirdShiftDefault && (
+          <div
+            style={{
+              fontSize: 11,
+              color: 'var(--semantic-warning, #FF8C00)',
+              fontWeight: 600,
+            }}
+          >
+            2 turnos insuficientes — turno noite recomendado para resolver overflow
+          </div>
+        )}
+      </div>
 
       <ShiftCalendarEditor
         machines={machines}

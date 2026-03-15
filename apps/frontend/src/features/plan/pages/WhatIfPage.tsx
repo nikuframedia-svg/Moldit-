@@ -1,5 +1,11 @@
-import { StubPage } from '@/components/Common/StubPage';
+import { SchedulingPage } from '@/features/scheduling';
+import { useUIStore } from '@/stores/useUIStore';
 
 export function WhatIfPage() {
-  return <StubPage title="What If" description="Cenários what-if em desenvolvimento." />;
+  const panelOpen = useUIStore((s) => s.contextPanelOpen);
+  return (
+    <div style={{ marginRight: panelOpen ? 360 : 0, transition: 'margin-right 0.25s ease' }}>
+      <SchedulingPage initialView="whatif" />
+    </div>
+  );
 }

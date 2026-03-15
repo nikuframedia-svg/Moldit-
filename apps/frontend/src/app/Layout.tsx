@@ -1,13 +1,20 @@
-import { MoonOutlined, SearchOutlined, SunOutlined } from '@ant-design/icons';
-import { Breadcrumb, Input, Switch } from 'antd';
+import { Breadcrumb } from 'antd';
+import { Menu, Search } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { NotificationBell } from '../components/Common/NotificationBell';
 import { TrustGateBanner } from '../components/Common/TrustGateBanner';
+import { AmbientBackground } from '../components/ui/AmbientBackground';
 import { ContextPanel } from '../components/ContextPanel/ContextPanel';
 import { FocusStrip } from '../components/FocusStrip/FocusStrip';
+import { useDeliveryAlertGenerator } from '../features/alerts/useDeliveryAlertGenerator';
+import { useNightShiftAlertGenerator } from '../features/alerts/useNightShiftAlertGenerator';
 import { useStockAlertGenerator } from '../features/alerts/useStockAlertGenerator';
-import { useTheme, useUIActions } from '../stores/useUIStore';
+import {
+  useSidebarCollapsed,
+  useSidebarMobileOpen,
+  useUIActions,
+} from '../stores/useUIStore';
 import { Sidebar } from './Sidebar';
 import './Layout.css';
 
@@ -16,9 +23,9 @@ interface LayoutProps {
 }
 
 const ROUTE_LABELS: Record<string, string> = {
-  console: 'Console',
-  plan: 'Plan',
-  mrp: 'MRP',
+  console: 'Visão Geral',
+  plan: 'Plano',
+  mrp: 'Materiais',
   settings: 'Settings',
   replan: 'Replan',
   whatif: 'What If',
@@ -34,12 +41,18 @@ const ROUTE_LABELS: Record<string, string> = {
   rules: 'Regras',
   formulas: 'Fórmulas',
   definitions: 'Definições',
+  workflows: 'Workflows',
+  strategy: 'Estratégia',
 };
+
+const MOBILE_BREAKPOINT = 768;
 
 function AppHeader() {
   useStockAlertGenerator();
-  const theme = useTheme();
-  const { toggleTheme } = useUIActions();
+  useNightShiftAlertGenerator();
+  useDeliveryAlertGenerator();
+  const mobileOpen = useSidebarMobileOpen();
+  const { toggleSidebar, openMobileSidebar, closeMobileSidebar, openCommandPalette } = useUIActions();
   const location = useLocation();
 
   const segments = location.pathname.split('/').filter(Boolean);
@@ -55,35 +68,50 @@ function AppHeader() {
     }),
   ];
 
+  function handleHamburgerClick() {
+    if (window.innerWidth <= MOBILE_BREAKPOINT) {
+      if (mobileOpen) closeMobileSidebar();
+      else openMobileSidebar();
+    } else {
+      toggleSidebar();
+    }
+  }
+
   return (
     <header className="app-header">
+      <button
+        type="button"
+        className="app-header__hamburger"
+        onClick={handleHamburgerClick}
+        title="Toggle sidebar"
+      >
+        <Menu size={18} />
+      </button>
       <Breadcrumb items={breadcrumbItems} />
       <div className="app-header__actions">
         <NotificationBell />
-        <Input
-          prefix={<SearchOutlined />}
-          placeholder="Pesquisar..."
-          className="app-header__search"
-          allowClear
-          size="small"
-        />
-        <Switch
-          checkedChildren={<MoonOutlined />}
-          unCheckedChildren={<SunOutlined />}
-          checked={theme === 'dark'}
-          onChange={toggleTheme}
-          title={theme === 'light' ? 'Mudar para dark mode' : 'Mudar para light mode'}
-        />
+        <button
+          type="button"
+          className="app-header__search-pill"
+          onClick={openCommandPalette}
+        >
+          <Search size={14} />
+          <span>Pesquisar...</span>
+          <kbd>&#8984;K</kbd>
+        </button>
       </div>
     </header>
   );
 }
 
 export function AppLayout({ children }: LayoutProps) {
+  const sidebarCollapsed = useSidebarCollapsed();
+
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${sidebarCollapsed ? 'app-layout--collapsed' : ''}`}>
+      <AmbientBackground />
       <Sidebar />
-      <main className="app-layout__main">
+      <main className="app-layout__main" aria-label="Conteúdo principal">
         <AppHeader />
         <TrustGateBanner />
         <div className="app-layout__content">{children}</div>

@@ -1,13 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-//  Ant Design Theme — ISA-101 Industrial (Light + Dark)
+//  Ant Design Theme — Glassmorphism Industrial (Dark only)
 //
-//  Follows ISA-101.01-2015 guidelines:
-//  - Neutral backgrounds (grey #F5F5F5 light / #141414 dark)
-//  - Color reserved for anomalies / state indication
-//  - High contrast text
-//  - Sans-serif font (Inter) for readability
-//
-//  Usage: <ConfigProvider theme={getIndustrialTheme('light')}>
+//  Usage: <ConfigProvider theme={getIndustrialTheme('dark')}>
 // ═══════════════════════════════════════════════════════════
 
 import type { ThemeConfig } from 'antd';
@@ -16,11 +10,11 @@ import type { ThemeMode } from '@/stores/useUIStore';
 import { PRIMARY } from './production-colors';
 
 const sharedTokens = {
-  fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  fontFamily: "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   fontSize: 14,
-  borderRadius: 6,
-  borderRadiusLG: 8,
-  borderRadiusSM: 4,
+  borderRadius: 8,
+  borderRadiusLG: 12,
+  borderRadiusSM: 6,
   padding: 16,
   paddingLG: 24,
   paddingSM: 12,
@@ -45,7 +39,7 @@ const sharedComponents = {
     fontSize: 11,
   },
   Tabs: {
-    itemColor: undefined as string | undefined, // set per mode
+    itemColor: undefined as string | undefined,
     itemActiveColor: PRIMARY.base,
     itemSelectedColor: PRIMARY.base,
     inkBarColor: PRIMARY.base,
@@ -70,8 +64,8 @@ const sharedComponents = {
     hoverBorderColor: PRIMARY.hover,
   },
   Tooltip: {
-    colorBgSpotlight: '#1E293B',
-    colorTextLightSolid: '#FFFFFF',
+    colorBgSpotlight: 'rgba(14, 16, 22, 0.95)',
+    colorTextLightSolid: '#F0F0F2',
   },
 };
 
@@ -81,41 +75,52 @@ export function getIndustrialTheme(mode: ThemeMode): ThemeConfig {
       algorithm: theme.darkAlgorithm,
       token: {
         ...sharedTokens,
-        colorPrimary: '#3B82F6',
-        colorBgBase: '#141414',
-        colorBgContainer: '#141414',
-        colorBgElevated: '#1a1a1a',
-        colorBgLayout: '#0d0d0d',
-        colorText: '#E5E7EB',
-        colorTextSecondary: '#9CA3AF',
-        colorTextTertiary: '#6B7280',
-        colorBorder: '#1f1f1f',
-        colorBorderSecondary: '#1f1f1f',
+        colorPrimary: '#818CF8',
+        colorBgBase: '#0E1016',
+        colorBgContainer: 'transparent',
+        colorBgElevated: '#0E1016',
+        colorBgLayout: '#06080D',
+        colorText: '#F0F0F2',
+        colorTextSecondary: '#8E919A',
+        colorTextTertiary: '#505362',
+        colorBorder: 'rgba(255, 255, 255, 0.06)',
+        colorBorderSecondary: 'rgba(255, 255, 255, 0.04)',
       },
       components: {
         ...sharedComponents,
         Table: {
-          headerBg: '#1a1a1a',
-          headerColor: '#9CA3AF',
+          headerBg: 'rgba(255, 255, 255, 0.03)',
+          headerColor: '#8E919A',
           cellPaddingBlock: 10,
           cellPaddingInline: 12,
-          rowHoverBg: 'rgba(59, 130, 246, 0.06)',
-          borderColor: '#1f1f1f',
+          rowHoverBg: 'rgba(129, 140, 248, 0.06)',
+          borderColor: 'rgba(255, 255, 255, 0.04)',
         },
         Tabs: {
           ...sharedComponents.Tabs,
-          itemColor: '#9CA3AF',
+          itemColor: '#8E919A',
         },
         Slider: {
           ...sharedComponents.Slider,
-          railBg: '#1f1f1f',
-          railHoverBg: '#1f1f1f',
+          railBg: 'rgba(255, 255, 255, 0.06)',
+          railHoverBg: 'rgba(255, 255, 255, 0.08)',
+        },
+        Modal: {
+          contentBg: '#0E1016',
+          headerBg: '#0E1016',
+          titleColor: '#F0F0F2',
+        },
+        Menu: {
+          darkItemBg: 'transparent',
+          darkSubMenuItemBg: 'transparent',
+          darkItemSelectedBg: 'rgba(129, 140, 248, 0.12)',
+          darkItemHoverBg: 'rgba(255, 255, 255, 0.04)',
         },
       },
     };
   }
 
-  // Light mode (default)
+  // Light mode (kept for compatibility, but app defaults to dark)
   return {
     algorithm: theme.defaultAlgorithm,
     token: {
@@ -138,7 +143,7 @@ export function getIndustrialTheme(mode: ThemeMode): ThemeConfig {
         headerColor: '#4B5563',
         cellPaddingBlock: 10,
         cellPaddingInline: 12,
-        rowHoverBg: 'rgba(30, 64, 175, 0.04)',
+        rowHoverBg: 'rgba(129, 140, 248, 0.04)',
         borderColor: '#E5E7EB',
       },
       Tabs: {

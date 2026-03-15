@@ -26,7 +26,7 @@ function skuConfidence(row: StockRow): 'complete' | 'partial' {
 }
 
 const RISK_COLORS: Record<string, string> = {
-  stockout: '#111',
+  stockout: 'var(--text-primary)',
   critical: C.rd,
   warning: C.yl,
   ok: C.ac,

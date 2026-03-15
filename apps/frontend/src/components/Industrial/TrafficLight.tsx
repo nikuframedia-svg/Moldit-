@@ -40,9 +40,9 @@ export function TrafficLight({ state, thresholds, size = 'normal' }: TrafficLigh
 
   const tooltipContent = (
     <div style={{ fontSize: 11 }}>
-      <div style={{ color: '#22C55E' }}>{thresholds.green}</div>
-      <div style={{ color: '#F59E0B' }}>{thresholds.yellow}</div>
-      <div style={{ color: '#EF4444' }}>{thresholds.red}</div>
+      <div style={{ color: 'var(--semantic-green)' }}>{thresholds.green}</div>
+      <div style={{ color: 'var(--semantic-amber)' }}>{thresholds.yellow}</div>
+      <div style={{ color: 'var(--semantic-red)' }}>{thresholds.red}</div>
     </div>
   );
 

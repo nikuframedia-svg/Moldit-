@@ -121,7 +121,21 @@ export function buildTransparencyReport(
   // Extract capacity log from decisions
   const capacityLog: CapacityLogEntry[] = decisions
     .filter((d) => d.type === 'CAPACITY_COMPUTATION')
-    .map((d) => d.metadata as unknown as CapacityLogEntry);
+    .map((d) => {
+      const m = d.metadata;
+      return {
+        opId: m.opId as string,
+        toolId: m.toolId as string,
+        machineId: m.machineId as string,
+        oeeValue: m.oeeValue as number,
+        oeeSource: m.oeeSource as 'tool' | 'default',
+        piecesPerHour: m.piecesPerHour as number,
+        availableHoursPerDay: m.availableHoursPerDay as number,
+        resultingCapacityPcsPerDay: m.resultingCapacityPcsPerDay as number,
+        workContentHours: m.workContentHours as number,
+        daysRequired: m.daysRequired as number,
+      };
+    });
 
   // Build infeasible op set
   const infeasibleOpIds = new Set(infeasibilities.map((e) => e.opId));

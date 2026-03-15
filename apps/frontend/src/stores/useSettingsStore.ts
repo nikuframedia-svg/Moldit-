@@ -11,20 +11,37 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { invalidateScheduleCache } from '../hooks/useScheduleData';
-import type { DemandSemantics, SettingsState } from './settings-types';
+import type {
+  ConceptDefinition,
+  DemandSemantics,
+  FormulaConfig,
+  PreStartStrategy,
+  RuleConfig,
+  SettingsState,
+  SolverObjective,
+} from './settings-types';
 import { WEIGHT_PROFILES } from './settings-types';
+import { DEFAULT_DEFINITIONS, DEFAULT_FORMULAS, DEFAULT_RULES } from './settings-defaults';
 
 export type { EngineConfig, MRPConfig, TransformConfigFromSettings } from './settings-config';
 export { getEngineConfig, getMRPConfig, getTransformConfig } from './settings-config';
 // Re-export types and config for backward compatibility
 export type {
+  ConceptDefinition,
+  ConfigurableLogic,
   DemandSemantics,
   DispatchRule,
+  FormulaConfig,
   MOStrategy,
   OptimizationProfile,
+  PreStartStrategy,
+  RuleAction,
+  RuleActionType,
+  RuleConfig,
   ServiceLevelOption,
   SettingsActions,
   SettingsState,
+  SolverObjective,
 } from './settings-types';
 export { WEIGHT_PROFILES } from './settings-types';
 
@@ -77,6 +94,23 @@ export const useSettingsStore = create<SettingsState>()(
       enableShippingCutoff: false,
       autoReplanConfig: {},
       demandSemantics: 'raw_np' as DemandSemantics,
+
+      // ── §5c Defaults (Server Solver) ──
+      useServerSolver: false,
+      serverSolverTimeLimit: 60,
+      serverSolverObjective: 'weighted_tardiness' as SolverObjective,
+
+      // ── §5d Defaults (Pre-Start Buffer) ──
+      preStartBufferDays: 5,
+      preStartStrategy: 'auto' as PreStartStrategy,
+
+      // ── §5e Defaults (Client Tiers) ──
+      clientTiers: {},
+
+      // ── §7 Defaults (L2/L3/L4 Configurable Logic) ──
+      definitions: DEFAULT_DEFINITIONS,
+      formulas: DEFAULT_FORMULAS,
+      rules: DEFAULT_RULES,
 
       // ── §6 Defaults ──
       serviceLevel: 95,
@@ -217,10 +251,85 @@ export const useSettingsStore = create<SettingsState>()(
           set({ xyzThresholdX: x, xyzThresholdY: y });
           invalidateScheduleCache();
         },
+        setUseServerSolver: (v) => {
+          set({ useServerSolver: v });
+          invalidateScheduleCache();
+        },
+        setServerSolverTimeLimit: (v) => {
+          set({ serverSolverTimeLimit: v });
+          invalidateScheduleCache();
+        },
+        setServerSolverObjective: (v) => {
+          set({ serverSolverObjective: v });
+          invalidateScheduleCache();
+        },
+        setPreStartBufferDays: (v) => {
+          set({ preStartBufferDays: v });
+          invalidateScheduleCache();
+        },
+        setPreStartStrategy: (v) => {
+          set({ preStartStrategy: v });
+          invalidateScheduleCache();
+        },
+        setClientTier: (code, tier) => {
+          set((state) => ({
+            clientTiers: { ...state.clientTiers, [code]: tier },
+          }));
+          // No invalidateScheduleCache: tiers are post-scheduling policy, not engine input
+        },
+        // L4: Definitions (post-scheduling classifications, no cache invalidation)
+        updateDefinition: (updated: ConceptDefinition) => {
+          set((state) => ({
+            definitions: state.definitions.map((d) =>
+              d.id === updated.id
+                ? { ...updated, versions: updated.versions.slice(-10) }
+                : d,
+            ),
+          }));
+        },
+        // L3: Formulas
+        updateFormula: (updated: FormulaConfig) => {
+          set((state) => ({
+            formulas: state.formulas.map((f) =>
+              f.id === updated.id
+                ? { ...updated, versions: updated.versions.slice(-10) }
+                : f,
+            ),
+          }));
+        },
+        // L2: Rules
+        updateRule: (updated: RuleConfig) => {
+          set((state) => ({
+            rules: state.rules.map((r) =>
+              r.id === updated.id
+                ? { ...updated, versions: updated.versions.slice(-10) }
+                : r,
+            ),
+          }));
+        },
+        addRule: (rule: RuleConfig) => {
+          set((state) => ({ rules: [...state.rules, rule] }));
+        },
+        deleteRule: (id: string) => {
+          set((state) => ({ rules: state.rules.filter((r) => r.id !== id) }));
+        },
       },
     }),
     {
       name: 'pp1-settings',
+      version: 3,
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as Record<string, unknown>;
+        if (version < 2) {
+          state.demandSemantics = state.demandSemantics ?? 'raw_np';
+        }
+        if (version < 3) {
+          state.definitions = state.definitions ?? DEFAULT_DEFINITIONS;
+          state.formulas = state.formulas ?? DEFAULT_FORMULAS;
+          state.rules = state.rules ?? DEFAULT_RULES;
+        }
+        return state;
+      },
       partialize: ({ actions: _, ...data }) => data,
     },
   ),

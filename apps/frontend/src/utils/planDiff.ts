@@ -154,7 +154,7 @@ export function computePlanDiff(vA: PlanVersion, vB: PlanVersion): PlanDiff {
   if (added > 0) parts.push(`${added} adicionada${added > 1 ? 's' : ''}`);
   if (removed > 0) parts.push(`${removed} removida${removed > 1 ? 's' : ''}`);
   if (kpiDelta.otd !== 0)
-    parts.push(`OTD ${kpiDelta.otd > 0 ? '+' : ''}${kpiDelta.otd.toFixed(1)}pp`);
+    parts.push(`OTD-D ${kpiDelta.otd > 0 ? '+' : ''}${kpiDelta.otd.toFixed(1)}pp`);
   if (kpiDelta.tardinessDays !== 0) {
     const sign = kpiDelta.tardinessDays < 0 ? '-' : '+';
     parts.push(`tardiness ${sign}${Math.abs(kpiDelta.tardinessDays).toFixed(1)}d`);

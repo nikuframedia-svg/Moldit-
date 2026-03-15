@@ -17,7 +17,6 @@
 // =====================================================================
 
 import { DAY_CAP, S0, S1, S2, T1 } from '../constants.js';
-import { createOperatorPool } from '../constraints/operator-pool.js';
 import { createSetupCrew } from '../constraints/setup-crew.js';
 import type { DecisionRegistry } from '../decisions/decision-registry.js';
 import { getCapacityFactor as getTimelineCap } from '../failures/failure-timeline.js';
@@ -26,209 +25,21 @@ import type { ConstraintConfig } from '../types/constraints.js';
 import { DEFAULT_CONSTRAINT_CONFIG } from '../types/constraints.js';
 import type { EMachine } from '../types/engine.js';
 import type { ResourceTimeline, ShiftId } from '../types/failure.js';
-import type { InfeasibilityEntry, InfeasibilityReason } from '../types/infeasibility.js';
+import type { InfeasibilityEntry } from '../types/infeasibility.js';
 import type { OperationDeadline } from '../types/shipping.js';
 import type { WorkforceConfig } from '../types/workforce.js';
 import { toAbs } from '../utils/time.js';
-import type { SkuBucket, ToolGroup } from './demand-grouper.js';
+import { mkBlocked, mkInfeasible, mkOverflow } from './block-factories.js';
+import type { ToolGroup } from './demand-grouper.js';
+import {
+  createCalcoTimeline,
+  createLocalOperatorPool,
+  createToolTimeline,
+} from './timeline-constraints.js';
 
 // ── Re-export WorkforceConfig for consumers ────────────
 
 export type { WorkforceConfig };
-
-// ── Block factories ─────────────────────────────────────────────
-
-function mkBlocked(sk: SkuBucket, grp: ToolGroup, di: number, reason: string): Block {
-  return {
-    opId: sk.opId,
-    toolId: grp.toolId,
-    sku: sk.sku,
-    nm: sk.nm,
-    machineId: grp.machineId,
-    origM: sk.origM,
-    dayIdx: di,
-    eddDay: sk.edd,
-    qty: 0,
-    prodMin: 0,
-    setupMin: 0,
-    operators: sk.operators,
-    blocked: true,
-    reason,
-    moved: sk.moved,
-    hasAlt: sk.hasAlt,
-    altM: sk.altM,
-    mp: sk.mp,
-    stk: sk.stk,
-    lt: sk.lt,
-    atr: sk.atr,
-    startMin: S0,
-    endMin: S0,
-    setupS: null,
-    setupE: null,
-    type: 'blocked',
-    shift: 'X',
-  };
-}
-
-function mkOverflow(sk: SkuBucket, grp: ToolGroup, di: number, ofMin: number): Block {
-  return {
-    opId: sk.opId,
-    toolId: grp.toolId,
-    sku: sk.sku,
-    nm: sk.nm,
-    machineId: grp.machineId,
-    origM: sk.origM,
-    dayIdx: di,
-    eddDay: sk.edd,
-    qty: 0,
-    prodMin: sk.prodMin,
-    setupMin: 0,
-    operators: sk.operators,
-    blocked: false,
-    reason: null,
-    moved: sk.moved,
-    hasAlt: sk.hasAlt,
-    altM: sk.altM,
-    mp: sk.mp,
-    stk: sk.stk,
-    lt: sk.lt,
-    atr: sk.atr,
-    startMin: S0,
-    endMin: S0,
-    setupS: null,
-    setupE: null,
-    type: 'overflow',
-    shift: 'X',
-    overflow: true,
-    overflowMin: ofMin,
-  };
-}
-
-function mkInfeasible(
-  sk: SkuBucket,
-  grp: ToolGroup,
-  di: number,
-  reason: InfeasibilityReason,
-  detail: string,
-): Block {
-  return {
-    opId: sk.opId,
-    toolId: grp.toolId,
-    sku: sk.sku,
-    nm: sk.nm,
-    machineId: grp.machineId,
-    origM: sk.origM,
-    dayIdx: di,
-    eddDay: sk.edd,
-    qty: 0,
-    prodMin: sk.prodMin,
-    setupMin: 0,
-    operators: sk.operators,
-    blocked: false,
-    reason: null,
-    moved: sk.moved,
-    hasAlt: sk.hasAlt,
-    altM: sk.altM,
-    mp: sk.mp,
-    stk: sk.stk,
-    lt: sk.lt,
-    atr: sk.atr,
-    startMin: S0,
-    endMin: S0,
-    setupS: null,
-    setupE: null,
-    type: 'infeasible',
-    shift: 'X',
-    infeasibilityReason: reason,
-    infeasibilityDetail: detail,
-  };
-}
-
-// ── CalcoTimeline (HARD constraint) ─────────────────────────────
-
-function createCalcoTimeline() {
-  const timelines: Record<string, Array<{ start: number; end: number; machineId: string }>> = {};
-  return {
-    findNextAvailable(
-      calcoCode: string,
-      earliest: number,
-      duration: number,
-      shiftEnd: number,
-    ): number {
-      const slots = timelines[calcoCode];
-      if (!slots) return earliest;
-      let candidate = earliest;
-      let changed = true;
-      let iterations = 0;
-      while (changed && iterations < 1000) {
-        changed = false;
-        iterations++;
-        for (const s of slots) {
-          if (candidate < s.end && candidate + duration > s.start) {
-            candidate = s.end;
-            changed = true;
-          }
-        }
-      }
-      return candidate + duration <= shiftEnd ? candidate : -1;
-    },
-    book(calcoCode: string, start: number, end: number, _machineId: string) {
-      if (!timelines[calcoCode]) timelines[calcoCode] = [];
-      timelines[calcoCode].push({ start, end, machineId: _machineId });
-    },
-  };
-}
-
-// ── ToolTimeline (HARD constraint) ──────────────────────────────
-
-function createToolTimeline() {
-  const timelines: Record<string, Array<{ start: number; end: number; machineId: string }>> = {};
-  return {
-    findNextAvailable(
-      toolId: string,
-      earliest: number,
-      duration: number,
-      shiftEnd: number,
-      machineId: string,
-    ): number {
-      const slots = timelines[toolId];
-      if (!slots) return earliest;
-      let candidate = earliest;
-      let changed = true;
-      let iterations = 0;
-      while (changed && iterations < 1000) {
-        changed = false;
-        iterations++;
-        const conflicting = new Set<string>();
-        for (const s of slots) {
-          if (s.machineId === machineId) continue;
-          if (candidate < s.end && candidate + duration > s.start) conflicting.add(s.machineId);
-        }
-        if (conflicting.size >= 1) {
-          let minEnd = Infinity;
-          for (const s of slots) {
-            if (s.machineId === machineId) continue;
-            if (candidate < s.end && candidate + duration > s.start)
-              minEnd = Math.min(minEnd, s.end);
-          }
-          candidate = minEnd;
-          changed = true;
-        }
-      }
-      return candidate + duration <= shiftEnd ? candidate : -1;
-    },
-    book(toolId: string, start: number, end: number, machineId: string) {
-      if (!timelines[toolId]) timelines[toolId] = [];
-      timelines[toolId].push({ start, end, machineId });
-    },
-  };
-}
-
-// ── Operator pool helper (labor-group-based, advisory) ──
-
-function createLocalOperatorPool(config: WorkforceConfig) {
-  return createOperatorPool(config);
-}
 
 // ── Main export ─────────────────────────────────────────────────
 

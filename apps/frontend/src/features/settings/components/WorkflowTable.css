@@ -1,0 +1,138 @@
+/* Workflow Table + Strategy Step */
+
+.workflow-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.workflow-table th {
+  text-align: left;
+  padding: var(--space-8) var(--space-12);
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-default);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.workflow-table td {
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.workflow-table__level {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.workflow-table__level--low {
+  background: rgba(82, 196, 26, 0.15);
+  color: var(--semantic-green);
+}
+.workflow-table__level--mid {
+  background: rgba(250, 173, 20, 0.15);
+  color: var(--semantic-amber);
+}
+.workflow-table__level--high {
+  background: rgba(255, 77, 79, 0.15);
+  color: var(--semantic-red);
+}
+
+/* ── Strategy Step ── */
+
+.strategy-step {
+  padding: var(--space-16);
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.strategy-step__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.strategy-step__header input {
+  flex: 1;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.strategy-step__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-8);
+}
+
+.strategy-step__field-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.strategy-step__sliders {
+  display: flex;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+}
+
+.strategy-step__slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+
+.strategy-step__slider-group label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.strategy-step__controls {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.strategy-step__controls button {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.strategy-step__controls button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.strategy-step__controls button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}

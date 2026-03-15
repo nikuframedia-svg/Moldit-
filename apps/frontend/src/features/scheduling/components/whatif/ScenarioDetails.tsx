@@ -68,16 +68,16 @@ function KPIRow({ scenario: s, rc }: { scenario: OptResult; rc: string }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8 }}>
       {[
         {
+          l: 'OTD-D',
+          v: `${s.otdDelivery.toFixed(1)}%`,
+          s: 'cumprimento datas',
+          c: s.otdDelivery < 90 ? C.rd : s.otdDelivery < 95 ? C.yl : rc,
+        },
+        {
           l: 'OTD Produção',
           v: `${s.otd.toFixed(1)}%`,
           s: 'qty produzida',
           c: s.otd < 95 ? C.rd : rc,
-        },
-        {
-          l: 'OTD Entrega',
-          v: `${s.otdDelivery.toFixed(1)}%`,
-          s: 'cumprimento datas',
-          c: s.otdDelivery < 90 ? C.rd : s.otdDelivery < 95 ? C.yl : rc,
         },
         {
           l: 'Produção',
@@ -218,14 +218,14 @@ function ComparisonTable({
 }) {
   const rows = [
     {
+      l: 'OTD-D',
+      f: (s2: OptResult) => `${s2.otdDelivery.toFixed(1)}%`,
+      best: (s2: OptResult) => s2.otdDelivery,
+    },
+    {
       l: 'OTD Produção',
       f: (s2: OptResult) => `${s2.otd.toFixed(1)}%`,
       best: (s2: OptResult) => s2.otd,
-    },
-    {
-      l: 'OTD Entrega',
-      f: (s2: OptResult) => `${s2.otdDelivery.toFixed(1)}%`,
-      best: (s2: OptResult) => s2.otdDelivery,
     },
     {
       l: 'Produção',

@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import type { ETool } from '@/lib/engine';
+import './SetupMatrixEditor.css';
 
 interface SetupMatrixEditorProps {
   tools: ETool[];

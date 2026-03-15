@@ -29,6 +29,9 @@ export type {
   CoverageAuditResult,
   CoverageAuditRow,
   CoverageCell,
+  // Late delivery analysis
+  LateDeliveryAnalysis,
+  LateDeliveryEntry,
   CoverageEntry,
   CoverageMatrixResult,
   CoverageMatrixSkuResult,
@@ -194,6 +197,10 @@ export type {
   WorkforceForecastInput,
   WorkforceForecastWarning,
   WorkforceSuggestion,
+  // UCB1 types
+  UCB1Arm,
+  UCB1ArmStats,
+  UCB1State,
   ZoneShiftDemand,
 } from '@prodplan/scheduling-engine';
 // ── Re-export ALL constants from incompol-plan ──
@@ -203,6 +210,7 @@ export {
   ALT_UTIL_THRESHOLD,
   analyzeAllFailures,
   analyzeFailureImpact,
+  analyzeLateDeliveries,
   applyAlternative,
   assignFreezeZones,
   atcsGridSearch,
@@ -212,6 +220,8 @@ export {
   autoReplan,
   // Overflow
   autoRouteOverflow,
+  computeOtdDeliveryFailures,
+  tier3Diag,
   BalancedStrategy,
   // Scheduling parameters
   BUCKET_WINDOW,
@@ -219,7 +229,6 @@ export {
   buildResourceTimelines,
   // Analysis
   buildTransparencyReport,
-  C,
   ConstraintManager,
   capAnalysis,
   cascadingReplan,
@@ -362,7 +371,6 @@ export {
   sortGroupsByScore,
   strategyFromConfig,
   T1,
-  TC,
   tci,
   toAbs,
   // Transform
@@ -372,8 +380,14 @@ export {
   validateConfig,
   validateSchedule,
   validateTwinReferences,
+  // UCB1 Bandit
+  DISPATCH_BANDIT,
+  UCB1Selector,
   WeightedCompositeStrategy,
 } from '@prodplan/scheduling-engine';
+
+// ── Color bridge: C and TC resolve CSS vars instead of hardcoded hex ──
+export { C, TC } from '../theme/color-bridge';
 
 // ── Backwards-compatible types for web app ──
 

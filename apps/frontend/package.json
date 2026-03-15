@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
     "@prodplan/scheduling-engine": "workspace:*",
     "antd": "^6.3.1",
     "axios": "^1.6.7",
@@ -21,6 +23,7 @@
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.6",
     "expr-eval": "^2.0.2",
+    "fuse.js": "^7.1.0",
     "lucide-react": "^0.563.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -80,7 +80,7 @@ export function OverflowRoutingSection() {
           <span className="carregar-dados__param-hint">1 — 5 passagens</span>
         </div>
         <div className="carregar-dados__param">
-          <label className="carregar-dados__param-label">Tolerancia OTD (%)</label>
+          <label className="carregar-dados__param-label">Tolerância OTD-D (%)</label>
           <input
             type="number"
             min={80}

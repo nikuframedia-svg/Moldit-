@@ -329,7 +329,7 @@ describe('ISOP Integration: Nikufra_27_2.xlsx', () => {
         mo: mergedData.mo ? { PG1: mergedData.mo.PG1, PG2: mergedData.mo.PG2 } : undefined,
       };
 
-      engineData = transformPlanState(planState);
+      engineData = transformPlanState(planState, { demandSemantics: 'raw_np' });
 
       // Schedule with autoRouteOverflow (like useScheduleData)
       const mSt: Record<string, string> = Object.fromEntries(
@@ -500,7 +500,7 @@ describe('ISOP Integration: Nikufra_27_2.xlsx', () => {
         mo: mergedData.mo ? { PG1: mergedData.mo.PG1, PG2: mergedData.mo.PG2 } : undefined,
       };
 
-      engineData = transformPlanState(planState);
+      engineData = transformPlanState(planState, { demandSemantics: 'raw_np' });
 
       const mSt: Record<string, string> = Object.fromEntries(
         engineData.machines.map((m) => [m.id, 'running']),

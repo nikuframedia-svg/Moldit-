@@ -1,6 +1,9 @@
 /**
- * SetupMatrixPage — Setup time matrix editor per machine.
+ * SetupMatrixPage — Setup time editor per tool, persisted via useMasterDataStore.
  * Route: /settings/setup-matrix
+ *
+ * Reads setup times from engine (ISOP+fixture merged).
+ * Edits write to useMasterDataStore.toolOverrides → schedule recomputes.
  */
 
 import { useMemo, useState } from 'react';
@@ -8,11 +11,15 @@ import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { useScheduleData } from '@/hooks/useScheduleData';
-import { SetupMatrixEditor } from '../components/SetupMatrixEditor';
+import { useMasterDataStore } from '@/stores/useMasterDataStore';
+import { SetupTable } from '../components/SetupTable';
 
 export function SetupMatrixPage() {
   const { engine, loading, error } = useScheduleData();
   const [machineFilter, setMachineFilter] = useState('');
+  const toolOverrides = useMasterDataStore((s) => s.toolOverrides);
+  const setToolOverride = useMasterDataStore((s) => s.setToolOverride);
+  const clearFieldOverride = useMasterDataStore((s) => s.clearFieldOverride);
 
   const machines = useMemo(() => (engine ? engine.machines.map((m) => m.id) : []), [engine]);
   const filteredTools = useMemo(() => {
@@ -21,10 +28,18 @@ export function SetupMatrixPage() {
     return engine.tools.filter((t) => t.m === machineFilter);
   }, [engine, machineFilter]);
 
+  const overrideCount = useMemo(
+    () =>
+      filteredTools.filter(
+        (t) => toolOverrides[t.id]?.s !== undefined || toolOverrides[t.id]?.pH !== undefined,
+      ).length,
+    [filteredTools, toolOverrides],
+  );
+
   if (loading)
     return (
       <div style={{ padding: 32 }}>
-        <SkeletonTable rows={8} cols={8} />
+        <SkeletonTable rows={8} cols={4} />
       </div>
     );
   if (error || !engine) {
@@ -54,7 +69,7 @@ export function SetupMatrixPage() {
           margin: 0,
         }}
       >
-        Matriz de Setup
+        Tempos de Setup
       </h2>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -72,9 +87,21 @@ export function SetupMatrixPage() {
             </option>
           ))}
         </select>
+        {overrideCount > 0 && (
+          <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 600 }}>
+            {overrideCount} editado{overrideCount > 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
-      <SetupMatrixEditor key={machineFilter} tools={filteredTools} />
+      <SetupTable
+        tools={filteredTools}
+        toolOverrides={toolOverrides}
+        onSetOverride={(id, minutes) => setToolOverride(id, { s: minutes / 60 })}
+        onSetRateOverride={(id, pH) => setToolOverride(id, { pH })}
+        onClearOverride={(id) => clearFieldOverride('tool', id, 's')}
+        onClearRateOverride={(id) => clearFieldOverride('tool', id, 'pH')}
+      />
     </div>
   );
 }

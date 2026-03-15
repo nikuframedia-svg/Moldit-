@@ -107,14 +107,14 @@ export function PlanComparePanel({ data }: { data: EngineData }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 6 }}>
             {[
               {
-                l: 'OTD Prod',
-                v: diff.diff.kpiDelta.otd,
+                l: 'OTD-D',
+                v: diff.diff.kpiDelta.otdDelivery,
                 fmt: (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`,
                 good: (n: number) => n >= 0,
               },
               {
-                l: 'OTD Entrega',
-                v: diff.diff.kpiDelta.otdDelivery,
+                l: 'OTD Prod',
+                v: diff.diff.kpiDelta.otd,
                 fmt: (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`,
                 good: (n: number) => n >= 0,
               },

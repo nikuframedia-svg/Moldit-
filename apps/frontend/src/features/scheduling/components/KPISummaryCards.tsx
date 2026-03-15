@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { Block, CoverageAuditResult, EngineData } from '../../../lib/engine';
 import { C, T1 } from '../../../lib/engine';
+import { formatCoverage, formatSetupTime } from '../../../utils/explicitText';
 import type { FeasibilitySummary } from '../hooks/useScheduleValidation';
 import { Card, Metric } from './atoms';
 
@@ -12,10 +13,12 @@ export function KPISummaryCards({
   blocks,
   data,
   audit,
+  definitionCounts,
 }: {
   blocks: Block[];
   data: EngineData;
   audit: CoverageAuditResult | null;
+  definitionCounts?: Record<string, number>;
 }) {
   const wdi = useMemo(
     () =>
@@ -32,49 +35,71 @@ export function KPISummaryCards({
   const blkN = new Set(blocks.filter((b) => b.type === 'blocked').map((b) => b.opId)).size;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${definitionCounts ? 7 : 6},1fr)`, gap: 8 }}>
       {[
+        (() => {
+          if (!audit) return { l: 'Cobertura', v: '—', s: '', c: C.ac };
+          const cov = formatCoverage(audit.globalCoveragePct, audit.totalDemand, audit.totalProduced);
+          const c = cov.semantic === 'good' ? C.ac : cov.semantic === 'warning' ? C.yl : C.rd;
+          return { l: 'Cobertura', v: cov.formatted, s: cov.context, c };
+        })(),
         {
-          l: 'Cobertura',
-          v: audit ? `${audit.globalCoveragePct.toFixed(1)}%` : '—',
-          s: audit
-            ? `${audit.rows.length} ops (${audit.rows.filter((r) => r.totalDemand > 0).length} c/ demand)`
-            : '',
-          c: audit?.isComplete ? C.ac : C.rd,
+          l: 'Total de Peças',
+          v: `${(tPcs / 1000).toFixed(0)}K`,
+          s: `${wdi.length} dias uteis · ${ok.length} blocos`,
+          c: C.ac,
         },
-        { l: 'Peças', v: `${(tPcs / 1000).toFixed(0)}K`, s: `${wdi.length} dias úteis`, c: C.ac },
         {
-          l: 'Produção',
+          l: 'Tempo de Produção',
           v: `${(tProd / 60).toFixed(0)}h`,
           s: `${Math.round(tProd)}min`,
           c: C.ac,
         },
+        (() => {
+          const nSetups = ok.filter((b) => b.setupS != null).length;
+          const se = formatSetupTime(tSetup, nSetups);
+          const c = se.semantic === 'good' ? C.ac : C.yl;
+          return { l: 'Setups', v: se.formatted, s: se.context, c };
+        })(),
         {
-          l: 'Setup',
-          v: `${(tSetup / 60).toFixed(1)}h`,
-          s: `${ok.filter((b) => b.setupS != null).length} setups`,
-          c: C.pp,
-        },
-        {
-          l: 'Balance',
+          l: 'Equilíbrio',
           v: (() => {
             const sX = ok.filter((b) => b.setupS != null && b.setupS < T1).length;
             const sY = ok.filter((b) => b.setupS != null && b.setupS >= T1).length;
             return `${sX}/${sY}`;
           })(),
-          s: 'T.X/T.Y',
+          s: (() => {
+            const sX = ok.filter((b) => b.setupS != null && b.setupS < T1).length;
+            const sY = ok.filter((b) => b.setupS != null && b.setupS >= T1).length;
+            const balanced = Math.abs(sX - sY) <= 3;
+            return balanced ? 'Turnos equilibrados' : 'Turnos desequilibrados';
+          })(),
           c: (() => {
             const sX = ok.filter((b) => b.setupS != null && b.setupS < T1).length;
             const sY = ok.filter((b) => b.setupS != null && b.setupS >= T1).length;
-            return Math.abs(sX - sY) > 3 ? C.yl : C.ac;
+            return Math.abs(sX - sY) <= 3 ? C.ac : C.yl;
           })(),
         },
         {
           l: 'Bloqueadas',
           v: blkN,
-          s: blkN > 0 ? 'ações pendentes' : '—',
+          s: blkN > 0
+            ? `${blkN} operacao${blkN > 1 ? 'es' : ''} sem maquina viavel — intervencao necessaria`
+            : 'Todas as operacoes com maquina atribuida',
           c: blkN > 0 ? C.rd : C.ac,
         },
+        ...(definitionCounts
+          ? [
+              {
+                l: 'Atrasados',
+                v: definitionCounts.atrasado ?? 0,
+                s: (definitionCounts.urgente ?? 0) > 0
+                  ? `${definitionCounts.urgente} urgentes`
+                  : 'Nenhuma operação urgente',
+                c: (definitionCounts.atrasado ?? 0) > 0 ? C.rd : C.ac,
+              },
+            ]
+          : []),
       ].map((k, i) => (
         <Card key={i}>
           <Metric label={k.l} value={k.v} sub={k.s} color={k.c} />
@@ -88,7 +113,7 @@ export function CoverageBar({ audit }: { audit: CoverageAuditResult }) {
   return (
     <Card style={{ padding: 14 }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: C.t1, marginBottom: 8 }}>
-        Cobertura — Detalhe
+        Detalhe da Cobertura
       </div>
       {/* Segmented bar */}
       <div
@@ -188,8 +213,7 @@ export function CoverageBar({ audit }: { audit: CoverageAuditResult }) {
         </span>
       </div>
       <div style={{ marginTop: 8, fontSize: 10, color: C.t2, fontFamily: 'monospace' }}>
-        {audit.totalDemand.toLocaleString()} demand · {audit.totalProduced.toLocaleString()}{' '}
-        produzidas · {Math.round(audit.globalCoveragePct)}% cobertura
+        {formatCoverage(audit.globalCoveragePct, audit.totalDemand, audit.totalProduced).context}
       </div>
     </Card>
   );
@@ -224,9 +248,9 @@ export function FeasibilityScore({ feasibility }: { feasibility: FeasibilitySumm
           </span>
         </div>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: C.t1 }}>Viabilidade</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.t1 }}>Viabilidade do Plano</div>
           <div style={{ fontSize: 10, color: C.t3 }}>
-            {feasibility.feasibleOps}/{feasibility.totalOps} operações viáveis
+            {feasibility.feasibleOps} de {feasibility.totalOps} operações viáveis
           </div>
           {feasibility.infeasibleOps > 0 && (
             <div style={{ fontSize: 10, color: C.rd, fontWeight: 500 }}>
@@ -247,7 +271,7 @@ export function FeasibilityScore({ feasibility }: { feasibility: FeasibilitySumm
             fontWeight: 500,
           }}
         >
-          Deadline comprometida — operações em falta
+          Prazos em risco — operações incompletas
         </div>
       )}
     </Card>

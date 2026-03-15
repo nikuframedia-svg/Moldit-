@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDataSource } from '../../../hooks/useDataSource';
-import type { EngineData, EOp, MoveAction } from '../../../lib/engine';
+import type { AutoReplanResult, EngineData, EOp, MoveAction } from '../../../lib/engine';
 import { transformPlanState } from '../../../lib/engine';
+import { useDataStore } from '../../../stores/useDataStore';
 import { useReplanStore } from '../../../stores/useReplanStore';
 import { getTransformConfig } from '../../../stores/useSettingsStore';
 import { useToastStore } from '../../../stores/useToastStore';
 import { useScheduleFilters } from './useScheduleFilters';
 
-export function useScheduleCore() {
+export function useScheduleCore(initialView = 'plan') {
   const ds = useDataSource();
+  const hasHydrated = useDataStore((s) => s._hasHydrated);
   const [engineData, setEngineData] = useState<EngineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,13 +26,14 @@ export function useScheduleCore() {
     getResourceDownDays,
   } = filterActions;
   const [moves, setMoves] = useState<MoveAction[]>([]);
-  const [view, setView] = useState('plan');
+  const [view, setView] = useState(initialView);
   const [isSaving, setIsSaving] = useState(false);
   const [rushOrders, setRushOrders] = useState<
     Array<{ toolId: string; sku: string; qty: number; deadline: number }>
   >([]);
   const [isopBanner, setIsopBanner] = useState<string | null>(null);
   const prevOpsRef = useRef<EOp[] | null>(null);
+  const [appliedReplan, setAppliedReplan] = useState<AutoReplanResult | null>(null);
 
   const loadData = useCallback(async () => {
     if (!ds.getPlanState) {
@@ -53,6 +56,7 @@ export function useScheduleCore() {
       setEngineData(data);
       filterActions.resetFilters(data.machines);
       setMoves([]);
+      setAppliedReplan(null);
       setIsopBanner(null);
       prevOpsRef.current = data.ops;
     } catch (e) {
@@ -63,8 +67,9 @@ export function useScheduleCore() {
   }, [ds]);
 
   useEffect(() => {
+    if (!hasHydrated) return;
     loadData();
-  }, [loadData]);
+  }, [loadData, hasHydrated]);
 
   const applyMove = useCallback(
     (opId: string, toM: string) =>
@@ -136,7 +141,7 @@ export function useScheduleCore() {
         useToastStore
           .getState()
           .actions.addToast(`Plano aplicado: ${applyMoves.length} movimentos`, 'success', 5000);
-        setView('gantt');
+        setView('plan');
       }
     },
     [ds, moves, mSt, tSt, engineData, loadData],
@@ -177,5 +182,7 @@ export function useScheduleCore() {
     setResourceDown,
     clearResourceDown,
     getResourceDownDays,
+    appliedReplan,
+    setAppliedReplan,
   };
 }

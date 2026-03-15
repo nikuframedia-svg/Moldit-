@@ -102,4 +102,7 @@ export interface EngineData {
   /** When true, op.d contains order-based demand (one order per day).
    *  Activates per-order bucketing in demand-grouper (no lot economic, no accumulation). */
   orderBased?: boolean;
+  /** Number of pre-start days prepended before ISOP D0.
+   *  Days 0.._preStartDays-1 are synthetic pre-production days. */
+  _preStartDays?: number;
 }

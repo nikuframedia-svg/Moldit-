@@ -6,9 +6,12 @@
  */
 
 import type {
+  ConceptDefinition,
   DemandSemantics,
   DispatchRule,
+  FormulaConfig,
   MOStrategy,
+  RuleConfig,
   ServiceLevelOption,
   SettingsState,
 } from './settings-types';
@@ -125,6 +128,7 @@ export interface TransformConfigFromSettings {
   moCustomPG1: number;
   moCustomPG2: number;
   demandSemantics: DemandSemantics;
+  preStartBufferDays: number;
 }
 
 export function getTransformConfig(): TransformConfigFromSettings {
@@ -135,14 +139,40 @@ export function getTransformConfig(): TransformConfigFromSettings {
     moNominalPG2: s.moNominalPG2,
     moCustomPG1: s.moCustomPG1,
     moCustomPG2: s.moCustomPG2,
-    demandSemantics: s.demandSemantics,
+    demandSemantics: s.demandSemantics || 'raw_np',
+    preStartBufferDays: s.preStartBufferDays ?? 5,
+  };
+}
+
+// ── Configurable Logic Config ──
+
+export interface ConfigurableLogicConfig {
+  definitions: ConceptDefinition[];
+  formulas: FormulaConfig[];
+  rules: RuleConfig[];
+}
+
+export function getConfigurableLogicConfig(): ConfigurableLogicConfig {
+  const s = useSettingsStore.getState();
+  return {
+    definitions: s.definitions,
+    formulas: s.formulas,
+    rules: s.rules,
   };
 }
 
 // ── Settings Hash Selector ──
 
-/** Zustand selector that produces a stable hash of all scheduling-relevant settings. */
+/** Zustand selector that produces a stable hash of all scheduling-relevant settings.
+ *  Excludes L2/L3/L4 (definitions/formulas/rules) — they are post-scheduling classifications. */
 export function settingsHashSelector(s: SettingsState): string {
-  const { actions: _, autoReplanConfig: __, ...rest } = s;
+  const {
+    actions: _,
+    autoReplanConfig: __,
+    definitions: ___,
+    formulas: ____,
+    rules: _____,
+    ...rest
+  } = s;
   return JSON.stringify(rest);
 }

@@ -28,6 +28,7 @@ export function SchedulingBanners({
           <span style={{ fontSize: 12, color: C.yl, fontWeight: 500 }}>{isopBanner}</span>
           <button
             onClick={() => setIsopBanner(null)}
+            aria-label="Fechar banner"
             style={{
               background: 'none',
               border: 'none',

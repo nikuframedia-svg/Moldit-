@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { KPISnapshot } from '../useConfigPreview';
 import { useConfigPreview } from '../useConfigPreview';
+import './ScheduleComparison.css';
 
 interface Props {
   currentKpis: KPISnapshot | null;
@@ -17,7 +18,7 @@ interface KPIDef {
 }
 
 const KPIS: KPIDef[] = [
-  { label: 'OTD', key: 'otdPct', unit: '%', decimals: 1, higherIsBetter: true },
+  { label: 'OTD-D', key: 'otdPct', unit: '%', decimals: 1, higherIsBetter: true },
   {
     label: 'Avg Tardiness',
     key: 'avgTardinessDays',

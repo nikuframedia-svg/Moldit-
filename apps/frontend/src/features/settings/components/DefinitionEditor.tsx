@@ -4,16 +4,10 @@
 
 import { Parser } from 'expr-eval';
 import { useEffect, useRef, useState } from 'react';
+import type { ConceptDefinition } from '@/stores/settings-types';
+import './FormulaEditor.css';
 
-export interface ConceptDefinition {
-  id: string;
-  question: string;
-  label: string;
-  expression: string;
-  variables: string[];
-  version: number;
-  versions: Array<{ v: number; ts: string; expression: string }>;
-}
+export type { ConceptDefinition } from '@/stores/settings-types';
 
 interface DefinitionEditorProps {
   definition: ConceptDefinition;

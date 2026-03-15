@@ -100,12 +100,12 @@ export const POLICY_WEIGHTS: Record<Exclude<PolicyId, 'custom'>, ConfigWeights> 
 export const POLICY_LABELS: Record<PolicyId, { name: string; desc: string }> = {
   incompol_standard: {
     name: 'Incompol Standard',
-    desc: 'Equilibrio OTD/setup, auto-gerado do ISOP.',
+    desc: 'Equilibrio OTD-D/setup, auto-gerado do ISOP.',
   },
-  max_otd: { name: 'Maximo OTD', desc: 'Prioriza entregas a tempo acima de tudo.' },
+  max_otd: { name: 'Maximo OTD-D', desc: 'Prioriza entregas a tempo acima de tudo.' },
   min_setups: { name: 'Minimizar Setups', desc: 'Agrupa producao para reduzir mudancas.' },
-  balanced: { name: 'Equilibrada', desc: 'Compromisso entre OTD, setups e utilizacao.' },
-  urgent: { name: 'Modo Urgente', desc: 'Emergencia: ignora lote economico, foca OTD.' },
+  balanced: { name: 'Equilibrada', desc: 'Compromisso entre OTD-D, setups e utilizacao.' },
+  urgent: { name: 'Modo Urgente', desc: 'Emergencia: ignora lote economico, foca OTD-D.' },
   friday: { name: 'Sexta-Feira', desc: 'Prioriza conclusao de encomendas da semana.' },
   custom: { name: 'Personalizar', desc: 'Ajuste manual dos pesos.' },
 };

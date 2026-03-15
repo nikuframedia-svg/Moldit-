@@ -47,7 +47,7 @@ export function DiffDisplay({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
         {[
           {
-            l: 'OTD',
+            l: 'OTD-D',
             v: `${diff.kpiDelta.otd > 0 ? '+' : ''}${diff.kpiDelta.otd.toFixed(1)}%`,
             c: diff.kpiDelta.otd >= 0 ? C.ac : C.rd,
           },

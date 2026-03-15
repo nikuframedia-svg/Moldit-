@@ -49,7 +49,7 @@ function TestDetail({ result }: { result: StressTestResult }) {
       <div className="stress-panel__detail-label">Stressed</div>
       <div className="stress-panel__detail-label">Delta</div>
 
-      <div className="stress-panel__detail-val">OTD</div>
+      <div className="stress-panel__detail-val">OTD-D</div>
       <div className="stress-panel__detail-val">{result.baseline.otd.toFixed(1)}%</div>
       <div className={deltaClass(result.baseline.otd, result.stressed.otd, false)}>
         {result.stressed.otd.toFixed(1)}%
@@ -172,11 +172,11 @@ export function StressTestPanel({ data, blocks, allOps, baselineMetrics }: Stres
               {frag.label}
             </div>
             <div className="stress-panel__fragility-detail">
-              Plano sobrevive {passedCount}/6 cenarios com OTD {'>'} 85%
+              Plano sobrevive {passedCount}/6 cenarios com OTD-D {'>'} 85%
               {weakest && (
                 <>
                   {' '}
-                  · Ponto fraco: {weakest.name} (OTD {weakest.stressed.otd.toFixed(1)}%)
+                  · Ponto fraco: {weakest.name} (OTD-D {weakest.stressed.otd.toFixed(1)}%)
                 </>
               )}
             </div>

@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    # Database (placeholder - será configurado em SP-BE-02)
-    database_url: str = "postgresql://user:password@localhost:5432/pp1"
+    # Database — must be set via DATABASE_URL env var
+    database_url: str = "postgresql://localhost:5432/pp1"
 
     # Logging
     log_level: str = "INFO"
@@ -33,6 +33,10 @@ class Settings(BaseSettings):
 
     # Security
     expose_stack_traces: bool = False  # Nunca expor em produção
+    api_keys: list[str] = []  # Empty = dev mode (skip auth)
+
+    # CORS
+    cors_origins: list[str] = ["http://localhost:5173"]
 
     model_config = {
         "env_file": ".env",

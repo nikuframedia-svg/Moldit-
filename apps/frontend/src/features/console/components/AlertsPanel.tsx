@@ -52,8 +52,8 @@ export function AlertsPanel({ violations, infeasibilities, feasibilityScore }: A
           <div className="alerts__empty">Sem alertas para este dia.</div>
         ) : (
           <div className="alerts__list">
-            {infeasibilities.map((entry, i) => (
-              <div key={`inf-${i}`} className="alerts__item alerts__item--critical">
+            {infeasibilities.map((entry) => (
+              <div key={`inf-${entry.opId}`} className="alerts__item alerts__item--critical">
                 <span className="alerts__severity">INFEASIBLE</span>
                 <span className="alerts__detail">{entry.detail}</span>
                 <span className="alerts__meta">
@@ -68,8 +68,8 @@ export function AlertsPanel({ violations, infeasibilities, feasibilityScore }: A
               </div>
             ))}
 
-            {violations.map((v, i) => (
-              <div key={`vio-${i}`} className={`alerts__item alerts__item--${v.severity}`}>
+            {violations.map((v) => (
+              <div key={`vio-${v.id}`} className={`alerts__item alerts__item--${v.severity}`}>
                 <span className="alerts__severity">{v.severity.toUpperCase()}</span>
                 <span className="alerts__detail">{v.title}</span>
                 <span className="alerts__meta">{v.detail}</span>

@@ -5,7 +5,7 @@
  */
 
 import { AlertTriangle, CheckCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import type { MachineState } from '@/components/Industrial/MachineStatusIndicator';
 import { MachineStatusIndicator } from '@/components/Industrial/MachineStatusIndicator';
 import { ProgressBar } from '@/components/Industrial/ProgressBar';
@@ -19,6 +19,7 @@ const CATEGORY_LABELS: Record<AndonCategory, string> = {
   setup_prolongado: 'Setup Prolongado',
   falta_material: 'Falta de Material',
   problema_qualidade: 'Problema de Qualidade',
+  manutencao_preventiva: 'Manutencao Preventiva',
 };
 
 export interface MachineStatus {
@@ -34,6 +35,10 @@ interface MachineCardProps {
   downtime: ActiveDowntime | null;
   onAndonPress: (machineId: string) => void;
   onRecovery: (machineId: string) => void;
+  /** Map opId → client name for context line */
+  clientMap?: Record<string, string>;
+  /** Count of blocks at risk if machine is down */
+  blocksAtRisk?: number;
 }
 
 function formatElapsed(ms: number): string {
@@ -44,7 +49,7 @@ function formatElapsed(ms: number): string {
   return `${h}h ${m}min`;
 }
 
-export function MachineCard({ status, downtime, onAndonPress, onRecovery }: MachineCardProps) {
+export const MachineCard = memo(function MachineCard({ status, downtime, onAndonPress, onRecovery, clientMap, blocksAtRisk = 0 }: MachineCardProps) {
   const { machineId, state, currentBlock, nextBlock, utilization } = status;
 
   // Live elapsed timer when machine is down
@@ -63,28 +68,51 @@ export function MachineCard({ status, downtime, onAndonPress, onRecovery }: Mach
   }, [downtime]);
 
   const isDown = downtime != null;
+  const isMaintenance = isDown && downtime.category === 'manutencao_preventiva';
+  const isIdle = !isDown && !currentBlock && utilization === 0;
 
   return (
     <div
-      className={`msg__card${isDown ? ' msg__card--down' : ''}`}
+      className={`msg__card${isDown ? (isMaintenance ? ' msg__card--maintenance' : ' msg__card--down') : isIdle ? ' msg__card--idle' : ''}`}
       data-testid={`msg-card-${machineId}`}
     >
       <div className="msg__header">
         <span className="msg__machine-id">{machineId}</span>
-        <MachineStatusIndicator state={isDown ? 'outOfService' : state} compact />
+        <MachineStatusIndicator
+          state={
+            isDown
+              ? downtime.category === 'manutencao_preventiva'
+                ? 'maintenance'
+                : 'outOfService'
+              : isIdle
+                ? 'idle'
+                : state
+          }
+          compact
+        />
       </div>
 
       {isDown ? (
         /* ── Down state ── */
         <div className="msg__down-body">
           <span className="msg__down-category">{CATEGORY_LABELS[downtime.category]}</span>
-          <span className="msg__down-timer">PARADA ha {formatElapsed(elapsed)}</span>
+          <span
+            className="msg__down-timer"
+            style={isMaintenance ? { color: 'var(--semantic-blue)' } : undefined}
+          >
+            {isMaintenance ? 'EM MANUTENCAO' : 'PARADA'} ha {formatElapsed(elapsed)}
+          </span>
           {downtime.estimatedMin != null && (
             <span className="msg__down-estimate">
               Estimativa:{' '}
               {downtime.estimatedMin >= 60
                 ? `${downtime.estimatedMin / 60}h`
                 : `${downtime.estimatedMin}min`}
+            </span>
+          )}
+          {blocksAtRisk > 0 && (
+            <span className="msg__down-consequence" style={{ fontSize: 10, color: 'var(--semantic-red)', marginTop: 4, display: 'block' }}>
+              Afecta {blocksAtRisk} encomenda{blocksAtRisk > 1 ? 's' : ''} esta semana
             </span>
           )}
           <button
@@ -97,6 +125,16 @@ export function MachineCard({ status, downtime, onAndonPress, onRecovery }: Mach
             RECUPERADA
           </button>
         </div>
+      ) : isIdle ? (
+        /* ── Idle state — no production, no Andon alarm ── */
+        <div className="msg__idle-body">
+          <span className="msg__idle-label">Sem producao hoje</span>
+          <span className="msg__idle-sub">
+            {nextBlock
+              ? `Proxima operacao: ${nextBlock.toolId}${clientMap?.[nextBlock.opId] ? ` (${clientMap[nextBlock.opId]})` : ''} — ${fmtMin(nextBlock.startMin)}`
+              : 'Maquina disponivel — sem ordens atribuidas'}
+          </span>
+        </div>
       ) : (
         /* ── Normal state ── */
         <>
@@ -106,6 +144,7 @@ export function MachineCard({ status, downtime, onAndonPress, onRecovery }: Mach
                 <span className="msg__sku">{currentBlock.sku}</span>
                 <span className="msg__detail">
                   {currentBlock.toolId} · {currentBlock.qty.toLocaleString()} pcs
+                  {clientMap?.[currentBlock.opId] ? ` · ${clientMap[currentBlock.opId]}` : ''}
                 </span>
                 <span className="msg__time">
                   {fmtMin(currentBlock.startMin)}–{fmtMin(currentBlock.endMin)}
@@ -142,4 +181,4 @@ export function MachineCard({ status, downtime, onAndonPress, onRecovery }: Mach
       )}
     </div>
   );
-}
+});

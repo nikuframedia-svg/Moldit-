@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import type {
+  AutoReplanResult,
   Block,
   DecisionEntry,
   DispatchRule,
@@ -29,6 +30,7 @@ export function useScheduleComputed({
   moves,
   failureEvents,
   replanTimelines,
+  appliedReplan,
 }: {
   engineData: EngineData | null;
   rushOrders: Array<{ toolId: string; sku: string; qty: number; deadline: number }>;
@@ -37,6 +39,7 @@ export function useScheduleComputed({
   moves: MoveAction[];
   failureEvents: unknown[];
   replanTimelines: ReturnType<typeof buildResourceTimelines> | null;
+  appliedReplan: AutoReplanResult | null;
 }) {
   const rushOps = useMemo((): EOp[] => {
     if (!engineData || rushOrders.length === 0) return [];
@@ -80,6 +83,13 @@ export function useScheduleComputed({
         autoMoves: [] as MoveAction[],
         decisions: [] as DecisionEntry[],
       };
+    if (appliedReplan) {
+      return {
+        blocks: appliedReplan.blocks,
+        autoMoves: appliedReplan.autoMoves,
+        decisions: appliedReplan.decisions,
+      };
+    }
     const settings = useSettingsStore.getState();
     const isInteractive = failureEvents.length > 0 || moves.length > 0;
     return autoRouteOverflow({
@@ -101,7 +111,7 @@ export function useScheduleComputed({
       orderBased: engineData.orderBased,
       maxTier: isInteractive ? 2 : undefined,
     });
-  }, [engineData, allOps, mSt, tSt, moves, replanTimelines, failureEvents.length]);
+  }, [engineData, allOps, mSt, tSt, moves, replanTimelines, failureEvents.length, appliedReplan]);
 
   const cap = useMemo(
     () => (engineData ? capAnalysis(blocks, engineData.machines) : {}),

@@ -7,6 +7,7 @@ import type {
   EngineData,
 } from '../../../lib/engine';
 import { C } from '../../../lib/engine';
+import { useClassifications } from '../../../hooks/useClassifications';
 import type { FeasibilitySummary } from '../hooks/useScheduleValidation';
 import { Card } from './atoms';
 import { DecisionAudit } from './DecisionAudit';
@@ -81,9 +82,11 @@ export function PlanView({
               ? C.yl + '40'
               : C.rd + '35';
 
+  const { definitionCounts } = useClassifications();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <KPISummaryCards blocks={blocks} data={data} audit={audit} />
+      <KPISummaryCards blocks={blocks} data={data} audit={audit} definitionCounts={definitionCounts} />
 
       {audit && (
         <AuditBanner
@@ -161,18 +164,18 @@ function AuditBanner({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: audit.isComplete ? C.ac : C.rd }}>
-          {audit.isComplete ? 'COBERTURA 100%' : `COBERTURA ${audit.globalCoveragePct.toFixed(1)}%`}
+          {audit.isComplete ? 'Tudo coberto' : `Cobertura ${audit.globalCoveragePct.toFixed(1)}%`}
         </span>
         <span style={{ fontSize: 10, color: audit.isComplete ? C.ac : C.t2 }}>
           {audit.isComplete
-            ? `${audit.rows.length} operações ISOP · ${audit.rows.filter((r) => r.totalDemand > 0).length} com demand · todas cobertas`
-            : `${audit.rows.length} ops ISOP · ${audit.totalDemand.toLocaleString()} demand · ${audit.totalProduced.toLocaleString()} produzidas · ${(audit.totalDemand - audit.totalProduced).toLocaleString()} em falta`}
+            ? `${audit.rows.length} operações — ${audit.rows.filter((r) => r.totalDemand > 0).length} com procura — todas cobertas`
+            : `${audit.rows.length} operações — ${audit.totalDemand.toLocaleString()} peças necessárias — ${audit.totalProduced.toLocaleString()} produzidas — ${(audit.totalDemand - audit.totalProduced).toLocaleString()} em falta`}
         </span>
         {!audit.isComplete && (
           <span style={{ fontSize: 10, color: C.rd, fontWeight: 600 }}>
-            {audit.zeroCovered > 0 ? `${audit.zeroCovered} ops sem produção` : ''}
+            {audit.zeroCovered > 0 ? `${audit.zeroCovered} sem produção` : ''}
             {audit.zeroCovered > 0 && audit.partiallyCovered > 0 ? ' · ' : ''}
-            {audit.partiallyCovered > 0 ? `${audit.partiallyCovered} ops parciais` : ''}
+            {audit.partiallyCovered > 0 ? `${audit.partiallyCovered} parciais` : ''}
           </span>
         )}
       </div>

@@ -85,7 +85,7 @@ export function ReplanKPIPreview({
         <div className="kpi-preview__cell kpi-preview__cell--header">Delta</div>
 
         <KPIRow
-          label="OTD"
+          label="OTD-D"
           before={`${before.otd.toFixed(1)}%`}
           after={`${after.otd.toFixed(1)}%`}
           delta={formatDelta(before.otd, after.otd, '%', false)}

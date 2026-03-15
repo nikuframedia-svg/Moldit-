@@ -17,6 +17,7 @@ import { OverflowRoutingSection } from './OverflowRoutingSection';
 import { PlanningRulesSection } from './PlanningRulesSection';
 import { ShiftsCapacitySection } from './ShiftsCapacitySection';
 import './CarregarDados.css';
+import './CarregarDadosSections.css';
 
 export function DataImportPage() {
   const panelOpen = useUIStore((s) => s.contextPanelOpen);

@@ -23,6 +23,12 @@ export {
   scoreSchedule,
 } from './analysis/score-schedule.js';
 // ── Analysis ──
+export type {
+  LateDeliveryAnalysis,
+  LateDeliveryEntry,
+  SuggestedAction,
+} from './analysis/late-delivery-analysis.js';
+export { analyzeLateDeliveries } from './analysis/late-delivery-analysis.js';
 export { buildTransparencyReport } from './analysis/transparency-report.js';
 export type { ScheduleValidationReport, ScheduleViolation } from './analysis/validate-schedule.js';
 export { validateSchedule } from './analysis/validate-schedule.js';
@@ -121,9 +127,11 @@ export { moveableOps, runOptimization, twoOptResequence } from './optimization/r
 export type { SAConfig, SAInput, SAResult } from './optimization/simulated-annealing.js';
 // ── Simulated Annealing ──
 export { DEFAULT_SA_CONFIG, runSimulatedAnnealing } from './optimization/simulated-annealing.js';
-export type { AutoReplanAction, AutoReplanResult } from './overflow/auto-replan.js';
+export type { AutoReplanAction, AutoReplanResult } from './overflow/auto-replan-types.js';
 // ── Auto-Replan ──
 export { autoReplan } from './overflow/auto-replan.js';
+// ── Overflow Helpers ──
+export { computeAdvancedEdd, computeTardiness, sumOverflow } from './overflow/overflow-helpers.js';
 export type { AutoReplanConfig } from './overflow/auto-replan-config.js';
 export { DEFAULT_AUTO_REPLAN_CONFIG } from './overflow/auto-replan-config.js';
 export type {
@@ -142,6 +150,8 @@ export {
 } from './overflow/auto-replan-control.js';
 // ── Overflow ──
 export { autoRouteOverflow } from './overflow/auto-route-overflow.js';
+export { tier3Diag } from './overflow/tier3-otd-delivery.js';
+export { computeOtdDeliveryFailures } from './overflow/otd-delivery-failures.js';
 export type {
   ReplanDispatchInput,
   ReplanDispatchResult,
@@ -187,6 +197,7 @@ export { mergeConsecutiveBlocks } from './scheduler/block-merger.js';
 export { groupDemandIntoBuckets } from './scheduler/demand-grouper.js';
 export { levelLoad } from './scheduler/load-leveler.js';
 export { scoreOperations, sortGroupsByScore } from './scheduler/production-scorer.js';
+export { repairScheduleViolations } from './scheduler/repair-violations.js';
 export type { ScheduleAllInput, ScheduleAllResult } from './scheduler/scheduler.js';
 // ── Scheduler (CORE) ──
 export { scheduleAll, scheduleFromEngineData } from './scheduler/scheduler.js';

@@ -21,9 +21,9 @@ interface CapacityHistogramProps {
 }
 
 function utilColor(pct: number): string {
-  if (pct >= 0.95) return '#ef4444';
-  if (pct >= 0.8) return '#f59e0b';
-  return '#22c55e';
+  if (pct >= 0.95) return 'var(--semantic-red)';
+  if (pct >= 0.8) return 'var(--semantic-amber)';
+  return 'var(--semantic-green)';
 }
 
 export function CapacityHistogram({ cap, machines, dayIdx }: CapacityHistogramProps) {
@@ -47,14 +47,14 @@ export function CapacityHistogram({ cap, machines, dayIdx }: CapacityHistogramPr
       xAxis: {
         type: 'category' as const,
         data: names,
-        axisLabel: { fontSize: 10, color: '#888' },
+        axisLabel: { fontSize: 10, color: 'var(--text-muted)' },
         axisLine: { show: false },
         axisTick: { show: false },
       },
       yAxis: {
         type: 'value' as const,
         max: 120,
-        axisLabel: { fontSize: 9, color: '#666', formatter: '{value}%' },
+        axisLabel: { fontSize: 9, color: 'var(--text-secondary)', formatter: '{value}%' },
         splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
       },
       series: [
@@ -68,7 +68,7 @@ export function CapacityHistogram({ cap, machines, dayIdx }: CapacityHistogramPr
           markLine: {
             silent: true,
             symbol: 'none',
-            data: [{ yAxis: 100, lineStyle: { type: 'dashed' as const, color: '#888', width: 1 } }],
+            data: [{ yAxis: 100, lineStyle: { type: 'dashed' as const, color: 'var(--text-muted)', width: 1 } }],
             label: { show: false },
           },
         },

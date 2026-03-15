@@ -1,6 +1,7 @@
 export { ScenarioBuilder } from './ScenarioBuilder';
 export { ApplyPlanButton, QualityWarnings, ScenarioResultCards } from './ScenarioComparison';
 export { ScenarioDetails } from './ScenarioDetails';
+export { SimpleWhatIfView } from './SimpleWhatIfView';
 export { VersionActionBar, VersionHistoryPanel } from './VersionHistory';
 export type {
   EditingDown,

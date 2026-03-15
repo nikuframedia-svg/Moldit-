@@ -3,7 +3,7 @@ import { GridComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import '../../theme/base-components.css';
 
 echarts.use([LineChart, GridComponent, CanvasRenderer]);
@@ -14,12 +14,16 @@ export interface KPICardProps {
   label: string;
   value: string | number;
   unit?: string;
+  /** Human-readable interpretation (e.g. "Dentro do objectivo") */
+  subtitle?: string;
+  /** Extended context line below subtitle (e.g. "de 667 entregas, 649 a tempo") */
+  contextLine?: string;
   trend?: { direction: TrendDirection; label: string };
   sparkline?: number[];
   statusColor?: string;
 }
 
-export function KPICard({ label, value, unit, trend, sparkline, statusColor }: KPICardProps) {
+export const KPICard = memo(function KPICard({ label, value, unit, subtitle, contextLine, trend, sparkline, statusColor }: KPICardProps) {
   const sparkOption = useMemo(() => {
     if (!sparkline || sparkline.length === 0) return null;
     return {
@@ -33,7 +37,7 @@ export function KPICard({ label, value, unit, trend, sparkline, statusColor }: K
           smooth: true,
           symbol: 'none',
           lineStyle: { width: 1.5, color: statusColor ?? 'var(--accent)' },
-          areaStyle: { color: `${statusColor ?? '#3B82F6'}20` },
+          areaStyle: { color: `${statusColor ?? 'var(--accent)'}20` },
         },
       ],
     };
@@ -60,6 +64,18 @@ export function KPICard({ label, value, unit, trend, sparkline, statusColor }: K
         {unit && <span style={{ fontSize: 14, fontWeight: 400, marginLeft: 4 }}>{unit}</span>}
       </span>
 
+      {subtitle && (
+        <span className="kpi-card__subtitle" style={{ color: statusColor }}>
+          {subtitle}
+        </span>
+      )}
+
+      {contextLine && (
+        <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3, display: 'block', marginTop: 2 }}>
+          {contextLine}
+        </span>
+      )}
+
       {sparkOption && (
         <div className="kpi-card__sparkline">
           <ReactEChartsCore
@@ -73,4 +89,4 @@ export function KPICard({ label, value, unit, trend, sparkline, statusColor }: K
       )}
     </div>
   );
-}
+});

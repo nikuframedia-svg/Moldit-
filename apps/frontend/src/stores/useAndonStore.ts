@@ -9,7 +9,8 @@ export type AndonCategory =
   | 'avaria_mecanica'
   | 'setup_prolongado'
   | 'falta_material'
-  | 'problema_qualidade';
+  | 'problema_qualidade'
+  | 'manutencao_preventiva';
 
 export interface ActiveDowntime {
   machineId: string;

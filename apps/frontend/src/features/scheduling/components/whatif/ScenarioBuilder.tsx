@@ -79,15 +79,15 @@ export function ScenarioBuilder({
           marginBottom: 12,
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 600, color: C.t1 }}>Otimização Monte Carlo</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.t1 }}>Simulação de Cenários</div>
         <div style={{ display: 'flex', gap: 4 }}>
           {(() => {
             const n = machines.filter((m) => getResourceDownDays('machine', m.id).size > 0).length;
-            return n > 0 ? <Tag color={C.rd}>{n} máq DOWN</Tag> : null;
+            return n > 0 ? <Tag color={C.rd}>{n} máquinas paradas</Tag> : null;
           })()}
           {(() => {
             const n = focusT.filter((t) => getResourceDownDays('tool', t.id).size > 0).length;
-            return n > 0 ? <Tag color={C.yl}>{n} tool DOWN</Tag> : null;
+            return n > 0 ? <Tag color={C.yl}>{n} ferramentas paradas</Tag> : null;
           })()}
           <Tag color={C.pp}>N={N}</Tag>
         </div>
@@ -173,7 +173,7 @@ export function ScenarioBuilder({
               />
             )}
             <span style={{ position: 'relative' }}>
-              {run ? `Otimizando ${prog}%` : 'OTIMIZAR — encontrar top 3 planos'}
+              {run ? `A simular... ${prog}%` : 'SIMULAR — encontrar melhores planos'}
             </span>
           </button>
         </div>

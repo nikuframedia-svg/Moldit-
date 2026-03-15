@@ -137,9 +137,9 @@ export function OperationsTable({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((b) => (
+          {sorted.map((b, i) => (
             <tr
-              key={b.opId}
+              key={`${b.opId}_${b.startMin}_${i}`}
               className={`ops-tbl__row${selectedOpId === b.opId ? ' ops-tbl__row--selected' : ''}`}
               onClick={() => onSelectBlock(b)}
             >

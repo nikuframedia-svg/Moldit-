@@ -1,13 +1,18 @@
 /**
  * CustomersPage — Customer tiers and delay multipliers.
  * Route: /settings/customers
+ *
+ * Tiers persist in useSettingsStore.clientTiers (affects alert priority
+ * and delay cost in DeliveryRiskPanel). Multiplier and SLA are local-only
+ * for now (future: persist to master data store).
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { useScheduleData } from '@/hooks/useScheduleData';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 interface CustomerRow {
   code: string;
@@ -18,12 +23,26 @@ interface CustomerRow {
   orderCount: number;
 }
 
+const TIER_LABELS: Record<number, string> = {
+  1: 'Critico',
+  2: 'Alto',
+  3: 'Normal',
+  4: 'Baixo',
+  5: 'Minimo',
+};
+
 function defaultTier(name: string): { tier: number; multiplier: number } {
   const n = name.toLowerCase();
   if (n.includes('faurecia') || n.includes('forvia')) return { tier: 1, multiplier: 10 };
   if (n.includes('continental') || n.includes('bosch')) return { tier: 2, multiplier: 7 };
   if (!name || name === 'Sem cliente') return { tier: 5, multiplier: 1 };
   return { tier: 3, multiplier: 3 };
+}
+
+function tierColor(tier: number): string {
+  if (tier <= 1) return 'var(--semantic-red)';
+  if (tier <= 2) return 'var(--semantic-amber)';
+  return 'var(--accent)';
 }
 
 function multiplierColor(m: number): string {
@@ -34,6 +53,8 @@ function multiplierColor(m: number): string {
 
 export function CustomersPage() {
   const { engine, loading, error } = useScheduleData();
+  const storedTiers = useSettingsStore((s) => s.clientTiers);
+  const setClientTier = useSettingsStore((s) => s.actions.setClientTier);
 
   const initialCustomers = useMemo(() => {
     if (!engine) return [];
@@ -50,23 +71,32 @@ export function CustomersPage() {
     const rows: CustomerRow[] = [];
     for (const [code, info] of map) {
       const dt = defaultTier(info.name);
+      const realCode = code === '__none__' ? '-' : code;
+      const persistedTier = storedTiers[realCode];
       rows.push({
-        code: code === '__none__' ? '-' : code,
+        code: realCode,
         name: info.name,
-        tier: dt.tier,
+        tier: persistedTier ?? dt.tier,
         multiplier: dt.multiplier,
         sla: '',
         orderCount: info.count,
       });
     }
-    return rows.sort((a, b) => a.tier - b.tier);
-  }, [engine]);
+    return rows.sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+  }, [engine, storedTiers]);
 
-  const [customers, setCustomers] = useState<CustomerRow[]>(initialCustomers);
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
 
-  const updateTier = (code: string, tier: number) => {
+  // Sync when engine loads or storedTiers changes
+  useEffect(() => {
+    if (initialCustomers.length > 0) setCustomers(initialCustomers);
+  }, [initialCustomers]);
+
+  const handleTierChange = (code: string, tier: number) => {
     setCustomers((prev) => prev.map((c) => (c.code === code ? { ...c, tier } : c)));
+    setClientTier(code, tier);
   };
+
   const updateMultiplier = (code: string, multiplier: number) => {
     setCustomers((prev) => prev.map((c) => (c.code === code ? { ...c, multiplier } : c)));
   };
@@ -94,6 +124,8 @@ export function CustomersPage() {
     );
   }
 
+  const editedCount = Object.keys(storedTiers).length;
+
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Link to="/settings" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>
@@ -111,7 +143,12 @@ export function CustomersPage() {
       </h2>
 
       <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-        {customers.length} clientes · O multiplicador afecta o custo de atraso no ATCS
+        {customers.length} clientes · Tier afecta prioridade de alertas e custo de atraso
+        {editedCount > 0 && (
+          <span style={{ marginLeft: 8, color: 'var(--accent)', fontWeight: 600 }}>
+            · {editedCount} editado{editedCount > 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
       <div style={{ overflowX: 'auto' }}>
@@ -156,13 +193,21 @@ export function CustomersPage() {
                 <td className="setup-matrix__cell" style={{ textAlign: 'center' }}>
                   <select
                     value={c.tier}
-                    onChange={(e) => updateTier(c.code, Number(e.target.value))}
+                    onChange={(e) => handleTierChange(c.code, Number(e.target.value))}
                     className="constraint-toggles__param-select"
-                    style={{ fontSize: 10, width: 50, textAlign: 'center' }}
+                    style={{
+                      fontSize: 10,
+                      width: 90,
+                      textAlign: 'center',
+                      color: tierColor(c.tier),
+                      borderLeft: storedTiers[c.code] != null
+                        ? '2px solid var(--accent)'
+                        : undefined,
+                    }}
                   >
                     {[1, 2, 3, 4, 5].map((t) => (
                       <option key={t} value={t}>
-                        {t}
+                        {t} — {TIER_LABELS[t]}
                       </option>
                     ))}
                   </select>

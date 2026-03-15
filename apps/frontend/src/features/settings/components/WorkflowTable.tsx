@@ -2,6 +2,8 @@
  * WorkflowTable — Editable governance table for L5 workflows & approvals.
  */
 
+import './WorkflowTable.css';
+
 export type GovernanceLevel = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface WorkflowRow {

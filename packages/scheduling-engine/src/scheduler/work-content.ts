@@ -89,7 +89,18 @@ export function computeWorkContent(
         toolId: op.t,
         machineId: op.m,
         detail: `Op ${op.id}: qty=${totalQty}, pH=${pH}, OEE=${oee} (${oeeSource}), hours=${workContentHours.toFixed(1)}, days=${daysRequired.toFixed(2)}`,
-        metadata: logEntry as unknown as Record<string, unknown>,
+        metadata: {
+          opId: logEntry.opId,
+          toolId: logEntry.toolId,
+          machineId: logEntry.machineId,
+          oeeValue: logEntry.oeeValue,
+          oeeSource: logEntry.oeeSource,
+          piecesPerHour: logEntry.piecesPerHour,
+          availableHoursPerDay: logEntry.availableHoursPerDay,
+          resultingCapacityPcsPerDay: logEntry.resultingCapacityPcsPerDay,
+          workContentHours: logEntry.workContentHours,
+          daysRequired: logEntry.daysRequired,
+        },
       });
     }
   }

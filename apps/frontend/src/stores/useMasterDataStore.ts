@@ -43,6 +43,7 @@ interface MasterDataState {
   toolOverrides: Record<string, ToolOverride>;
   productOverrides: Record<string, ProductOverride>;
   routingOverrides: Record<string, RoutingOverride>;
+  _version: number;
 }
 
 interface MasterDataActions {
@@ -51,6 +52,7 @@ interface MasterDataActions {
   setProductOverride: (id: string, override: Partial<ProductOverride>) => void;
   setRoutingOverride: (toolId: string, override: Partial<RoutingOverride>) => void;
   clearOverride: (type: 'machine' | 'tool' | 'product' | 'routing', id: string) => void;
+  clearFieldOverride: (type: 'tool' | 'machine', id: string, field: string) => void;
   clearAll: () => void;
 }
 
@@ -59,6 +61,7 @@ const INITIAL_STATE: MasterDataState = {
   toolOverrides: {},
   productOverrides: {},
   routingOverrides: {},
+  _version: 0,
 };
 
 export const useMasterDataStore = create<MasterDataState & MasterDataActions>()(
@@ -72,6 +75,7 @@ export const useMasterDataStore = create<MasterDataState & MasterDataActions>()(
             ...s.machineOverrides,
             [id]: { ...s.machineOverrides[id], id, ...override },
           },
+          _version: s._version + 1,
         })),
 
       setToolOverride: (id, override) =>
@@ -80,6 +84,7 @@ export const useMasterDataStore = create<MasterDataState & MasterDataActions>()(
             ...s.toolOverrides,
             [id]: { ...s.toolOverrides[id], id, ...override },
           },
+          _version: s._version + 1,
         })),
 
       setProductOverride: (id, override) =>
@@ -88,6 +93,7 @@ export const useMasterDataStore = create<MasterDataState & MasterDataActions>()(
             ...s.productOverrides,
             [id]: { ...s.productOverrides[id], id, ...override },
           },
+          _version: s._version + 1,
         })),
 
       setRoutingOverride: (toolId, override) =>
@@ -102,18 +108,62 @@ export const useMasterDataStore = create<MasterDataState & MasterDataActions>()(
           };
           return {
             routingOverrides: { ...s.routingOverrides, [toolId]: merged },
+            _version: s._version + 1,
           };
         }),
 
       clearOverride: (type, id) =>
         set((s) => {
-          const key = `${type}Overrides` as keyof MasterDataState;
-          const current = s[key] as Record<string, unknown>;
-          const { [id]: _, ...rest } = current;
-          return { [key]: rest } as Partial<MasterDataState>;
+          if (type === 'machine') {
+            const { [id]: _, ...rest } = s.machineOverrides;
+            return { machineOverrides: rest, _version: s._version + 1 };
+          }
+          if (type === 'tool') {
+            const { [id]: _, ...rest } = s.toolOverrides;
+            return { toolOverrides: rest, _version: s._version + 1 };
+          }
+          if (type === 'product') {
+            const { [id]: _, ...rest } = s.productOverrides;
+            return { productOverrides: rest, _version: s._version + 1 };
+          }
+          const { [id]: _, ...rest } = s.routingOverrides;
+          return { routingOverrides: rest, _version: s._version + 1 };
         }),
 
-      clearAll: () => set(INITIAL_STATE),
+      clearFieldOverride: (type, id, field) =>
+        set((s) => {
+          if (type === 'tool') {
+            const entry = s.toolOverrides[id];
+            if (!entry) return {};
+            const updated = { ...entry };
+            delete (updated as Record<string, unknown>)[field];
+            const remaining = Object.keys(updated).filter((k) => k !== 'id');
+            if (remaining.length === 0) {
+              const { [id]: _, ...rest } = s.toolOverrides;
+              return { toolOverrides: rest, _version: s._version + 1 };
+            }
+            return {
+              toolOverrides: { ...s.toolOverrides, [id]: updated },
+              _version: s._version + 1,
+            };
+          }
+          // type === 'machine'
+          const entry = s.machineOverrides[id];
+          if (!entry) return {};
+          const updated = { ...entry };
+          delete (updated as Record<string, unknown>)[field];
+          const remaining = Object.keys(updated).filter((k) => k !== 'id');
+          if (remaining.length === 0) {
+            const { [id]: _, ...rest } = s.machineOverrides;
+            return { machineOverrides: rest, _version: s._version + 1 };
+          }
+          return {
+            machineOverrides: { ...s.machineOverrides, [id]: updated },
+            _version: s._version + 1,
+          };
+        }),
+
+      clearAll: () => set((s) => ({ ...INITIAL_STATE, _version: s._version + 1 })),
     }),
     {
       name: 'pp1-master-overrides',
@@ -129,3 +179,7 @@ export function useOverrideCount(): number {
   const r = useMasterDataStore((s) => Object.keys(s.routingOverrides).length);
   return m + t + p + r;
 }
+
+/** Selector for cache invalidation — changes whenever any override is set/cleared */
+export const overridesVersionSelector = (s: MasterDataState & MasterDataActions): number =>
+  s._version;

@@ -84,7 +84,7 @@ export function DecisionCard({ d, dnames, xai, setXai, applyMove, sC }: Decision
             gap: 3,
           }}
         >
-          <AlertTriangle size={10} strokeWidth={1.5} /> STOCK ZERO — OTD em risco
+          <AlertTriangle size={10} strokeWidth={1.5} /> STOCK ZERO — OTD-D em risco
         </div>
       )}
       {!!imp?.sharedMP && (

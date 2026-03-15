@@ -1,157 +1,28 @@
-// =====================================================================
-//  INCOMPOL PLAN -- Auto-Route Overflow
-//  Iteratively resolves overflow operations using two strategies:
-//
-//  Phase A (preferred): ADVANCE production — schedule earlier on the
-//    SAME machine, using capacity from lighter days.
-//  Phase B (fallback): MOVE to alternative machine — existing strategy.
-//
-//  Uses the new scheduleAll() internally for re-scheduling.
-//
-//  Algorithm: Greedy -- apply ONE action per iteration, re-schedule,
-//  and validate improvement. If the action makes things worse, undo
-//  and try the next candidate.
-//
-//  Pure function -- no React, no side effects.
-// =====================================================================
-
 import {
-  ALT_UTIL_THRESHOLD,
-  DAY_CAP,
-  MAX_ADVANCE_DAYS,
-  MAX_AUTO_MOVES,
-  MAX_OVERFLOW_ITER,
-  S0,
-  S2,
+  ALT_UTIL_THRESHOLD, DAY_CAP, MAX_ADVANCE_DAYS, MAX_AUTO_MOVES, MAX_OVERFLOW_ITER, S0, S2,
 } from '../constants.js';
 import type { DecisionRegistry } from '../decisions/decision-registry.js';
 import { scheduleAll } from '../scheduler/scheduler.js';
-import type { AdvanceAction, Block, DayLoad, MoveAction } from '../types/blocks.js';
+import type { AdvanceAction, Block, MoveAction } from '../types/blocks.js';
 import type { ConstraintConfig } from '../types/constraints.js';
 import { DEFAULT_CONSTRAINT_CONFIG } from '../types/constraints.js';
 import type { DecisionEntry } from '../types/decisions.js';
 import type { EMachine, EOp, ETool } from '../types/engine.js';
+import type { FeasibilityReport } from '../types/infeasibility.js';
 import type { ResourceTimeline } from '../types/failure.js';
 import type { DispatchRule } from '../types/kpis.js';
 import type { TwinValidationReport } from '../types/twin.js';
 import type { WorkforceConfig } from '../types/workforce.js';
-import { getBlockQtyForOp } from '../utils/block-production.js';
-
-// ── Helpers ─────────────────────────────────────────────────────────
-
-/** Sum total unscheduled minutes across all blocks (overflow + infeasible) */
-function sumOverflow(blocks: Block[]): number {
-  return blocks.reduce((sum, b) => {
-    if (b.overflow && b.overflowMin) return sum + b.overflowMin;
-    if (b.type === 'infeasible' && b.prodMin > 0) return sum + b.prodMin;
-    return sum;
-  }, 0);
-}
-
-/** Sum production minutes of blocks scheduled AFTER their deadline (tardy) */
-function computeTardiness(blocks: Block[]): number {
-  return blocks.reduce((sum, b) => {
-    if (b.type === 'ok' && b.eddDay != null && b.dayIdx > b.eddDay) {
-      return sum + b.prodMin;
-    }
-    return sum;
-  }, 0);
-}
-
-/**
- * Compute per-machine per-day load from blocks.
- * Returns Record<machineId, DayLoad[]> indexed by day.
- */
-function capAnalysis(blocks: Block[], machines: EMachine[]): Record<string, DayLoad[]> {
-  const result: Record<string, DayLoad[]> = {};
-  const nDays = blocks.reduce((mx, b) => Math.max(mx, b.dayIdx + 1), 0);
-
-  for (const m of machines) {
-    const days: DayLoad[] = Array.from({ length: nDays }, () => ({
-      prod: 0,
-      setup: 0,
-      ops: 0,
-      pcs: 0,
-      blk: 0,
-    }));
-
-    for (const b of blocks) {
-      if (b.machineId !== m.id) continue;
-      if (b.dayIdx < 0 || b.dayIdx >= nDays) continue;
-      const dl = days[b.dayIdx];
-      dl.prod += b.prodMin;
-      dl.setup += b.setupMin;
-      dl.ops++;
-      dl.pcs += b.qty;
-      if (b.blocked) dl.blk++;
-    }
-
-    result[m.id] = days;
-  }
-
-  return result;
-}
-
-/**
- * Count backward `advanceDays` working days from `fromDay`.
- * Returns the target day index, or -1 if not enough working days.
- */
-function computeAdvancedEdd(fromDay: number, advanceDays: number, workdays: boolean[]): number {
-  let target = fromDay;
-  let daysBack = 0;
-  for (let d = fromDay - 1; d >= 0 && daysBack < advanceDays; d--) {
-    if (!workdays || workdays[d]) {
-      daysBack++;
-      target = d;
-    }
-  }
-  return daysBack === advanceDays ? target : -1;
-}
-
-/**
- * Count OTD-Delivery failures: demand checkpoints where cumulative production
- * is insufficient. This mirrors the otdDelivery metric in scoreSchedule().
- * Returns { count, failures[] } where each failure identifies the op+day.
- */
-function computeOtdDeliveryFailures(
-  blocks: Block[],
-  ops: EOp[],
-): { count: number; failures: Array<{ opId: string; day: number; shortfall: number }> } {
-  const ok = blocks.filter((b) => b.type !== 'blocked');
-  const failures: Array<{ opId: string; day: number; shortfall: number }> = [];
-  let count = 0;
-
-  for (const op of ops) {
-    const opOkBlocks = ok.filter((b) => {
-      if (b.isTwinProduction && b.outputs) return b.outputs.some((o) => o.opId === op.id);
-      return b.opId === op.id;
-    });
-    let cumDemand = 0;
-    let cumProd = 0;
-    for (let d = 0; d < op.d.length; d++) {
-      const dayDemand = Math.max(op.d[d] || 0, 0);
-      cumDemand += dayDemand;
-      for (const b of opOkBlocks) {
-        if (b.dayIdx === d) {
-          cumProd += getBlockQtyForOp(b, op.id);
-        }
-      }
-      if (dayDemand > 0 && cumProd < cumDemand) {
-        count++;
-        failures.push({ opId: op.id, day: d, shortfall: cumDemand - cumProd });
-      }
-    }
-  }
-  return { count, failures };
-}
-
-// ── Input / Output types ────────────────────────────────────────────
+import { computeOtdDeliveryFailures } from './otd-delivery-failures.js';
+import { capAnalysis, computeAdvancedEdd, sumOverflow } from './overflow-helpers.js';
+import type { TierState } from './tier-types.js';
+import { runTier2 } from './tier2-tardiness.js';
+import { runTier3, tier3Diag } from './tier3-otd-delivery.js';
 
 export interface AutoRouteOverflowInput {
   ops: EOp[];
   mSt: Record<string, string>;
   tSt: Record<string, string>;
-  /** User-specified move actions (not auto-generated) */
   userMoves: MoveAction[];
   machines: EMachine[];
   toolMap: Record<string, ETool>;
@@ -162,59 +33,22 @@ export interface AutoRouteOverflowInput {
   supplyBoosts?: Map<string, { boost: number }>;
   thirdShift?: boolean;
   constraintConfig?: ConstraintConfig;
-  /** Per-machine failure timelines */
   machineTimelines?: Record<string, ResourceTimeline>;
-  /** Per-tool failure timelines */
   toolTimelines?: Record<string, ResourceTimeline>;
-  /** Twin validation report (from transform pipeline) */
   twinValidationReport?: TwinValidationReport;
-  /** Date labels for the planning horizon */
   dates?: string[];
-  /** Order-based demand mode: each day with demand = separate order bucket */
   orderBased?: boolean;
-  /** Max optimization tier to run (1=overflow, 2=tardiness, 3=OTD-delivery, 4=residual). Default: all tiers */
   maxTier?: 1 | 2 | 3 | 4;
 }
 
 export interface AutoRouteOverflowResult {
-  /** Final blocks after overflow routing */
   blocks: Block[];
-  /** Auto-generated move actions (alt machine) */
   autoMoves: MoveAction[];
-  /** Auto-generated advance actions (same machine, earlier days) */
   autoAdvances: AdvanceAction[];
-  /** All decisions from the final scheduling run */
   decisions: DecisionEntry[];
-  /** Registry from the final scheduling run */
   registry: DecisionRegistry;
+  feasibilityReport: FeasibilityReport;
 }
-
-// ── Main export ─────────────────────────────────────────────────────
-
-/**
- * Auto-resolve overflow operations using two strategies:
- *
- * **Phase A (preferred): Advance production** — schedule earlier on the
- * same machine, using capacity from lighter days. Tries advancing
- * 1..MAX_ADVANCE_DAYS working days.
- *
- * **Phase B (fallback): Move to alternative machine** — existing
- * strategy. Routes the operation to its alt machine if it has capacity.
- *
- * Algorithm:
- * 1. Run initial schedule with user moves only
- * 2. If no overflow, return immediately
- * 3. For each step:
- *    a. Find overflow blocks, sorted by biggest overflow first
- *    b. Phase A: try advancing each candidate on same machine
- *    c. Phase B: if no advance helped, try alt machine routing
- *    d. Re-schedule and validate improvement
- *    e. If worse, undo and try next candidate
- * 4. Repeat until no improvement or limits reached
- *
- * @param input - Complete scheduling input with user moves
- * @returns { blocks, autoMoves, autoAdvances, decisions, registry }
- */
 export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverflowResult {
   const {
     ops,
@@ -238,10 +72,6 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
   } = input;
   const maxTier = input.maxTier ?? 4;
 
-  // ── Twin-aware move helpers ──────────────────────────────────────
-  // Build opId → twin partner opId map so that when we move one twin,
-  // we also move its partner. This prevents splitting twin pairs across
-  // machines, which would break co-production in mergeTwinBuckets().
   const twinPartnerMap = new Map<string, string>();
   if (twinValidationReport?.twinGroups) {
     for (const tg of twinValidationReport.twinGroups) {
@@ -250,36 +80,16 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
     }
   }
 
-  // Helper to run a full schedule with given moves and advances
+  const baseParams = {
+    ops, mSt, tSt, machines, toolMap, workdays, nDays, workforceConfig,
+    rule, supplyBoosts, thirdShift, constraintConfig, enforceDeadlines: false,
+    machineTimelines, toolTimelines, twinValidationReport, dates, orderBased,
+  };
   const runSchedule = (moves: MoveAction[], advances?: AdvanceAction[]) =>
-    scheduleAll({
-      ops,
-      mSt,
-      tSt,
-      moves,
-      machines,
-      toolMap,
-      workdays,
-      nDays,
-      workforceConfig,
-      rule,
-      supplyBoosts,
-      thirdShift,
-      constraintConfig,
-      // Disable leveling during overflow routing iterations for speed;
-      // the final result will be leveled in the caller if needed
-      enableLeveling: false,
-      // Preserve overflow markers during iterations (don't convert to infeasible)
-      enforceDeadlines: false,
-      machineTimelines,
-      toolTimelines,
-      advanceOverrides: advances,
-      twinValidationReport,
-      dates,
-      orderBased,
-    });
+    scheduleAll({ ...baseParams, moves, enableLeveling: false, advanceOverrides: advances });
+  const runScheduleWithLeveling = (moves: MoveAction[], advances?: AdvanceAction[]) =>
+    scheduleAll({ ...baseParams, moves, enableLeveling: true, advanceOverrides: advances });
 
-  // Pass 1: greedy schedule with user moves only
   let schedResult = runSchedule(userMoves);
   let blocks = schedResult.blocks;
   let totalOverflowMin = sumOverflow(blocks);
@@ -287,12 +97,7 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
   const autoMoves: MoveAction[] = [];
   const autoAdvances: AdvanceAction[] = [];
 
-  // Hard capacity per working day
   const hardCap = thirdShift ? S2 - S0 : DAY_CAP;
-
-  // Snapshot tardy ops from the INITIAL schedule — only these are Tier 2 candidates.
-  // Captured BEFORE Tier 1 to prevent chasing phantom tardiness created by
-  // Tier 1 side effects (tool-group merging can push unrelated ops later).
   const preTier1TardyOps = new Set<string>();
   for (const b of blocks) {
     if (b.type === 'ok' && b.eddDay != null && b.dayIdx > b.eddDay) {
@@ -300,9 +105,7 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
     }
   }
 
-  // ════════════════════════════════════════════════════════════════
-  //  TIER 1: Resolve OVERFLOW (only when overflow exists)
-  // ════════════════════════════════════════════════════════════════
+  // ── TIER 1: Resolve OVERFLOW ──
   if (totalOverflowMin > 0) {
     const maxSteps = MAX_AUTO_MOVES * MAX_OVERFLOW_ITER;
 
@@ -316,7 +119,6 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
         ...autoAdvances.map((a) => a.opId),
       ]);
 
-      // Find ALL overflow/infeasible blocks sorted by biggest unscheduled first
       const allOverflowBlocks = blocks
         .filter(
           (b) =>
@@ -335,7 +137,6 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
       let moved = false;
       const seenOps = new Set<string>();
 
-      // ── Phase A: Try ADVANCING production on same machine ──────────
       for (const ob of allOverflowBlocks) {
         if (seenOps.has(ob.opId)) continue;
         seenOps.add(ob.opId);
@@ -344,17 +145,9 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
         const mDays = cap[mId];
         if (!mDays) continue;
 
-        // Try advancing 1..MAX_ADVANCE_DAYS working days
         for (let advDays = 1; advDays <= MAX_ADVANCE_DAYS; advDays++) {
           const targetDay = computeAdvancedEdd(ob.dayIdx, advDays, workdays);
-          if (targetDay < 0) break; // can't go further back
-
-          // Note: we intentionally do NOT pre-filter by target day utilization.
-          // The advance shifts the EDD, which triggers a full re-schedule that may
-          // change group ordering (e.g. tool-merging) and save setup time globally.
-          // The sumOverflow comparison below is the authoritative validation.
-
-          // Try this advance
+          if (targetDay < 0) break;
           const trial: AdvanceAction[] = [
             ...autoAdvances,
             { opId: ob.opId, advanceDays: advDays, originalEdd: ob.dayIdx },
@@ -369,7 +162,6 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
             totalOverflowMin = newOverflow;
             moved = true;
 
-            // Mark blocks as advanced
             for (const b of blocks) {
               if (b.opId === ob.opId && b.type === 'ok') {
                 b.isAdvanced = true;
@@ -377,7 +169,6 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
               }
             }
 
-            // Record the advance production decision
             const unschedMin = ob.overflow ? ob.overflowMin || 0 : ob.prodMin;
             schedResult.registry.record({
               type: 'ADVANCE_PRODUCTION',
@@ -395,16 +186,14 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
               },
             });
 
-            break; // success with this advance amount
+            break;
           }
         }
-
-        if (moved) break; // restart outer loop with updated state
+        if (moved) break;
       }
 
-      // ── Phase B: Try ALT MACHINE routing (fallback) ────────────────
+      // ── Phase B: Alt machine routing ──
       if (!moved) {
-        // Filter for overflow blocks that have alternatives
         const altCandidates = allOverflowBlocks.filter(
           (b) =>
             b.hasAlt &&
@@ -438,7 +227,6 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
           const altRemaining = wDayCount * hardCap - altTotalUsed;
           if (altRemaining < 30) continue;
 
-          // Try moving this single operation (+ twin partner if applicable)
           const twinPartner = twinPartnerMap.get(ob.opId);
           const twinAlreadyMoved = twinPartner ? actionIds.has(twinPartner) : true;
           autoMoves.push({ opId: ob.opId, toM: altM });
@@ -456,8 +244,6 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
             schedResult = newResult;
             totalOverflowMin = newOverflow;
             moved = true;
-
-            // Record the overflow route decision
             const unschedMin = ob.overflow ? ob.overflowMin || 0 : ob.prodMin;
             schedResult.registry.record({
               type: 'OVERFLOW_ROUTE',
@@ -474,577 +260,193 @@ export function autoRouteOverflow(input: AutoRouteOverflowInput): AutoRouteOverf
               },
             });
 
-            break; // success -- restart outer loop with updated capacity
+            break;
           } else {
-            // This move made things worse -- undo and try next candidate
             autoMoves.pop();
             if (twinPartner && !twinAlreadyMoved) autoMoves.pop();
           }
         }
       }
 
-      if (!moved) break; // no single action improved things
+      if (!moved) break;
       if (totalOverflowMin === 0) break;
     }
   }
 
-  // ════════════════════════════════════════════════════════════════
-  //  TIER 2: Resolve TARDINESS (blocks scheduled after their EDD)
-  //  Runs AFTER overflow resolution. Uses advance + alt machine.
-  //  Constraint: never re-introduce overflow (sumOverflow stays 0).
-  // ════════════════════════════════════════════════════════════════
+  // Save Tier 1 decisions before Tier 2/3 replace schedResult
+  const tier1Decisions = schedResult.registry.getAll().filter(
+    (d) => d.type === 'ADVANCE_PRODUCTION' || d.type === 'OVERFLOW_ROUTE',
+  );
 
-  if (maxTier < 2) {
-    return {
-      blocks,
-      autoMoves,
-      autoAdvances,
-      decisions: schedResult.decisions,
-      registry: schedResult.registry,
+  const tierState: TierState = { blocks, schedResult, autoMoves, autoAdvances };
+  const tierCtx = {
+    ops,
+    userMoves,
+    mSt,
+    workdays,
+    twinPartnerMap,
+    thirdShift,
+    machineTimelines,
+    runSchedule,
+    runScheduleWithLeveling,
+  };
+
+  // ── TIER 2: Resolve TARDINESS ──
+  if (maxTier >= 2) {
+    runTier2(tierState, tierCtx, preTier1TardyOps);
+  }
+
+  if (maxTier >= 3) {
+    const allRules: DispatchRule[] = ['EDD', 'ATCS', 'CR', 'SPT', 'WSPT'];
+    let bestOtdDCount = computeOtdDeliveryFailures(tierState.blocks, ops).count;
+    let bestRuleState: TierState | null = null;
+    const baseSchedParams = {
+      ops, mSt, tSt, machines, toolMap, workdays, nDays, workforceConfig,
+      supplyBoosts, thirdShift, constraintConfig, machineTimelines, toolTimelines,
+      twinValidationReport, dates, orderBased, enforceDeadlines: false,
     };
-  }
 
-  // Refresh tardy set: include ops that became tardy after Tier 1
-  // (schedule shifts from overflow routing, twin co-production, etc.)
-  for (const b of blocks) {
-    if (b.type === 'ok' && b.eddDay != null && b.dayIdx > b.eddDay) {
-      preTier1TardyOps.add(b.opId);
+    for (const tryRule of allRules) {
+      const mkSched = (lvl: boolean) => (moves: MoveAction[], advances?: AdvanceAction[]) =>
+        scheduleAll({ ...baseSchedParams, rule: tryRule, enableLeveling: lvl, moves, advanceOverrides: advances });
+
+      const ts: TierState = {
+        blocks: tierState.blocks, schedResult: tierState.schedResult,
+        autoMoves: [...tierState.autoMoves],
+        autoAdvances: tierState.autoAdvances.map((a) => ({ ...a })),
+      };
+      const fresh = mkSched(false)([...userMoves, ...ts.autoMoves], ts.autoAdvances.length > 0 ? ts.autoAdvances : undefined);
+      ts.blocks = fresh.blocks; ts.schedResult = fresh;
+
+      runTier3(ts, { ...tierCtx, runSchedule: mkSched(false), runScheduleWithLeveling: mkSched(true) }, toolMap);
+      const cnt = computeOtdDeliveryFailures(ts.blocks, ops).count;
+      tier3Diag[`rule_${tryRule}`] = cnt;
+      if (cnt < bestOtdDCount) { bestOtdDCount = cnt; bestRuleState = ts; }
+      if (bestOtdDCount === 0) break;
+    }
+
+    if (bestRuleState) {
+      tierState.blocks = bestRuleState.blocks;
+      tierState.schedResult = bestRuleState.schedResult;
+      tierState.autoMoves = bestRuleState.autoMoves;
+      tierState.autoAdvances = bestRuleState.autoAdvances;
     }
   }
 
-  let totalTardiness = computeTardiness(blocks);
+  // Collect all decisions from Tier 1 + current registry (Tier 2/3)
+  const prevDecisions = [
+    ...tier1Decisions,
+    ...tierState.schedResult.registry.getAll().filter(
+      (d) => d.type === 'ADVANCE_PRODUCTION' || d.type === 'OVERFLOW_ROUTE',
+    ),
+  ];
+  const finalMoves = [...userMoves, ...tierState.autoMoves];
+  const finalAdvances = tierState.autoAdvances.length > 0 ? tierState.autoAdvances : undefined;
+  const commonParams = {
+    ops, mSt, tSt, moves: finalMoves, machines, toolMap, workdays, nDays,
+    workforceConfig, rule, supplyBoosts, thirdShift, constraintConfig,
+    machineTimelines, toolTimelines, advanceOverrides: finalAdvances,
+    twinValidationReport, dates, orderBased,
+  };
 
-  for (let t2 = 0; t2 < MAX_AUTO_MOVES && totalTardiness > 0; t2++) {
-    if (autoMoves.length + autoAdvances.length >= MAX_AUTO_MOVES) break;
+  let finalResult = scheduleAll({ ...commonParams, enableLeveling: false, enforceDeadlines: false });
+  let bestOtdD = computeOtdDeliveryFailures(finalResult.blocks, ops).count;
 
-    // Separate moved vs advanced sets. Moved ops are fully excluded
-    // (can't re-move). Advanced-but-still-tardy ops remain eligible
-    // for Phase B/C (move to alt machine).
-    const movedIds = new Set([...userMoves.map((m) => m.opId), ...autoMoves.map((m) => m.opId)]);
-    const advancedIds = new Set(autoAdvances.map((a) => a.opId));
-
-    const tardyBlocks = blocks
-      .filter(
-        (b) =>
-          b.type === 'ok' &&
-          b.eddDay != null &&
-          b.dayIdx > b.eddDay &&
-          preTier1TardyOps.has(b.opId) &&
-          !movedIds.has(b.opId),
-      )
-      .sort((a, b) => b.prodMin - a.prodMin);
-
-    if (tardyBlocks.length === 0) break;
-
-    let tardyImproved = false;
-
-    // ── Phase A: Try ADVANCING tardy ops on same machine ─────────
-    // Skip ops already advanced (Phase A already tried them).
-    const seenTardyOps = new Set<string>();
-    for (const ob of tardyBlocks) {
-      if (seenTardyOps.has(ob.opId)) continue;
-      seenTardyOps.add(ob.opId);
-      if (advancedIds.has(ob.opId)) continue; // already advanced, skip to Phase B/C
-
-      const obEdd = ob.eddDay!;
-
-      for (let advDays = 1; advDays <= 30; advDays++) {
-        const targetDay = computeAdvancedEdd(obEdd, advDays, workdays);
-        if (targetDay < 0) break;
-
-        const trial: AdvanceAction[] = [
-          ...autoAdvances,
-          { opId: ob.opId, advanceDays: advDays, originalEdd: obEdd },
-        ];
-        const newResult = runSchedule([...userMoves, ...autoMoves], trial);
-        const newTardiness = computeTardiness(newResult.blocks);
-
-        if (newTardiness < totalTardiness && sumOverflow(newResult.blocks) === 0) {
-          autoAdvances.push({ opId: ob.opId, advanceDays: advDays, originalEdd: obEdd });
-          blocks = newResult.blocks;
-          schedResult = newResult;
-          totalTardiness = newTardiness;
-          tardyImproved = true;
-
-          // Mark blocks as advanced
-          for (const b of blocks) {
-            if (b.opId === ob.opId && b.type === 'ok') {
-              b.isAdvanced = true;
-              b.advancedByDays = advDays;
-            }
-          }
-
-          // Record the advance production decision (tardy resolution)
-          schedResult.registry.record({
-            type: 'ADVANCE_PRODUCTION',
-            opId: ob.opId,
-            toolId: ob.toolId,
-            machineId: ob.machineId,
-            detail: `Advanced ${ob.sku} by ${advDays}d on ${ob.machineId} (tardy: EDD ${obEdd} -> ${targetDay})`,
-            metadata: {
-              originalEdd: obEdd,
-              newEdd: targetDay,
-              advanceDays: advDays,
-              sku: ob.sku,
-              reason: 'tardiness',
-            },
-          });
-
-          break; // success with this advance amount
-        }
-      }
-
-      if (tardyImproved) break; // restart Tier 2 loop with updated state
-    }
-
-    // Phase B: Alt machine for tardy ops.
-    // The sumOverflow(nr.blocks) === 0 check inside ensures moves never
-    // re-introduce overflow, so this is safe even after Tier 1 ran.
-    if (!tardyImproved) {
-      // Group tardy ops by alt machine — try batch move first (all ops sharing
-      // the same alt), then fall back to individual moves. Batch moves let the
-      // scheduler consolidate tool groups (fewer setups) on the alt machine.
-      const altGroups = new Map<string, string[]>();
-      const seenBatch = new Set<string>();
-      for (const ob of tardyBlocks) {
-        if (seenBatch.has(ob.opId)) continue;
-        seenBatch.add(ob.opId);
-        if (!ob.hasAlt || !ob.altM || mSt[ob.altM] === 'down') continue;
-        const altM = ob.altM;
-        if (!altGroups.has(altM)) altGroups.set(altM, []);
-        altGroups.get(altM)!.push(ob.opId);
-      }
-
-      for (const [altM, opIds] of altGroups) {
-        // Twin-aware: include twin partners in the batch to keep pairs together
-        const batchOpIds = new Set(opIds);
-        for (const opId of opIds) {
-          const tp = twinPartnerMap.get(opId);
-          if (tp && !movedIds.has(tp)) batchOpIds.add(tp);
-        }
-        const expandedOpIds = [...batchOpIds];
-
-        // Try batch move (all ops to same alt at once)
-        if (expandedOpIds.length > 1) {
-          const batchMoves = expandedOpIds.map((opId) => ({ opId, toM: altM }));
-          autoMoves.push(...batchMoves);
-          const nr = runSchedule(
-            [...userMoves, ...autoMoves],
-            autoAdvances.length > 0 ? autoAdvances : undefined,
-          );
-          const nt = computeTardiness(nr.blocks);
-          if (nt < totalTardiness && sumOverflow(nr.blocks) === 0) {
-            blocks = nr.blocks;
-            schedResult = nr;
-            totalTardiness = nt;
-            tardyImproved = true;
-            for (const opId of opIds) {
-              const blk = tardyBlocks.find((b) => b.opId === opId);
-              if (blk) {
-                schedResult.registry.record({
-                  type: 'OVERFLOW_ROUTE',
-                  opId,
-                  toolId: blk.toolId,
-                  machineId: altM,
-                  detail: `Moved ${blk.sku} from ${blk.machineId} to ${altM} (tardy batch)`,
-                  metadata: {
-                    fromMachine: blk.machineId,
-                    toMachine: altM,
-                    sku: blk.sku,
-                    reason: 'tardiness',
-                  },
-                });
-              }
-            }
-            break;
-          } else {
-            autoMoves.splice(autoMoves.length - batchMoves.length);
-          }
-        }
-
-        // Fall back to individual moves (try each op one at a time)
-        if (!tardyImproved) {
-          for (const opId of opIds) {
-            // Twin-aware: also move twin partner to keep pair together
-            const tp = twinPartnerMap.get(opId);
-            const tpAlreadyMoved = tp ? movedIds.has(tp) || opIds.includes(tp) : true;
-            autoMoves.push({ opId, toM: altM });
-            if (tp && !tpAlreadyMoved) autoMoves.push({ opId: tp, toM: altM });
-            const nr = runSchedule(
-              [...userMoves, ...autoMoves],
-              autoAdvances.length > 0 ? autoAdvances : undefined,
-            );
-            const nt = computeTardiness(nr.blocks);
-            if (nt < totalTardiness && sumOverflow(nr.blocks) === 0) {
-              blocks = nr.blocks;
-              schedResult = nr;
-              totalTardiness = nt;
-              tardyImproved = true;
-              const blk = tardyBlocks.find((b) => b.opId === opId);
-              if (blk) {
-                schedResult.registry.record({
-                  type: 'OVERFLOW_ROUTE',
-                  opId,
-                  toolId: blk.toolId,
-                  machineId: altM,
-                  detail: `Moved ${blk.sku} from ${blk.machineId} to ${altM} (tardy resolution)`,
-                  metadata: {
-                    fromMachine: blk.machineId,
-                    toMachine: altM,
-                    sku: blk.sku,
-                    reason: 'tardiness',
-                  },
-                });
-              }
-              break;
-            } else {
-              autoMoves.pop();
-              if (tp && !tpAlreadyMoved) autoMoves.pop();
-            }
-          }
-        }
-
-        if (tardyImproved) break;
+  for (const enableLeveling of [false, true]) {
+    for (const enforceDeadlines of [false, true]) {
+      if (!enableLeveling && !enforceDeadlines) continue;
+      const candidate = scheduleAll({ ...commonParams, enableLeveling, enforceDeadlines });
+      const candidateOtdD = computeOtdDeliveryFailures(candidate.blocks, ops).count;
+      if (candidateOtdD < bestOtdD) {
+        finalResult = candidate;
+        bestOtdD = candidateOtdD;
       }
     }
-
-    // ── Phase C: Combined MOVE + ADVANCE for tardy ops ──────────
-    // If Phase A (advance-only) and Phase B (move-only) both failed,
-    // try moving the op to its alt machine AND advancing it by N days.
-    // This lets the scheduler use earlier (less congested) slots on
-    // the alt machine — solving cases where the alt is full near EDD
-    // but has capacity earlier.
-    if (!tardyImproved) {
-      const seenC = new Set<string>();
-      for (const ob of tardyBlocks) {
-        if (seenC.has(ob.opId)) continue;
-        seenC.add(ob.opId);
-        if (!ob.hasAlt || !ob.altM || mSt[ob.altM] === 'down') continue;
-        const altM = ob.altM;
-        const obEdd = ob.eddDay!;
-
-        // Twin-aware: move partner along with the primary op
-        const tpC = twinPartnerMap.get(ob.opId);
-        const tpCAlreadyMoved = tpC ? movedIds.has(tpC) : true;
-
-        for (let advDays = 1; advDays <= 30; advDays++) {
-          const targetDay = computeAdvancedEdd(obEdd, advDays, workdays);
-          if (targetDay < 0) break;
-
-          // Try move + advance together (include twin partner in move)
-          autoMoves.push({ opId: ob.opId, toM: altM });
-          if (tpC && !tpCAlreadyMoved) autoMoves.push({ opId: tpC, toM: altM });
-          const trialAdv: AdvanceAction[] = [
-            ...autoAdvances,
-            { opId: ob.opId, advanceDays: advDays, originalEdd: obEdd },
-          ];
-          const nr = runSchedule([...userMoves, ...autoMoves], trialAdv);
-          const nt = computeTardiness(nr.blocks);
-
-          if (nt < totalTardiness && sumOverflow(nr.blocks) === 0) {
-            autoAdvances.push({ opId: ob.opId, advanceDays: advDays, originalEdd: obEdd });
-            blocks = nr.blocks;
-            schedResult = nr;
-            totalTardiness = nt;
-            tardyImproved = true;
-
-            // Mark blocks as advanced
-            for (const b of blocks) {
-              if (b.opId === ob.opId && b.type === 'ok') {
-                b.isAdvanced = true;
-                b.advancedByDays = advDays;
-              }
-            }
-
-            schedResult.registry.record({
-              type: 'OVERFLOW_ROUTE',
-              opId: ob.opId,
-              toolId: ob.toolId,
-              machineId: altM,
-              detail: `Moved ${ob.sku} from ${ob.machineId} to ${altM} + advanced ${advDays}d (tardy combo)`,
-              metadata: {
-                fromMachine: ob.machineId,
-                toMachine: altM,
-                sku: ob.sku,
-                advanceDays: advDays,
-                reason: 'tardiness',
-              },
-            });
-            break;
-          } else {
-            autoMoves.pop(); // undo the trial move
-            if (tpC && !tpCAlreadyMoved) autoMoves.pop();
-          }
-        }
-
-        if (tardyImproved) break;
-      }
-    }
-
-    // ── Phase D: BATCH advance all tardy ops by 1 day ───────
-    // When individual advances fail (local minimum), try advancing
-    // ALL tardy ops simultaneously. This helps when multiple ops
-    // compete for the same capacity window — moving them ALL earlier
-    // can break the deadlock that individual advances can't.
-    if (!tardyImproved) {
-      // Collect unique tardy ops (not yet moved)
-      const batchOps = new Map<string, number>(); // opId → eddDay
-      for (const ob of tardyBlocks) {
-        if (!batchOps.has(ob.opId) && !advancedIds.has(ob.opId) && ob.eddDay != null) {
-          batchOps.set(ob.opId, ob.eddDay);
-        }
-      }
-
-      if (batchOps.size > 1) {
-        for (let advDays = 1; advDays <= 5; advDays++) {
-          const batchAdvances: AdvanceAction[] = [];
-          for (const [opId, edd] of batchOps) {
-            const targetDay = computeAdvancedEdd(edd, advDays, workdays);
-            if (targetDay >= 0) {
-              batchAdvances.push({ opId, advanceDays: advDays, originalEdd: edd });
-            }
-          }
-
-          if (batchAdvances.length < 2) continue;
-
-          const trial = [...autoAdvances, ...batchAdvances];
-          const newResult = runSchedule([...userMoves, ...autoMoves], trial);
-          const newTardiness = computeTardiness(newResult.blocks);
-
-          if (newTardiness < totalTardiness && sumOverflow(newResult.blocks) === 0) {
-            for (const ba of batchAdvances) autoAdvances.push(ba);
-            blocks = newResult.blocks;
-            schedResult = newResult;
-            totalTardiness = newTardiness;
-            tardyImproved = true;
-
-            for (const b of blocks) {
-              if (batchOps.has(b.opId) && b.type === 'ok') {
-                b.isAdvanced = true;
-                b.advancedByDays = advDays;
-              }
-            }
-            break;
-          }
-        }
-      }
-    }
-
-    if (!tardyImproved) break;
   }
 
-  // ════════════════════════════════════════════════════════════════
-  //  TIER 3: Resolve OTD-DELIVERY failures
-  //  Runs AFTER Tier 2. Targets demand checkpoints where cumulative
-  //  production is insufficient (otdDelivery < 100%), even when all
-  //  blocks satisfy their EDD (computeTardiness = 0).
-  //
-  //  This happens when blocks are scheduled on their EDD day but
-  //  earlier demand checkpoints for the same op aren't covered.
-  //  Strategy: advance the op's production to cover earlier demand.
-  // ════════════════════════════════════════════════════════════════
+  // ── Post-grid OTD-D repair: boost failing ops and re-try with advance combos ──
+  if (bestOtdD > 0 && bestOtdD <= 5) {
+    const failResult = computeOtdDeliveryFailures(finalResult.blocks, ops);
+    const failOps = new Set(failResult.failures.map((f) => f.opId));
+    const boostedSupply = new Map(supplyBoosts ?? []);
+    for (const opId of failOps) boostedSupply.set(opId, { boost: 10 });
 
-  if (maxTier < 3) {
-    return {
-      blocks,
-      autoMoves,
-      autoAdvances,
-      decisions: schedResult.decisions,
-      registry: schedResult.registry,
-    };
-  }
-
-  let otdResult = computeOtdDeliveryFailures(blocks, ops);
-  // Allow small tardiness increase (5% or 30min floor) to resolve OTD failures.
-  // This prevents over-optimizing for block-level tardiness at the expense of
-  // per-demand-day OTD delivery, while still protecting against large regressions.
-  const preTier3Tardiness = computeTardiness(blocks);
-  const tardinessBudget = Math.max(preTier3Tardiness * 1.05, preTier3Tardiness + 30);
-
-  for (let t3 = 0; t3 < MAX_AUTO_MOVES && otdResult.count > 0; t3++) {
-    if (autoMoves.length + autoAdvances.length >= MAX_AUTO_MOVES) break;
-
-    const movedIds = new Set([...userMoves.map((m) => m.opId), ...autoMoves.map((m) => m.opId)]);
-    const advancedIds = new Set(autoAdvances.map((a) => a.opId));
-
-    // Deduplicate failures by opId, keeping the one with largest shortfall
-    const failsByOp = new Map<string, { day: number; shortfall: number }>();
-    for (const f of otdResult.failures) {
-      const existing = failsByOp.get(f.opId);
-      if (!existing || f.shortfall > existing.shortfall) {
-        failsByOp.set(f.opId, { day: f.day, shortfall: f.shortfall });
-      }
-    }
-
-    // Sort by shortfall descending (prioritize biggest gaps)
-    const sortedFails = [...failsByOp.entries()]
-      .filter(([opId]) => !movedIds.has(opId))
-      .sort((a, b) => b[1].shortfall - a[1].shortfall);
-
-    if (sortedFails.length === 0) break;
-
-    let otdImproved = false;
-
-    // Phase A: Try advancing the op's production earlier
-    for (const [opId, info] of sortedFails) {
-      if (advancedIds.has(opId)) continue;
-
-      for (let advDays = 1; advDays <= 30; advDays++) {
-        const targetDay = computeAdvancedEdd(info.day, advDays, workdays);
-        if (targetDay < 0) break;
-
-        const trial: AdvanceAction[] = [
-          ...autoAdvances,
-          { opId, advanceDays: advDays, originalEdd: info.day },
-        ];
-        const newResult = runSchedule([...userMoves, ...autoMoves], trial);
-        const newOtd = computeOtdDeliveryFailures(newResult.blocks, ops);
-
-        if (
-          newOtd.count < otdResult.count &&
-          sumOverflow(newResult.blocks) === 0 &&
-          computeTardiness(newResult.blocks) <= tardinessBudget
-        ) {
-          autoAdvances.push({ opId, advanceDays: advDays, originalEdd: info.day });
-          blocks = newResult.blocks;
-          schedResult = newResult;
-          otdResult = newOtd;
-          otdImproved = true;
-
-          for (const b of blocks) {
-            if (b.opId === opId && b.type === 'ok') {
-              b.isAdvanced = true;
-              b.advancedByDays = advDays;
-            }
-          }
-
-          schedResult.registry.record({
-            type: 'ADVANCE_PRODUCTION',
-            opId,
-            toolId: '',
-            machineId: '',
-            detail: `Advanced ${opId} by ${advDays}d (OTD-delivery: shortfall ${info.shortfall} pcs at day ${info.day})`,
-            metadata: { advanceDays: advDays, reason: 'otd_delivery', shortfall: info.shortfall },
-          });
-          break;
-        }
-      }
-
-      if (otdImproved) break;
-    }
-
-    // Phase B: Try alt machine for the failing op
-    if (!otdImproved) {
-      for (const [opId, info] of sortedFails) {
-        // Find the op's blocks to get alt machine info
-        const opBlock = blocks.find((b) => b.opId === opId && b.hasAlt && b.altM);
-        if (!opBlock || !opBlock.altM || mSt[opBlock.altM] === 'down') continue;
-
-        const altM = opBlock.altM;
-        const twinPartner = twinPartnerMap.get(opId);
-        const tpAlreadyMoved = twinPartner ? movedIds.has(twinPartner) : true;
-
-        autoMoves.push({ opId, toM: altM });
-        if (twinPartner && !tpAlreadyMoved) autoMoves.push({ opId: twinPartner, toM: altM });
-
-        const nr = runSchedule(
-          [...userMoves, ...autoMoves],
-          autoAdvances.length > 0 ? autoAdvances : undefined,
-        );
-        const newOtd = computeOtdDeliveryFailures(nr.blocks, ops);
-
-        if (
-          newOtd.count < otdResult.count &&
-          sumOverflow(nr.blocks) === 0 &&
-          computeTardiness(nr.blocks) <= tardinessBudget
-        ) {
-          blocks = nr.blocks;
-          schedResult = nr;
-          otdResult = newOtd;
-          otdImproved = true;
-
-          schedResult.registry.record({
-            type: 'OVERFLOW_ROUTE',
-            opId,
-            toolId: opBlock.toolId,
-            machineId: altM,
-            detail: `Moved ${opId} from ${opBlock.machineId} to ${altM} (OTD-delivery: shortfall ${info.shortfall} pcs)`,
-            metadata: { fromMachine: opBlock.machineId, toMachine: altM, reason: 'otd_delivery' },
-          });
-          break;
-        } else {
-          autoMoves.pop();
-          if (twinPartner && !tpAlreadyMoved) autoMoves.pop();
-        }
-      }
-    }
-
-    // Phase C: Combined move + advance for OTD failures
-    if (!otdImproved) {
-      for (const [opId, info] of sortedFails) {
-        const opBlock = blocks.find((b) => b.opId === opId && b.hasAlt && b.altM);
-        if (!opBlock || !opBlock.altM || mSt[opBlock.altM] === 'down') continue;
-
-        const altM = opBlock.altM;
-        const twinPartner = twinPartnerMap.get(opId);
-        const tpAlreadyMoved = twinPartner ? movedIds.has(twinPartner) : true;
-
-        for (let advDays = 1; advDays <= 30; advDays++) {
-          const targetDay = computeAdvancedEdd(info.day, advDays, workdays);
-          if (targetDay < 0) break;
-
-          autoMoves.push({ opId, toM: altM });
-          if (twinPartner && !tpAlreadyMoved) autoMoves.push({ opId: twinPartner, toM: altM });
-          const trialAdv: AdvanceAction[] = [
-            ...autoAdvances,
-            { opId, advanceDays: advDays, originalEdd: info.day },
-          ];
-          const nr = runSchedule([...userMoves, ...autoMoves], trialAdv);
-          const newOtd = computeOtdDeliveryFailures(nr.blocks, ops);
-
-          if (
-            newOtd.count < otdResult.count &&
-            sumOverflow(nr.blocks) === 0 &&
-            computeTardiness(nr.blocks) <= tardinessBudget
-          ) {
-            autoAdvances.push({ opId, advanceDays: advDays, originalEdd: info.day });
-            blocks = nr.blocks;
-            schedResult = nr;
-            otdResult = newOtd;
-            otdImproved = true;
-
-            schedResult.registry.record({
-              type: 'OVERFLOW_ROUTE',
-              opId,
-              toolId: opBlock.toolId,
-              machineId: altM,
-              detail: `Moved ${opId} to ${altM} + advanced ${advDays}d (OTD-delivery combo)`,
-              metadata: {
-                fromMachine: opBlock.machineId,
-                toMachine: altM,
-                advanceDays: advDays,
-                reason: 'otd_delivery',
-              },
-            });
-            break;
-          } else {
-            autoMoves.pop();
-            if (twinPartner && !tpAlreadyMoved) autoMoves.pop();
+    // Try with boosted supply + various targeted advance amounts for failing ops
+    for (let advDays = 0; advDays <= 40; advDays++) {
+      const extraAdvances: AdvanceAction[] = [];
+      if (advDays > 0) {
+        for (const f of failResult.failures) {
+          const existing = tierState.autoAdvances.find((a) => a.opId === f.opId && (a.targetEdd === f.day || a.targetEdd == null))?.advanceDays ?? 0;
+          const td = existing + advDays;
+          if (computeAdvancedEdd(f.day, td, workdays) >= 0) {
+            extraAdvances.push({ opId: f.opId, advanceDays: td, originalEdd: f.day, targetEdd: f.day });
           }
         }
+      }
+      const boostAdvances = finalAdvances ? [...finalAdvances] : [];
+      for (const ea of extraAdvances) {
+        const idx = boostAdvances.findIndex((a) => a.opId === ea.opId);
+        if (idx >= 0) boostAdvances[idx] = ea; else boostAdvances.push(ea);
+      }
+      const boostParams = {
+        ...commonParams,
+        supplyBoosts: boostedSupply.size > 0 ? boostedSupply : undefined,
+        advanceOverrides: boostAdvances.length > 0 ? boostAdvances : undefined,
+      };
 
-        if (otdImproved) break;
+      for (const enableLeveling of [false, true]) {
+        for (const enforceDeadlines of [false, true]) {
+          const candidate = scheduleAll({ ...boostParams, enableLeveling, enforceDeadlines });
+          const candidateOtdD = computeOtdDeliveryFailures(candidate.blocks, ops).count;
+          if (candidateOtdD < bestOtdD) {
+            finalResult = candidate;
+            bestOtdD = candidateOtdD;
+            if (bestOtdD === 0) break;
+          }
+        }
+        if (bestOtdD === 0) break;
+      }
+      if (bestOtdD === 0) break;
+    }
+    // Update tierState advances if we added extras
+    if (bestOtdD === 0) {
+      for (const f of failResult.failures) {
+        const extra = finalAdvances?.find((a) => a.opId === f.opId);
+        if (extra && !tierState.autoAdvances.some((a) => a.opId === f.opId)) {
+          tierState.autoAdvances.push(extra);
+        }
       }
     }
-
-    if (!otdImproved) break;
   }
+
+  const advMap = new Map(tierState.autoAdvances.map((a) => [a.opId, a.advanceDays]));
+  for (const b of finalResult.blocks) {
+    const advDays = advMap.get(b.opId);
+    if (advDays != null && b.type === 'ok') {
+      b.isAdvanced = true;
+      b.advancedByDays = advDays;
+    }
+  }
+
+  // Re-inject all Tier 1/2/3 advance/overflow decisions into final registry
+  const existingIds = new Set(finalResult.registry.getAll().map((d) => d.opId + d.type));
+  for (const dec of prevDecisions) {
+    const key = dec.opId + dec.type;
+    if (!existingIds.has(key)) {
+      finalResult.registry.record(dec);
+      existingIds.add(key);
+    }
+  }
+
+  tierState.blocks = finalResult.blocks;
+  tierState.schedResult = finalResult;
 
   return {
-    blocks,
-    autoMoves,
-    autoAdvances,
-    decisions: schedResult.decisions,
-    registry: schedResult.registry,
+    blocks: tierState.blocks,
+    autoMoves: tierState.autoMoves,
+    autoAdvances: tierState.autoAdvances,
+    decisions: tierState.schedResult.decisions,
+    registry: tierState.schedResult.registry,
+    feasibilityReport: tierState.schedResult.feasibilityReport,
   };
 }

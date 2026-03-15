@@ -1,7 +1,11 @@
-import { StubPage } from '@/components/Common/StubPage';
+import { SchedulingPage } from '@/features/scheduling';
+import { useUIStore } from '@/stores/useUIStore';
 
 export function ReplanPage() {
+  const panelOpen = useUIStore((s) => s.contextPanelOpen);
   return (
-    <StubPage title="Replaneamento" description="Replaneamento interactivo em desenvolvimento." />
+    <div style={{ marginRight: panelOpen ? 360 : 0, transition: 'margin-right 0.25s ease' }}>
+      <SchedulingPage initialView="replan" />
+    </div>
   );
 }

@@ -18,6 +18,7 @@ interface MachineStatusGridProps {
   engine: EngineData;
   blocks: Block[];
   machineLoads: MachineLoad[];
+  clientMap?: Record<string, string>;
 }
 
 function deriveMachineStatuses(
@@ -66,7 +67,7 @@ function deriveMachineStatuses(
   });
 }
 
-export function MachineStatusGrid({ engine, blocks, machineLoads }: MachineStatusGridProps) {
+export function MachineStatusGrid({ engine, blocks, machineLoads, clientMap }: MachineStatusGridProps) {
   const statuses = useMemo(
     () => deriveMachineStatuses(engine, blocks, machineLoads),
     [engine, blocks, machineLoads],
@@ -93,6 +94,7 @@ export function MachineStatusGrid({ engine, blocks, machineLoads }: MachineStatu
           downtime={downtimes[s.machineId] ?? null}
           onAndonPress={openDrawer}
           onRecovery={handleRecovery}
+          clientMap={clientMap}
         />
       ))}
     </div>

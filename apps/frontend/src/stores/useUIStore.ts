@@ -32,6 +32,11 @@ export interface UIActions {
   setSelectedDayIdx: (idx: number) => void;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
+  toggleSidebar: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  openMobileSidebar: () => void;
+  closeMobileSidebar: () => void;
+  setMrpRiskCount: (count: number) => void;
 }
 
 interface UIStoreState {
@@ -42,6 +47,9 @@ interface UIStoreState {
   temporalZoom: TemporalZoom;
   selectedDayIdx: number;
   theme: ThemeMode;
+  sidebarCollapsed: boolean;
+  sidebarMobileOpen: boolean;
+  mrpRiskCount: number;
   actions: UIActions;
 }
 
@@ -54,7 +62,10 @@ export const useUIStore = create<UIStoreState>()(
       contextEntity: null,
       temporalZoom: 'day',
       selectedDayIdx: 0,
-      theme: 'light',
+      theme: 'dark',
+      sidebarCollapsed: false,
+      sidebarMobileOpen: false,
+      mrpRiskCount: 0,
 
       actions: {
         openCommandPalette: () => set({ commandPaletteOpen: true }),
@@ -68,6 +79,11 @@ export const useUIStore = create<UIStoreState>()(
         setSelectedDayIdx: (idx) => set({ selectedDayIdx: idx }),
         setTheme: (theme) => set({ theme }),
         toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+        toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+        setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+        openMobileSidebar: () => set({ sidebarMobileOpen: true }),
+        closeMobileSidebar: () => set({ sidebarMobileOpen: false }),
+        setMrpRiskCount: (count) => set({ mrpRiskCount: count }),
       },
     }),
     {
@@ -76,6 +92,7 @@ export const useUIStore = create<UIStoreState>()(
         temporalZoom: state.temporalZoom,
         selectedDayIdx: state.selectedDayIdx,
         theme: state.theme,
+        sidebarCollapsed: state.sidebarCollapsed,
       }),
     },
   ),
@@ -83,9 +100,13 @@ export const useUIStore = create<UIStoreState>()(
 
 // ── Atomic selector hooks ─────────────────────────────────────
 
+export const useCommandPaletteOpen = () => useUIStore((s) => s.commandPaletteOpen);
 export const useContextPanelOpen = () => useUIStore((s) => s.contextPanelOpen);
 export const useContextEntity = () => useUIStore((s) => s.contextEntity);
 export const useFocus = () => useUIStore((s) => s.focus);
 export const useSelectedDayIdx = () => useUIStore((s) => s.selectedDayIdx);
 export const useTheme = () => useUIStore((s) => s.theme);
+export const useSidebarCollapsed = () => useUIStore((s) => s.sidebarCollapsed);
+export const useSidebarMobileOpen = () => useUIStore((s) => s.sidebarMobileOpen);
+export const useMrpRiskCount = () => useUIStore((s) => s.mrpRiskCount);
 export const useUIActions = () => useUIStore((s) => s.actions);

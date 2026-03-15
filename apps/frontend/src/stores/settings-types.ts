@@ -3,14 +3,15 @@
  */
 
 import type { AutoReplanConfig } from '../lib/engine';
+import type { RuleGroupType } from 'react-querybuilder';
 
 // ── Types ──
 
 /** MO padding strategy for horizons beyond the fixture's 8-day window */
 export type MOStrategy = 'cyclic' | 'nominal' | 'custom';
 
-/** Dispatch rule for scheduling heuristic */
-export type DispatchRule = 'EDD' | 'CR' | 'WSPT' | 'SPT' | 'ATCS';
+/** Dispatch rule for scheduling heuristic. AUTO delegates to UCB1 bandit. */
+export type DispatchRule = 'EDD' | 'CR' | 'WSPT' | 'SPT' | 'ATCS' | 'AUTO';
 
 /** Optimisation preset profile */
 export type OptimizationProfile = 'balanced' | 'otd' | 'setup' | 'custom';
@@ -20,6 +21,69 @@ export type ServiceLevelOption = 90 | 95 | 99;
 
 /** Demand semantics for PlanningOperation.daily_qty interpretation */
 export type DemandSemantics = 'daily' | 'cumulative_np' | 'raw_np';
+
+/** Server solver objective */
+export type SolverObjective = 'weighted_tardiness' | 'makespan' | 'tardiness';
+
+/** Pre-start buffer strategy */
+export type PreStartStrategy = 'auto' | 'manual';
+
+// ── L4: Concept Definitions ──
+
+export interface ConceptDefinition {
+  id: string;
+  question: string;
+  label: string;
+  expression: string;
+  variables: string[];
+  version: number;
+  versions: Array<{ v: number; ts: string; expression: string }>;
+}
+
+// ── L3: Custom Formulas ──
+
+export interface FormulaConfig {
+  id: string;
+  label: string;
+  description: string;
+  expression: string;
+  variables: string[];
+  version: number;
+  versions: Array<{ v: number; ts: string; expression: string }>;
+}
+
+// ── L2: Rules ──
+
+export type RuleActionType =
+  | 'set_priority'
+  | 'boost_priority'
+  | 'flag_night_shift'
+  | 'alert'
+  | 'require_approval'
+  | 'block';
+
+export interface RuleAction {
+  type: RuleActionType;
+  value: string | number;
+}
+
+export interface RuleConfig {
+  id: string;
+  name: string;
+  active: boolean;
+  query: RuleGroupType;
+  action: RuleAction;
+  version: number;
+  versions: Array<{ v: number; ts: string; query: RuleGroupType; action: RuleAction }>;
+}
+
+// ── Configurable Logic (L2+L3+L4) ──
+
+export interface ConfigurableLogic {
+  definitions: ConceptDefinition[];
+  formulas: FormulaConfig[];
+  rules: RuleConfig[];
+}
 
 // ── Preset weight profiles ──
 
@@ -100,6 +164,18 @@ export interface SettingsActions {
   setCoverageThresholdDays: (v: number) => void;
   setABCThresholds: (a: number, b: number) => void;
   setXYZThresholds: (x: number, y: number) => void;
+  setUseServerSolver: (v: boolean) => void;
+  setServerSolverTimeLimit: (v: number) => void;
+  setServerSolverObjective: (v: SolverObjective) => void;
+  setPreStartBufferDays: (v: number) => void;
+  setPreStartStrategy: (v: PreStartStrategy) => void;
+  setClientTier: (code: string, tier: number) => void;
+  // L2/L3/L4 configurable logic
+  updateDefinition: (updated: ConceptDefinition) => void;
+  updateFormula: (updated: FormulaConfig) => void;
+  updateRule: (updated: RuleConfig) => void;
+  addRule: (rule: RuleConfig) => void;
+  deleteRule: (id: string) => void;
 }
 
 // ── State interface ──
@@ -144,5 +220,16 @@ export interface SettingsState {
   abcThresholdB: number;
   xyzThresholdX: number;
   xyzThresholdY: number;
+  useServerSolver: boolean;
+  serverSolverTimeLimit: number;
+  serverSolverObjective: SolverObjective;
+  preStartBufferDays: number;
+  preStartStrategy: PreStartStrategy;
+  /** Client priority tiers: client code → 1-5 (1=highest priority). Default 3. */
+  clientTiers: Record<string, number>;
+  // L2/L3/L4 configurable logic
+  definitions: ConceptDefinition[];
+  formulas: FormulaConfig[];
+  rules: RuleConfig[];
   actions: SettingsActions;
 }

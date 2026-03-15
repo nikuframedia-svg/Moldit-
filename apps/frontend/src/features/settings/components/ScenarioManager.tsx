@@ -1,6 +1,7 @@
 import { Trash2, Upload } from 'lucide-react';
 import type { SavedScenario } from '../useConfigPreview';
 import { useConfigPreview } from '../useConfigPreview';
+import './ScheduleComparison.css';
 
 interface Props {
   onPromote?: (scenario: SavedScenario) => void;
@@ -30,7 +31,10 @@ export function ScenarioManager({ onPromote }: Props) {
           <div
             key={sc.id}
             className={`scenario-manager__item${selectedId === sc.id ? ' scenario-manager__item--selected' : ''}`}
+            role="button"
+            tabIndex={0}
             onClick={() => selectScenario(selectedId === sc.id ? null : sc.id)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectScenario(selectedId === sc.id ? null : sc.id); } }}
             data-testid={`scenario-${sc.id}`}
           >
             <div className="scenario-manager__item-info">
@@ -39,7 +43,7 @@ export function ScenarioManager({ onPromote }: Props) {
                 {new Date(sc.createdAt).toLocaleDateString('pt-PT')}
               </span>
               <span className="scenario-manager__item-kpi">
-                OTD {sc.kpis.otdPct.toFixed(1)}% · Setup {Math.round(sc.kpis.totalSetupMin)}min
+                OTD-D {sc.kpis.otdPct.toFixed(1)}% · Setup {Math.round(sc.kpis.totalSetupMin)}min
               </span>
             </div>
             <button
@@ -49,6 +53,7 @@ export function ScenarioManager({ onPromote }: Props) {
                 e.stopPropagation();
                 loadScenario(sc.id);
               }}
+              aria-label="Carregar configuracao"
               title="Carregar configuracao"
               data-testid={`load-${sc.id}`}
             >
@@ -75,6 +80,7 @@ export function ScenarioManager({ onPromote }: Props) {
                 e.stopPropagation();
                 deleteScenario(sc.id);
               }}
+              aria-label="Apagar cenario"
               title="Apagar cenario"
               data-testid={`delete-${sc.id}`}
             >

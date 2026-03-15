@@ -1,11 +1,13 @@
 /**
  * ReplanPanel — Orchestrator for all replan sub-components.
  * Delegates rendering to focused sub-components in ./replan/.
+ * Includes simplified mode (default) for operators and advanced mode for planners.
  */
-import { AlertTriangle } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type React from 'react';
-import type { Block, DayLoad, EngineData, EOp, MoveAction, OptResult } from '../../../lib/engine';
-import { type buildResourceTimelines, C } from '../../../lib/engine';
+import { useCallback, useState } from 'react';
+import type { AutoReplanResult, Block, DayLoad, EngineData, EOp, MoveAction, OptResult, ReplanDispatchResult } from '../../../lib/engine';
+import { type buildResourceTimelines, C, dispatchReplan } from '../../../lib/engine';
 import { useReplanOrchestrator } from '../hooks/useReplanOrchestrator';
 import { OBJECTIVE_PROFILES } from './constants';
 import { ReplanKPIPreview } from './ReplanKPIPreview';
@@ -17,48 +19,11 @@ import {
   DecisionsPanel,
   FailureFormCard,
   OptimalRoutingCard,
+  QualityBanner,
   ResourceDownCard,
   RushOrderCard,
+  SimpleReplanView,
 } from './replan';
-
-function QualityBanner({
-  qv,
-}: {
-  qv: { criticalCount: number; highCount: number; warnings: string[] };
-}) {
-  if (qv.criticalCount === 0 && qv.highCount === 0) return null;
-  const isCrit = qv.criticalCount > 0;
-  const color = isCrit ? C.rd : C.yl;
-  const bg = isCrit ? C.rdS : `${C.yl}18`;
-  const critTxt = isCrit
-    ? `${qv.criticalCount} conflito${qv.criticalCount > 1 ? 's' : ''} crítico${qv.criticalCount > 1 ? 's' : ''}`
-    : '';
-  const highTxt = qv.highCount > 0 ? `${qv.highCount} alerta${qv.highCount > 1 ? 's' : ''}` : '';
-  const sep = critTxt && highTxt ? ' · ' : '';
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '6px 12px',
-        borderRadius: 6,
-        background: bg,
-        borderLeft: `3px solid ${color}`,
-      }}
-    >
-      <AlertTriangle size={13} style={{ color, flexShrink: 0 }} />
-      <span style={{ fontSize: 10, fontWeight: 600, color }}>
-        {critTxt}
-        {sep}
-        {highTxt}
-      </span>
-      {qv.warnings.length > 0 && (
-        <span style={{ fontSize: 9, color: C.t3, marginLeft: 'auto' }}>{qv.warnings[0]}</span>
-      )}
-    </div>
-  );
-}
 
 export function ReplanView({
   mSt,
@@ -79,6 +44,7 @@ export function ReplanView({
   setRushOrders,
   allOps,
   neMetrics,
+  setAppliedReplan,
 }: {
   mSt: Record<string, string>;
   tSt: Record<string, string>;
@@ -102,7 +68,11 @@ export function ReplanView({
   >;
   allOps: EOp[];
   neMetrics: (OptResult & { blocks: Block[] }) | null;
+  setAppliedReplan: (result: AutoReplanResult | null) => void;
 }) {
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [replanRunning, setReplanRunning] = useState(false);
+  const [replanResult, setReplanResult] = useState<ReplanDispatchResult | null>(null);
   const { machines, tools, dates, dnames, toolMap: TM, focusIds } = data;
   const {
     rpc,
@@ -124,13 +94,102 @@ export function ReplanView({
     OBJECTIVE_PROFILES,
     setRushOrders,
     neMetrics,
+    setAppliedReplan,
   );
 
   const { xai, editingDown, decs, qv } = rpc;
   const { setXai, setEditingDown } = rpcActions;
 
+  const handleDispatchReplan = useCallback(
+    (machineId: string, delayMin: number) => {
+      setReplanRunning(true);
+      setReplanResult(null);
+      try {
+        const machineBlocks = blocks.filter((b) => b.machineId === machineId && b.type === 'ok');
+        const perturbedOpId = machineBlocks[0]?.opId ?? allOps.find((o) => o.m === machineId)?.id ?? '';
+        const result = dispatchReplan({
+          blocks,
+          previousBlocks: blocks,
+          perturbedOpId,
+          delayMin,
+          machineId,
+          scheduleInput: {
+            ops: data.ops,
+            mSt,
+            tSt,
+            moves,
+            machines: data.machines,
+            toolMap: data.toolMap,
+            workdays: data.workdays,
+            nDays: data.nDays,
+            workforceConfig: data.workforceConfig,
+            twinValidationReport: data.twinValidationReport,
+            dates: data.dates,
+            orderBased: data.orderBased,
+            machineTimelines: data.machineTimelines,
+            toolTimelines: data.toolTimelines,
+          },
+          TM,
+          eventType: 'breakdown',
+          isCatastrophe: delayMin >= 510,
+        });
+        setReplanResult(result);
+      } finally {
+        setReplanRunning(false);
+      }
+    },
+    [blocks, allOps, data, mSt, tSt, moves, TM],
+  );
+
+  if (!advancedMode) {
+    return (
+      <SimpleReplanView
+        machines={machines}
+        mSt={mSt}
+        getResourceDownDays={getResourceDownDays}
+        setEditingDown={setEditingDown}
+        onRunAutoReplan={rpcActions.runAutoReplan}
+        arRunning={rpc.arRunning}
+        arResult={rpc.arResult}
+        arActionsCount={rpc.arActions.length}
+        moves={moves}
+        onSwitchAdvanced={() => setAdvancedMode(true)}
+        onDispatchReplan={handleDispatchReplan}
+        replanRunning={replanRunning}
+        replanResult={replanResult}
+      />
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Back to simple mode */}
+      <button
+        onClick={() => setAdvancedMode(false)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '8px 14px',
+          borderRadius: 8,
+          border: `1px solid ${C.bd}`,
+          background: 'transparent',
+          color: C.t3,
+          fontSize: 11,
+          fontWeight: 500,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          alignSelf: 'flex-start',
+        }}
+      >
+        <ChevronDown
+          size={12}
+          strokeWidth={1.5}
+          style={{ transform: 'rotate(90deg)' }}
+        />
+        Modo Simples
+      </button>
+
       <QualityBanner qv={qv} />
 
       <ResourceDownCard

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import type { Block, EMachine, ScheduleValidationReport } from '../../../lib/engine';
-import { S0, S1 } from '../../../lib/engine';
+import { S0, S1, S2 } from '../../../lib/engine';
 
 export interface GanttInteractionState {
   hov: string | null;
@@ -33,6 +33,7 @@ export function useGanttInteraction(
   mSt: Record<string, string>,
   workdays: boolean[],
   validation?: ScheduleValidationReport | null,
+  thirdShift?: boolean,
 ): { state: GanttInteractionState; actions: GanttInteractionActions } {
   const wdi = useMemo(
     () => workdays.map((w: boolean, i: number) => (w ? i : -1)).filter((i): i is number => i >= 0),
@@ -80,7 +81,7 @@ export function useGanttInteraction(
   }, [blocks, selDay, selM, mSt, machines]);
 
   const ppm = 1.2 * zoom;
-  const totalW = (S1 - S0) * ppm;
+  const totalW = (thirdShift ? S2 - S0 : S1 - S0) * ppm;
 
   const violationsByDay = useMemo(() => {
     if (!validation) return {} as Record<number, number>;

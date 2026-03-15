@@ -1,43 +1,23 @@
-// =====================================================================
-//  INCOMPOL PLAN -- Scheduler (Main Entry Point)
-//
-//  Pipeline:
-//    computeEarliestStarts  (backward scheduling)
-//      -> groupDemandIntoBuckets  (Phase 1: demand grouping)
-//        -> sortAndMergeGroups  (dispatch rules + tool merging)
-//          -> scheduleMachines  (Phase 2: slot allocation)
-//            -> levelLoad  (post-scheduling load balancing)
-//              -> mergeConsecutiveBlocks  (block cleanup)
-//
-//  Creates a DecisionRegistry and passes it through the entire pipeline.
-//  Returns blocks + decisions + feasibility report.
-//
-//  Per Normative Spec: ALL constraints are HARD.
-//  FeasibilityReport is ALWAYS generated — it documents what could
-//  and could not be scheduled and why.
-//
-//  Pure function -- no React, no side effects.
-// =====================================================================
+// ═══════════════════════════════════════════════════════════
+//  INCOMPOL PLAN — Scheduler (Main Entry Point)
+//  Pipeline: backward → group → sort → allocate → level → merge
+//  Pure function — no React, no side effects.
+// ═══════════════════════════════════════════════════════════
 
 import { computeWorkforceDemand } from '../analysis/op-demand.js';
 import { buildTransparencyReport } from '../analysis/transparency-report.js';
 import { computeWorkforceForecast } from '../analysis/workforce-forecast.js';
 import { DecisionRegistry } from '../decisions/decision-registry.js';
-import type { AdvanceAction, Block, MoveAction } from '../types/blocks.js';
+import type { Block, MoveAction } from '../types/blocks.js';
 import type { ConstraintConfig } from '../types/constraints.js';
 import { DEFAULT_CONSTRAINT_CONFIG } from '../types/constraints.js';
-import type { DecisionEntry } from '../types/decisions.js';
-import type { EMachine, EngineData, EOp, ETool } from '../types/engine.js';
-import type { ResourceTimeline } from '../types/failure.js';
-import type { FeasibilityReport, RemediationProposal } from '../types/infeasibility.js';
+import type { EMachine, EngineData } from '../types/engine.js';
 import { finalizeFeasibilityReport } from '../types/infeasibility.js';
 import type { DispatchRule } from '../types/kpis.js';
 import type { DeficitEvolution, OperationScore, WorkContent } from '../types/scoring.js';
 import type { OperationDeadline, ShippingCutoffConfig } from '../types/shipping.js';
 import type { TransparencyReport } from '../types/transparency.js';
-import type { TwinValidationReport } from '../types/twin.js';
-import type { WorkforceForecast } from '../types/workforce.js';
-import { getBlockProductionForOp } from '../utils/block-production.js';
+import type { WorkforceConfig, WorkforceForecast } from '../types/workforce.js';
 import { computeATCSAverages, DEFAULT_ATCS_PARAMS } from './atcs-dispatch.js';
 import { computeEarliestStarts } from './backward-scheduler.js';
 import { mergeConsecutiveBlocks } from './block-merger.js';
@@ -47,90 +27,16 @@ import {
   orderMachinesByUrgency,
   sortAndMergeGroups,
 } from './dispatch-rules.js';
+import { enforceDeadlines } from './enforce-deadlines.js';
 import { levelLoad } from './load-leveler.js';
 import { scoreOperations, sortGroupsByScore } from './production-scorer.js';
+import { repairScheduleViolations } from './repair-violations.js';
+import type { ScheduleAllInput, ScheduleAllResult } from './scheduler-types.js';
 import { computeShippingDeadlines } from './shipping-cutoff.js';
-import type { WorkforceConfig } from './slot-allocator.js';
 import { scheduleMachines } from './slot-allocator.js';
 import { computeDeficitEvolution, computeWorkContent } from './work-content.js';
 
-// ── Input / Output types ────────────────────────────────────────────
-
-export interface ScheduleAllInput {
-  ops: EOp[];
-  /** Machine status map: machineId -> 'running' | 'down' */
-  mSt: Record<string, string>;
-  /** Tool status map: toolId -> 'running' | 'down' */
-  tSt: Record<string, string>;
-  /** Move actions (user moves + auto overflow moves) */
-  moves: MoveAction[];
-  machines: EMachine[];
-  /** Tool lookup by ID */
-  toolMap: Record<string, ETool>;
-  /** Per-day workday flags */
-  workdays: boolean[];
-  /** Total days in the horizon */
-  nDays: number;
-  /** Workforce zone configuration for operator capacity */
-  workforceConfig?: WorkforceConfig;
-  /** Dispatch rule for sorting groups */
-  rule?: DispatchRule;
-  /** Supply boost overrides for priority scheduling */
-  supplyBoosts?: Map<string, { boost: number }>;
-  /** Enable 3rd shift (Z: 00:00 - 07:00) */
-  thirdShift?: boolean;
-  /** Constraint configuration (defaults to all HARD) */
-  constraintConfig?: ConstraintConfig;
-  /** Enable load leveling (default: true) */
-  enableLeveling?: boolean;
-  /** Enforce deadline as hard constraint (default: true).
-   *  When true, overflow blocks are converted to infeasible if demand not met.
-   *  Set to false during auto-route iterations to preserve overflow markers. */
-  enforceDeadlines?: boolean;
-  /** Per-machine failure timelines (per-day-per-shift capacity) */
-  machineTimelines?: Record<string, ResourceTimeline>;
-  /** Per-tool failure timelines (per-day-per-shift capacity) */
-  toolTimelines?: Record<string, ResourceTimeline>;
-  /** Shipping cutoff configuration. When present, activates shipping-as-law pipeline. */
-  shippingCutoff?: ShippingCutoffConfig;
-  /** Use deterministic scoring for operation ordering (default: true when shippingCutoff present) */
-  useDeterministicScoring?: boolean;
-  /** Advance production overrides — adjust EDD earlier for specific ops */
-  advanceOverrides?: AdvanceAction[];
-  /** Per-machine per-day overtime map: machineId -> dayIdx -> extra minutes */
-  overtimeMap?: Record<string, Record<number, number>>;
-  /** Twin validation report (from transform pipeline) */
-  twinValidationReport?: TwinValidationReport;
-  /** Date labels for the planning horizon (needed for D+1 forecast) */
-  dates?: string[];
-  /** Order-based demand mode: each day with demand = separate order bucket, no lot economic */
-  orderBased?: boolean;
-  /** ATCS parameters (k1/k2) — only used when rule = 'ATCS' */
-  atcsParams?: { k1: number; k2: number };
-}
-
-export interface ScheduleAllResult {
-  /** Final scheduled blocks (merged) */
-  blocks: Block[];
-  /** All decisions made during scheduling */
-  decisions: DecisionEntry[];
-  /** Full decision registry (for further queries) */
-  registry: DecisionRegistry;
-  /** Feasibility report — always present */
-  feasibilityReport: FeasibilityReport;
-  /** Shipping deadlines (when shippingCutoff is active) */
-  deadlines?: Map<string, OperationDeadline>;
-  /** Work content per operation (when shippingCutoff is active) */
-  workContents?: Map<string, WorkContent>;
-  /** Deficit evolution per operation (when shippingCutoff is active) */
-  deficits?: Map<string, DeficitEvolution>;
-  /** Operation scores (when deterministic scoring is active) */
-  scores?: Map<string, OperationScore>;
-  /** Transparency report (when shippingCutoff is active) */
-  transparencyReport?: TransparencyReport;
-  /** D+1 workforce forecast (when workforceConfig is present) */
-  workforceForecast?: WorkforceForecast;
-}
+export type { ScheduleAllInput, ScheduleAllResult } from './scheduler-types.js';
 
 // ── Main export ─────────────────────────────────────────────────
 
@@ -165,7 +71,7 @@ export function scheduleAll(input: ScheduleAllInput): ScheduleAllResult {
     thirdShift,
     constraintConfig = DEFAULT_CONSTRAINT_CONFIG,
     enableLeveling = true,
-    enforceDeadlines = true,
+    enforceDeadlines: enforceDeadlinesEnabled = true,
     machineTimelines,
     toolTimelines,
     shippingCutoff,
@@ -267,7 +173,7 @@ export function scheduleAll(input: ScheduleAllInput): ScheduleAllResult {
   } else {
     // Legacy: dispatch rules (EDD/CR/WSPT/SPT/ATCS)
     for (const mId of Object.keys(mGroups)) {
-      mGroups[mId] = sortAndMergeGroups(mGroups[mId], rule, supplyBoosts, input.atcsParams);
+      mGroups[mId] = sortAndMergeGroups(mGroups[mId], rule, supplyBoosts, input.atcsParams, input.disableToolMerge);
     }
   }
 
@@ -312,122 +218,27 @@ export function scheduleAll(input: ScheduleAllInput): ScheduleAllResult {
   }
 
   // ── Step 7: Merge consecutive blocks ──
-  const blocks = mergeConsecutiveBlocks(leveledBlocks);
+  const mergedBlocks = mergeConsecutiveBlocks(leveledBlocks);
+
+  // ── Step 7.1: Repair violations (setup overlaps + overcapacity) ──
+  const { blocks, setupRepairs, capacityRepairs } = repairScheduleViolations(
+    mergedBlocks,
+    thirdShift,
+    overtimeMap,
+  );
+  if (setupRepairs > 0 || capacityRepairs > 0) {
+    registry.record({
+      type: 'SCHEDULE_REPAIR',
+      detail: `Post-scheduling repair: ${setupRepairs} setup overlaps, ${capacityRepairs} overcapacity days`,
+      metadata: { setupRepairs, capacityRepairs },
+    });
+  }
 
   // ── Step 7.5: Enforce deadlines ──
-  // When shipping cutoff is active: use SHIPPING_CUTOFF_VIOLATION for overflows
-  // When legacy: use DEADLINE_VIOLATION
-  const remediations: RemediationProposal[] = [];
-  const deadlineReason = useNewPipeline
-    ? ('SHIPPING_CUTOFF_VIOLATION' as const)
-    : ('DEADLINE_VIOLATION' as const);
-  if (enforceDeadlines) {
-    for (const op of ops) {
-      const totalDemand = op.d.reduce((s, v) => s + Math.max(v, 0), 0) + Math.max(op.atr, 0);
-      if (totalDemand <= 0) continue;
-      // Twin-aware production attribution
-      const produced = getBlockProductionForOp(blocks, op.id);
-
-      if (produced < totalDemand) {
-        const tool = toolMap[op.t];
-        const deficit = totalDemand - produced;
-        const deficitMin = tool && tool.pH > 0 ? (deficit / tool.pH) * 60 : 0;
-
-        // Convert overflow blocks for this op to infeasible — with precise reason
-        for (const b of blocks) {
-          if (b.opId === op.id && b.type === 'overflow') {
-            b.type = 'infeasible';
-
-            // Determine precise infeasibility reason based on root cause
-            if (mSt[b.machineId] === 'down') {
-              b.infeasibilityReason = 'MACHINE_DOWN';
-              b.infeasibilityDetail = `Máquina ${b.machineId} parada. Procura ${totalDemand}, produzido ${produced}, deficit ${deficit}`;
-            } else if (b.effectiveCapacityFactor != null && b.effectiveCapacityFactor < 1.0) {
-              b.infeasibilityReason = 'MACHINE_PARTIAL_DOWN';
-              b.infeasibilityDetail = `Máquina ${b.machineId} com capacidade reduzida (${Math.round(b.effectiveCapacityFactor * 100)}%). Deficit ${deficit}`;
-            } else if (tSt[b.toolId] === 'down') {
-              b.infeasibilityReason = 'TOOL_DOWN_TEMPORAL';
-              b.infeasibilityDetail = `Ferramenta ${b.toolId} parada. Deficit ${deficit}`;
-            } else {
-              b.infeasibilityReason = 'CAPACITY_OVERFLOW';
-              b.infeasibilityDetail = `Capacidade esgotada em ${b.machineId}. Procura ${totalDemand}, produzido ${produced}, deficit ${deficit}`;
-            }
-          }
-        }
-
-        // Remediation proposals
-        if (!thirdShift) {
-          remediations.push({
-            type: 'THIRD_SHIFT',
-            opId: op.id,
-            toolId: op.t,
-            machineId: op.m,
-            capacityGainMin: 420,
-            automated: false,
-            description: `Activar 3.º turno em ${op.m} — +420 min/dia`,
-          });
-        }
-        if (tool?.alt && tool.alt !== '-') {
-          remediations.push({
-            type: 'TRANSFER_ALT_MACHINE',
-            opId: op.id,
-            toolId: op.t,
-            machineId: tool.alt,
-            capacityGainMin: deficitMin,
-            automated: true,
-            description: `Mover ${op.t} para ${tool.alt}`,
-          });
-        }
-        remediations.push({
-          type: 'ADVANCE_PRODUCTION',
-          opId: op.id,
-          toolId: op.t,
-          machineId: op.m,
-          capacityGainMin: deficitMin,
-          automated: true,
-          description: `Antecipar produção de ${op.t}/${op.sku} — ${deficit} pcs`,
-        });
-        remediations.push({
-          type: 'OVERTIME',
-          opId: op.id,
-          toolId: op.t,
-          machineId: op.m,
-          capacityGainMin: Math.min(deficitMin, 120),
-          automated: false,
-          description: `Overtime em ${op.m} — até +120 min`,
-        });
-        remediations.push({
-          type: 'FORMAL_RISK_ACCEPTANCE',
-          opId: op.id,
-          toolId: op.t,
-          machineId: op.m,
-          capacityGainMin: 0,
-          automated: false,
-          description: `Aceitar atraso de ${deficit} pcs em ${op.sku} — requer aprovação formal`,
-        });
-
-        // Determine dominant reason for the infeasibility entry
-        const opInfBlocks = blocks.filter((b) => b.opId === op.id && b.type === 'infeasible');
-        const dominantReason =
-          opInfBlocks.length > 0 && opInfBlocks[0].infeasibilityReason
-            ? opInfBlocks[0].infeasibilityReason
-            : deadlineReason;
-
-        infeasibilities.push({
-          opId: op.id,
-          toolId: op.t,
-          machineId: op.m,
-          reason: dominantReason,
-          detail: `Demand ${totalDemand}, produced ${produced}, deficit ${deficit}`,
-          attemptedAlternatives: ['Slot allocation', 'Load leveling'],
-          suggestion: remediations
-            .filter((r) => r.opId === op.id)
-            .map((r) => r.description)
-            .join('; '),
-        });
-      }
-    }
-  }
+  const { infeasibilities: deadlineInf, remediations } = enforceDeadlinesEnabled
+    ? enforceDeadlines({ ops, blocks, toolMap, mSt, tSt, thirdShift, useNewPipeline })
+    : { infeasibilities: [], remediations: [] };
+  infeasibilities.push(...deadlineInf);
 
   // ── Step 8: Build feasibility report ──
   const scheduledOps = new Set<string>();

@@ -206,6 +206,7 @@ The system records exactly 28 decision types. No more, no less:
 7. **Calco is MORE restrictive than Tool** — no same-machine exception
 8. **Setup crew is EXCLUSIVE** — 1 at a time in entire factory
 9. **PRM020 is intentionally unmapped** from labor groups
+10. **OTD-Delivery = 100% is MANDATORY** — at each demand day, cumProd ≥ cumDemand. Requires `orderBased: true` + `twinValidationReport` passed to `autoRouteOverflow`
 
 ---
 

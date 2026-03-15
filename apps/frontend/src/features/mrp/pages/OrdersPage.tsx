@@ -152,7 +152,7 @@ export function OrdersPage() {
       <div className="mrp__kpis" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <KCard label="Total" value={String(allEntries.length)} sub="encomendas" color={C.t1} />
         <KCard
-          label="OTD"
+          label="OTD-D"
           value={`${totalOTD}%`}
           sub="on-time delivery"
           color={totalOTD >= 90 ? C.ac : totalOTD >= 70 ? C.yl : C.rd}

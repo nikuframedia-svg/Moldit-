@@ -107,6 +107,10 @@ export interface Block {
    *  'slushy' = adjust timing only (5d-2wk),
    *  'liquid' = fully reschedulable */
   freezeStatus?: 'frozen' | 'slushy' | 'liquid';
+  /** True if this block is scheduled in the pre-start window (before ISOP D0) */
+  preStart?: boolean;
+  /** Reason for pre-start scheduling */
+  preStartReason?: string;
 }
 
 /** Operation reassignment to alternative machine */
@@ -122,6 +126,8 @@ export interface AdvanceAction {
   advanceDays: number;
   /** Original EDD before advancement */
   originalEdd: number;
+  /** When set, only advance buckets whose pre-advance EDD matches this value */
+  targetEdd?: number;
 }
 
 /** Overtime activation for a specific machine/day */

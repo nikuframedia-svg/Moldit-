@@ -1,0 +1,63 @@
+/* Optimization Sliders */
+
+.opt-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.opt-sliders__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.opt-sliders__label {
+  width: 140px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.opt-sliders__track {
+  flex: 1;
+  height: 6px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-raised);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.opt-sliders__track::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-card);
+  cursor: pointer;
+}
+
+.opt-sliders__value {
+  width: 40px;
+  text-align: right;
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.opt-sliders__impact {
+  padding: var(--space-8) var(--space-12);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  color: var(--accent-light);
+  margin-top: var(--space-4);
+}
+
+.opt-sliders__impact--stale {
+  opacity: 0.5;
+}

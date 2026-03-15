@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import type { Block, EngineData, EOp, MoveAction, ObjectiveProfile } from '../../../lib/engine';
+import type { AutoReplanResult, Block, EngineData, EOp, MoveAction, ObjectiveProfile } from '../../../lib/engine';
 import { genDecisions, quickValidate } from '../../../lib/engine';
 import type { AutoReplanActions, AutoReplanState } from './useAutoReplan';
 import { useAutoReplan } from './useAutoReplan';
@@ -52,6 +52,7 @@ export function useReplanControl(
   setRushOrders: React.Dispatch<
     React.SetStateAction<Array<{ toolId: string; sku: string; qty: number; deadline: number }>>
   >,
+  setAppliedReplan: (result: AutoReplanResult | null) => void,
   onReplanComplete?: (info: {
     trigger: string;
     triggerType: string;
@@ -78,7 +79,7 @@ export function useReplanControl(
   }, [blocks]);
 
   // Sub-hooks
-  const ar = useAutoReplan(data, allOps, mSt, tSt, applyMove, replanTimelines, onReplanComplete);
+  const ar = useAutoReplan(data, allOps, mSt, tSt, applyMove, replanTimelines, setAppliedReplan, onReplanComplete);
   const fm = useFailureManagement(
     data,
     blocks,

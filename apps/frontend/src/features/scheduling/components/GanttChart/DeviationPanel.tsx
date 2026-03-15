@@ -179,8 +179,8 @@ export function DeviationPanel({
   }
 
   return (
-    <div className="dev-panel__overlay" onClick={onCancel}>
-      <div className="dev-panel" onClick={(e) => e.stopPropagation()}>
+    <div className="dev-panel__overlay" onClick={onCancel} role="presentation">
+      <div className="dev-panel" role="dialog" aria-label="Desvio do Optimo" onClick={(e) => e.stopPropagation()}>
         <div className="dev-panel__title">
           Desvio do Optimo — {move.block.toolId} ({move.block.sku})
         </div>
@@ -202,7 +202,7 @@ export function DeviationPanel({
           </thead>
           <tbody>
             <tr>
-              <td>OTD</td>
+              <td>OTD-D</td>
               <td>{actOTD.toFixed(1)}%</td>
               <td>{propOTD.toFixed(1)}%</td>
               <td className={deltaClass(actOTD, propOTD, true)}>

@@ -4,16 +4,10 @@
 
 import { Parser } from 'expr-eval';
 import { useEffect, useRef, useState } from 'react';
+import type { FormulaConfig } from '@/stores/settings-types';
+import './FormulaEditor.css';
 
-export interface FormulaConfig {
-  id: string;
-  label: string;
-  description: string;
-  expression: string;
-  variables: string[];
-  version: number;
-  versions: Array<{ v: number; ts: string; expression: string }>;
-}
+export type { FormulaConfig } from '@/stores/settings-types';
 
 interface FormulaEditorProps {
   formula: FormulaConfig;

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { ConfigWeights } from '../useConfigPreview';
 import { useConfigPreview } from '../useConfigPreview';
+import './OptimizationSliders.css';
 
 const SLIDER_KEYS: { key: keyof ConfigWeights; label: string }[] = [
-  { key: 'otd', label: 'OTD (entrega)' },
+  { key: 'otd', label: 'OTD-D (entrega)' },
   { key: 'setup', label: 'Min. Setups' },
   { key: 'utilization', label: 'Utilizacao' },
 ];
@@ -87,7 +88,7 @@ export function OptimizationSliders() {
 
       {previewKpis && !isComputing && (
         <div className="opt-sliders__impact" data-testid="sliders-impact">
-          OTD {previewKpis.otdPct.toFixed(1)}% · Tardiness {previewKpis.avgTardinessDays.toFixed(1)}
+          OTD-D {previewKpis.otdPct.toFixed(1)}% · Tardiness {previewKpis.avgTardinessDays.toFixed(1)}
           d · Setups {Math.round(previewKpis.totalSetupMin)}min
         </div>
       )}

@@ -83,7 +83,7 @@ export function ReplanTimeline({ entries, onUndo, onClear }: ReplanTimelineProps
                     {entry.movesCount} movimento{entry.movesCount !== 1 ? 's' : ''}
                   </span>
                   <span className="replan-timeline__detail">
-                    OTD {entry.kpiBefore.otd.toFixed(1)}%
+                    OTD-D {entry.kpiBefore.otd.toFixed(1)}%
                     <span style={{ color: C.t4, margin: '0 3px' }}>→</span>
                     <span style={{ color: delta.color, fontWeight: 600 }}>
                       {entry.kpiAfter.otd.toFixed(1)}%
