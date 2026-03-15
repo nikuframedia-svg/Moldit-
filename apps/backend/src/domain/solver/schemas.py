@@ -71,6 +71,19 @@ class SolverConfig(BaseModel):
         pattern="^(makespan|tardiness|weighted_tardiness)$",
     )
     num_workers: int = Field(4, ge=1, le=16)
+    use_circuit: bool = Field(
+        True,
+        description="Use AddCircuit for sequence-dependent setups (zero setup when same tool)",
+    )
+    objective_mode: str = Field(
+        "single",
+        pattern="^(single|lexicographic)$",
+        description="single: one-phase optimize. lexicographic: 3-phase (tardiness→JIT→setups)",
+    )
+    warm_start: bool = Field(
+        True,
+        description="Use EDD heuristic as warm-start seed for CP-SAT",
+    )
 
 
 class SolverRequest(BaseModel):
@@ -102,9 +115,7 @@ class SolverRequest(BaseModel):
             if pair.op_id_b not in all_op_ids:
                 missing.append(pair.op_id_b)
             if missing:
-                raise ValueError(
-                    f"Twin pair references non-existent op_id(s): {missing}"
-                )
+                raise ValueError(f"Twin pair references non-existent op_id(s): {missing}")
         return self
 
 
@@ -137,3 +148,4 @@ class SolverResult(BaseModel):
     objective_value: float
     n_ops: int
     operator_warnings: list[dict] = []
+    phase_values: dict[str, float] = {}

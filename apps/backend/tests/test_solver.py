@@ -32,8 +32,15 @@ def _make_job(job_id, sku, due_date, weight, ops):
     return JobInput(id=job_id, sku=sku, due_date_min=due_date, weight=weight, operations=ops)
 
 
-def _make_request(jobs, machines, objective="weighted_tardiness", time_limit=10,
-                  constraints=None, twin_pairs=None, shifts=None):
+def _make_request(
+    jobs,
+    machines,
+    objective="weighted_tardiness",
+    time_limit=10,
+    constraints=None,
+    twin_pairs=None,
+    shifts=None,
+):
     return SolverRequest(
         jobs=jobs,
         machines=machines,
@@ -130,8 +137,12 @@ class TestCpsatSolver:
     def test_makespan_objective(self):
         """Makespan objective minimizes max completion time."""
         jobs = [
-            _make_job("J1", "SKU1", 1000, 1.0, [_make_op("J1_O1", "M1", "T1", duration=100, setup=0)]),
-            _make_job("J2", "SKU2", 1000, 1.0, [_make_op("J2_O1", "M2", "T2", duration=100, setup=0)]),
+            _make_job(
+                "J1", "SKU1", 1000, 1.0, [_make_op("J1_O1", "M1", "T1", duration=100, setup=0)]
+            ),
+            _make_job(
+                "J2", "SKU2", 1000, 1.0, [_make_op("J2_O1", "M2", "T2", duration=100, setup=0)]
+            ),
         ]
         machines = [MachineInput(id="M1"), MachineInput(id="M2")]
         request = _make_request(jobs, machines, objective="makespan")
@@ -195,8 +206,10 @@ class TestCpsatSolver:
 
         assert result.status in ("optimal", "feasible")
         assert len(result.schedule) == 5
-        # Total = 5 × (50 + 10) = 300min
-        assert result.makespan_min >= 300
+        # Circuit mode: all same tool T1, so only first op pays setup.
+        # Total = 10 (first setup) + 5 × 50 (prod) = 260min
+        # Must be at least 5 × 50 = 250 (pure production time)
+        assert result.makespan_min >= 250
 
 
 # ── SetupCrew Constraint Tests ──
@@ -209,13 +222,20 @@ class TestSetupCrewConstraint:
     def test_setup_crew_no_concurrent_setups(self):
         """3 ops on different machines with setup → no two setups overlap."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=50, setup=30)]),
-            _make_job("J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "T2", duration=50, setup=30)]),
-            _make_job("J3", "SKU3", 500, 1.0, [_make_op("J3_O1", "M3", "T3", duration=50, setup=30)]),
+            _make_job(
+                "J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=50, setup=30)]
+            ),
+            _make_job(
+                "J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "T2", duration=50, setup=30)]
+            ),
+            _make_job(
+                "J3", "SKU3", 500, 1.0, [_make_op("J3_O1", "M3", "T3", duration=50, setup=30)]
+            ),
         ]
         machines = [MachineInput(id="M1"), MachineInput(id="M2"), MachineInput(id="M3")]
         request = _make_request(
-            jobs, machines,
+            jobs,
+            machines,
             constraints=ConstraintConfigInput(setup_crew=True),
         )
 
@@ -240,12 +260,17 @@ class TestSetupCrewConstraint:
     def test_setup_crew_delays_correctly(self):
         """2 ops with long setups on different machines → one must wait."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=10, setup=60)]),
-            _make_job("J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "T2", duration=10, setup=60)]),
+            _make_job(
+                "J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=10, setup=60)]
+            ),
+            _make_job(
+                "J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "T2", duration=10, setup=60)]
+            ),
         ]
         machines = [MachineInput(id="M1"), MachineInput(id="M2")]
         request = _make_request(
-            jobs, machines,
+            jobs,
+            machines,
             constraints=ConstraintConfigInput(setup_crew=True),
         )
 
@@ -262,12 +287,18 @@ class TestSetupCrewConstraint:
     def test_setup_crew_disabled(self):
         """With SetupCrew disabled, setups CAN overlap (parallel on different machines)."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=10, setup=60)]),
-            _make_job("J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "T2", duration=10, setup=60)]),
+            _make_job(
+                "J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=10, setup=60)]
+            ),
+            _make_job(
+                "J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "T2", duration=10, setup=60)]
+            ),
         ]
         machines = [MachineInput(id="M1"), MachineInput(id="M2")]
         request = _make_request(
-            jobs, machines, objective="makespan",
+            jobs,
+            machines,
+            objective="makespan",
             constraints=ConstraintConfigInput(setup_crew=False),
         )
 
@@ -288,12 +319,26 @@ class TestToolTimelineConstraint:
     def test_tool_timeline_cross_machine(self):
         """Same tool on different machines → no time overlap."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "SHARED_TOOL", duration=80, setup=0)]),
-            _make_job("J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "SHARED_TOOL", duration=80, setup=0)]),
+            _make_job(
+                "J1",
+                "SKU1",
+                500,
+                1.0,
+                [_make_op("J1_O1", "M1", "SHARED_TOOL", duration=80, setup=0)],
+            ),
+            _make_job(
+                "J2",
+                "SKU2",
+                500,
+                1.0,
+                [_make_op("J2_O1", "M2", "SHARED_TOOL", duration=80, setup=0)],
+            ),
         ]
         machines = [MachineInput(id="M1"), MachineInput(id="M2")]
         request = _make_request(
-            jobs, machines, objective="makespan",
+            jobs,
+            machines,
+            objective="makespan",
             constraints=ConstraintConfigInput(tool_timeline=True),
         )
 
@@ -310,12 +355,17 @@ class TestToolTimelineConstraint:
     def test_tool_timeline_same_machine_ok(self):
         """Same tool on same machine → sequential anyway (machine constraint)."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=50, setup=0)]),
-            _make_job("J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=50, setup=0)]),
+            _make_job(
+                "J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=50, setup=0)]
+            ),
+            _make_job(
+                "J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=50, setup=0)]
+            ),
         ]
         machines = [MachineInput(id="M1")]
         request = _make_request(
-            jobs, machines,
+            jobs,
+            machines,
             constraints=ConstraintConfigInput(tool_timeline=True),
         )
 
@@ -327,12 +377,26 @@ class TestToolTimelineConstraint:
     def test_tool_timeline_disabled(self):
         """With ToolTimeline disabled, same tool CAN be on 2 machines at once."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "SHARED_TOOL", duration=80, setup=0)]),
-            _make_job("J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "SHARED_TOOL", duration=80, setup=0)]),
+            _make_job(
+                "J1",
+                "SKU1",
+                500,
+                1.0,
+                [_make_op("J1_O1", "M1", "SHARED_TOOL", duration=80, setup=0)],
+            ),
+            _make_job(
+                "J2",
+                "SKU2",
+                500,
+                1.0,
+                [_make_op("J2_O1", "M2", "SHARED_TOOL", duration=80, setup=0)],
+            ),
         ]
         machines = [MachineInput(id="M1"), MachineInput(id="M2")]
         request = _make_request(
-            jobs, machines, objective="makespan",
+            jobs,
+            machines,
+            objective="makespan",
             constraints=ConstraintConfigInput(tool_timeline=False),
         )
 
@@ -353,16 +417,30 @@ class TestCalcoTimelineConstraint:
     def test_calco_no_overlap(self):
         """Same calço on different machines → no overlap."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [
-                _make_op("J1_O1", "M1", "T1", duration=80, setup=0, calco="CALCO_A"),
-            ]),
-            _make_job("J2", "SKU2", 500, 1.0, [
-                _make_op("J2_O1", "M2", "T2", duration=80, setup=0, calco="CALCO_A"),
-            ]),
+            _make_job(
+                "J1",
+                "SKU1",
+                500,
+                1.0,
+                [
+                    _make_op("J1_O1", "M1", "T1", duration=80, setup=0, calco="CALCO_A"),
+                ],
+            ),
+            _make_job(
+                "J2",
+                "SKU2",
+                500,
+                1.0,
+                [
+                    _make_op("J2_O1", "M2", "T2", duration=80, setup=0, calco="CALCO_A"),
+                ],
+            ),
         ]
         machines = [MachineInput(id="M1"), MachineInput(id="M2")]
         request = _make_request(
-            jobs, machines, objective="makespan",
+            jobs,
+            machines,
+            objective="makespan",
             constraints=ConstraintConfigInput(calco_timeline=True),
         )
 
@@ -378,12 +456,18 @@ class TestCalcoTimelineConstraint:
     def test_calco_none_ignored(self):
         """Ops with calco_code=None have no calco constraint → parallel OK."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=80, setup=0)]),
-            _make_job("J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "T2", duration=80, setup=0)]),
+            _make_job(
+                "J1", "SKU1", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=80, setup=0)]
+            ),
+            _make_job(
+                "J2", "SKU2", 500, 1.0, [_make_op("J2_O1", "M2", "T2", duration=80, setup=0)]
+            ),
         ]
         machines = [MachineInput(id="M1"), MachineInput(id="M2")]
         request = _make_request(
-            jobs, machines, objective="makespan",
+            jobs,
+            machines,
+            objective="makespan",
             constraints=ConstraintConfigInput(calco_timeline=True),
         )
 
@@ -404,17 +488,32 @@ class TestOperatorPoolAdvisory:
     def test_operator_warnings_generated(self):
         """Schedule exceeding operator capacity → warnings in result, schedule still produced."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [
-                OperationInput(id="J1_O1", machine_id="M1", tool_id="T1",
-                               duration_min=100, setup_min=0, operators=5),
-            ]),
+            _make_job(
+                "J1",
+                "SKU1",
+                500,
+                1.0,
+                [
+                    OperationInput(
+                        id="J1_O1",
+                        machine_id="M1",
+                        tool_id="T1",
+                        duration_min=100,
+                        setup_min=0,
+                        operators=5,
+                    ),
+                ],
+            ),
         ]
         machines = [MachineInput(id="M1")]
         request = _make_request(
-            jobs, machines,
+            jobs,
+            machines,
             constraints=ConstraintConfigInput(operator_pool=True),
             shifts=ShiftConfig(
-                shift_x_start=0, shift_change=500, shift_y_end=1000,
+                shift_x_start=0,
+                shift_change=500,
+                shift_y_end=1000,
                 operators_by_machine_shift={"M1": {"X": 3}},
             ),
         )
@@ -429,14 +528,27 @@ class TestOperatorPoolAdvisory:
     def test_operator_no_warnings_within_capacity(self):
         """Schedule within capacity → no warnings."""
         jobs = [
-            _make_job("J1", "SKU1", 500, 1.0, [
-                OperationInput(id="J1_O1", machine_id="M1", tool_id="T1",
-                               duration_min=100, setup_min=0, operators=2),
-            ]),
+            _make_job(
+                "J1",
+                "SKU1",
+                500,
+                1.0,
+                [
+                    OperationInput(
+                        id="J1_O1",
+                        machine_id="M1",
+                        tool_id="T1",
+                        duration_min=100,
+                        setup_min=0,
+                        operators=2,
+                    ),
+                ],
+            ),
         ]
         machines = [MachineInput(id="M1")]
         request = _make_request(
-            jobs, machines,
+            jobs,
+            machines,
             constraints=ConstraintConfigInput(operator_pool=True),
             shifts=ShiftConfig(operators_by_machine_shift={"M1": {"X": 6}}),
         )
@@ -457,8 +569,12 @@ class TestTwinCoProduction:
     def test_twin_same_start(self):
         """Twin pair ops must start at the same time."""
         jobs = [
-            _make_job("J1", "SKU_LH", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=60, setup=15)]),
-            _make_job("J2", "SKU_RH", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=40, setup=15)]),
+            _make_job(
+                "J1", "SKU_LH", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=60, setup=15)]
+            ),
+            _make_job(
+                "J2", "SKU_RH", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=40, setup=15)]
+            ),
         ]
         machines = [MachineInput(id="M1")]
         twins = [TwinPairInput(op_id_a="J1_O1", op_id_b="J2_O1", machine_id="M1", tool_id="T1")]
@@ -475,8 +591,12 @@ class TestTwinCoProduction:
     def test_twin_shared_setup(self):
         """Twin pair uses one shared setup, not doubled."""
         jobs = [
-            _make_job("J1", "SKU_LH", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=60, setup=20)]),
-            _make_job("J2", "SKU_RH", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=40, setup=20)]),
+            _make_job(
+                "J1", "SKU_LH", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=60, setup=20)]
+            ),
+            _make_job(
+                "J2", "SKU_RH", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=40, setup=20)]
+            ),
         ]
         machines = [MachineInput(id="M1")]
         twins = [TwinPairInput(op_id_a="J1_O1", op_id_b="J2_O1", machine_id="M1", tool_id="T1")]
@@ -495,9 +615,15 @@ class TestTwinCoProduction:
     def test_twin_machine_time_max(self):
         """Machine time = max(dur_a, dur_b), not sum."""
         jobs = [
-            _make_job("J1", "SKU_LH", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=100, setup=0)]),
-            _make_job("J2", "SKU_RH", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=60, setup=0)]),
-            _make_job("J3", "SKU3", 500, 1.0, [_make_op("J3_O1", "M1", "T2", duration=50, setup=0)]),
+            _make_job(
+                "J1", "SKU_LH", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=100, setup=0)]
+            ),
+            _make_job(
+                "J2", "SKU_RH", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=60, setup=0)]
+            ),
+            _make_job(
+                "J3", "SKU3", 500, 1.0, [_make_op("J3_O1", "M1", "T2", duration=50, setup=0)]
+            ),
         ]
         machines = [MachineInput(id="M1")]
         twins = [TwinPairInput(op_id_a="J1_O1", op_id_b="J2_O1", machine_id="M1", tool_id="T1")]
@@ -513,8 +639,12 @@ class TestTwinCoProduction:
     def test_twin_flags_in_result(self):
         """Twin ops have is_twin_production=True and twin_partner_op_id set."""
         jobs = [
-            _make_job("J1", "SKU_LH", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=60, setup=0)]),
-            _make_job("J2", "SKU_RH", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=40, setup=0)]),
+            _make_job(
+                "J1", "SKU_LH", 500, 1.0, [_make_op("J1_O1", "M1", "T1", duration=60, setup=0)]
+            ),
+            _make_job(
+                "J2", "SKU_RH", 500, 1.0, [_make_op("J2_O1", "M1", "T1", duration=40, setup=0)]
+            ),
         ]
         machines = [MachineInput(id="M1")]
         twins = [TwinPairInput(op_id_a="J1_O1", op_id_b="J2_O1", machine_id="M1", tool_id="T1")]
@@ -539,20 +669,39 @@ class TestCombinedConstraints:
     def test_all_constraints_active(self):
         """All 4 constraints + twins active simultaneously → valid schedule."""
         jobs = [
-            _make_job("J1", "SKU_LH", 800, 1.0, [
-                _make_op("J1_O1", "M1", "T1", duration=60, setup=20, calco="C1"),
-            ]),
-            _make_job("J2", "SKU_RH", 800, 1.0, [
-                _make_op("J2_O1", "M1", "T1", duration=40, setup=20, calco="C1"),
-            ]),
-            _make_job("J3", "SKU3", 800, 1.0, [
-                _make_op("J3_O1", "M2", "T2", duration=50, setup=15, calco="C1"),
-            ]),
+            _make_job(
+                "J1",
+                "SKU_LH",
+                800,
+                1.0,
+                [
+                    _make_op("J1_O1", "M1", "T1", duration=60, setup=20, calco="C1"),
+                ],
+            ),
+            _make_job(
+                "J2",
+                "SKU_RH",
+                800,
+                1.0,
+                [
+                    _make_op("J2_O1", "M1", "T1", duration=40, setup=20, calco="C1"),
+                ],
+            ),
+            _make_job(
+                "J3",
+                "SKU3",
+                800,
+                1.0,
+                [
+                    _make_op("J3_O1", "M2", "T2", duration=50, setup=15, calco="C1"),
+                ],
+            ),
         ]
         machines = [MachineInput(id="M1"), MachineInput(id="M2")]
         twins = [TwinPairInput(op_id_a="J1_O1", op_id_b="J2_O1", machine_id="M1", tool_id="T1")]
         request = _make_request(
-            jobs, machines,
+            jobs,
+            machines,
             constraints=ConstraintConfigInput(
                 setup_crew=True,
                 tool_timeline=True,

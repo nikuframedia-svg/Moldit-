@@ -2,7 +2,10 @@
 # Combines ISOP XLSX master data with PP PDF schedule data
 # Serves the NikufraPlan frontend component
 
+from __future__ import annotations
+
 import hashlib
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +37,7 @@ class NikufraService:
         self._live_cache: NikufraDashboardState | None = None
         self._live_cache_hash: str | None = None
         self._known_header_hash: str | None = None
+        self.isop_date: date | None = None  # First date from ISOP, set after parse
 
     def _files_hash(self) -> str:
         """Compute SHA-256 hash of source files for cache invalidation."""
@@ -245,12 +249,42 @@ class NikufraService:
 
         wb.close()
 
+        # Extract reference date from first date column
+        isop_date = self._extract_isop_date(date_cols)
+        if isop_date:
+            self.isop_date = isop_date
+
         return {
             "tools": tools,
             "machines": machines,
             "items": items,
             "date_cols": date_cols,
         }
+
+    @staticmethod
+    def _extract_isop_date(date_cols: dict[int, str]) -> date | None:
+        """Extract the first date from ISOP date columns.
+
+        Date columns have headers like "27/02/2026" or "27/02".
+        Returns the earliest date found, or None if no valid dates.
+        """
+        if not date_cols:
+            return None
+
+        dates: list[date] = []
+        for header in date_cols.values():
+            for fmt in ("%d/%m/%Y", "%d/%m"):
+                try:
+                    parsed = datetime.strptime(header.strip(), fmt)
+                    if fmt == "%d/%m":
+                        # Assume current year
+                        parsed = parsed.replace(year=date.today().year)
+                    dates.append(parsed.date())
+                    break
+                except ValueError:
+                    continue
+
+        return min(dates) if dates else None
 
     def _combine(
         self,
@@ -261,7 +295,8 @@ class NikufraService:
         tools_list = list(isop["tools"].values())
 
         # Use PP data for dates, machines, operations, MO
-        dates, days_label = generate_fallback_dates()
+        # Use ISOP date as reference instead of date.today()
+        dates, days_label = generate_fallback_dates(start=self.isop_date)
         mo: dict[str, list[float]] = {"PG1": [0] * 8, "PG2": [0] * 8}
 
         machines_list = []

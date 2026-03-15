@@ -1,6 +1,8 @@
 # Nikufra factory constants
 # Shared fallback values when PP PDFs are unavailable
 
+from __future__ import annotations
+
 from datetime import date, timedelta
 
 # Day-of-week labels (Portuguese) for the 8-day horizon
