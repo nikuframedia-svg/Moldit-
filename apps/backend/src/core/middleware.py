@@ -59,6 +59,13 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     _TTL_SECONDS = 3600  # 1 hour TTL for cached responses
     _MAX_ENTRIES = 10000  # Hard limit to prevent unbounded growth
 
+    # Paths exempt from idempotency requirement (scheduling, copilot, solver)
+    _EXEMPT_PREFIXES = (
+        "/v1/solver/",
+        "/v1/copilot/chat",
+        "/v1/scheduling/run",
+    )
+
     def _cleanup_expired(self) -> None:
         """Remove entries older than TTL to prevent memory leak."""
         now = time.time()
@@ -71,6 +78,11 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Verificar se é request mutável
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            # Skip idempotency for exempt paths (solver, copilot, scheduling)
+            path = request.url.path
+            if any(path.startswith(p) for p in self._EXEMPT_PREFIXES):
+                return await call_next(request)
+
             idempotency_key = request.headers.get("Idempotency-Key")
 
             if not idempotency_key:

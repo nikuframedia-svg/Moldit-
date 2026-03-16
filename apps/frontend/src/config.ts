@@ -2,7 +2,7 @@
 
 export const config = {
   // Modo: 'mock' | 'api'
-  mode: (import.meta.env.VITE_APP_MODE as 'mock' | 'api') || 'mock',
+  mode: (import.meta.env.VITE_APP_MODE as 'mock' | 'api') || 'api',
 
   // API base URL (quando em modo 'api')
   apiBaseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',

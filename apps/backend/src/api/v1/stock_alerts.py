@@ -5,6 +5,8 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
+UTC = UTC
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+UTC = UTC
+
 from src.domain.dqa.engine import DQAEngine
 
 

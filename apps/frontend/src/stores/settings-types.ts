@@ -2,8 +2,8 @@
  * settings-types.ts — Types, interfaces, and preset profiles for settings store.
  */
 
-import type { AutoReplanConfig } from '../lib/engine';
 import type { RuleGroupType } from 'react-querybuilder';
+import type { AutoReplanConfig } from '../lib/engine';
 
 // ── Types ──
 
@@ -165,6 +165,7 @@ export interface SettingsActions {
   setABCThresholds: (a: number, b: number) => void;
   setXYZThresholds: (x: number, y: number) => void;
   setUseServerSolver: (v: boolean) => void;
+  setUsePythonScheduler: (v: boolean) => void;
   setServerSolverTimeLimit: (v: number) => void;
   setServerSolverObjective: (v: SolverObjective) => void;
   setPreStartBufferDays: (v: number) => void;
@@ -221,6 +222,7 @@ export interface SettingsState {
   xyzThresholdX: number;
   xyzThresholdY: number;
   useServerSolver: boolean;
+  usePythonScheduler: boolean;
   serverSolverTimeLimit: number;
   serverSolverObjective: SolverObjective;
   preStartBufferDays: number;

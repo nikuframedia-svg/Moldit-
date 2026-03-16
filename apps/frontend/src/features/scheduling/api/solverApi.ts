@@ -93,7 +93,10 @@ export async function callServerSolver(request: SolverRequest): Promise<SolverRe
   const base = config.apiBaseURL;
   const res = await fetch(`${base}/v1/solver/schedule`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': crypto.randomUUID(),
+    },
     body: JSON.stringify(request),
   });
   if (!res.ok) {

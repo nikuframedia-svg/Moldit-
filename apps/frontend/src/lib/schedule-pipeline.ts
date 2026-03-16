@@ -5,6 +5,11 @@
  * Runs: PlanState → EngineData → MRP → Schedule → CacheEntry.
  */
 
+import {
+  engineDataToSolverRequest,
+  solverResultToBlocks,
+} from '../features/scheduling/api/solver-bridge';
+import { callServerSolver } from '../features/scheduling/api/solverApi';
 import type { TransformConfigFromSettings } from '../stores/settings-config';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import type {
@@ -30,8 +35,6 @@ import {
   DISPATCH_BANDIT,
   transformPlanState,
 } from './engine';
-import { callServerSolver } from '../features/scheduling/api/solverApi';
-import { engineDataToSolverRequest, solverResultToBlocks } from '../features/scheduling/api/solver-bridge';
 
 export interface CacheEntry {
   engine: EngineData;
@@ -98,9 +101,12 @@ export async function runSchedulePipeline(
     if (hasInput && !hasDemand) {
       console.warn(
         '[schedule-pipeline] ZERO_DEMAND: rawNPtoOrderDemand produced 0 demand.',
-        'demandSemantics:', transformConfig.demandSemantics,
-        'sample daily_qty:', planState.operations[0]?.daily_qty.slice(0, 5),
-        'sample engine d:', data.ops[0]?.d.slice(0, 5),
+        'demandSemantics:',
+        transformConfig.demandSemantics,
+        'sample daily_qty:',
+        planState.operations[0]?.daily_qty.slice(0, 5),
+        'sample engine d:',
+        data.ops[0]?.d.slice(0, 5),
       );
     }
   }
@@ -125,7 +131,52 @@ export async function runSchedulePipeline(
   let resultFeasibility: FeasibilityReport | null = null;
   let resultTransparency: TransparencyReport | null = null;
 
-  if (settings.useServerSolver) {
+  if (settings.usePythonScheduler) {
+    // Python ATCS scheduler (ported engine)
+    try {
+      const { callPythonScheduler } = await import('../features/scheduling/api/schedulingApi');
+      const pyResult = await callPythonScheduler({
+        engine_data: data,
+        rule: dispatchRule,
+        third_shift: planState.thirdShift ?? settings.thirdShiftDefault,
+      });
+      resultBlocks = pyResult.blocks;
+      resultMoves = pyResult.auto_moves ?? [];
+      resultAdvances = pyResult.auto_advances ?? [];
+      resultDecisions = pyResult.decisions ?? [];
+      resultFeasibility = pyResult.feasibility_report ?? null;
+    } catch (e) {
+      // Fallback to client-side TS scheduling
+      console.warn(
+        '[schedule-pipeline] Python scheduler failed, falling back to TS client-side:',
+        e instanceof Error ? e.message : String(e),
+      );
+      const overflowResult = autoRouteOverflow({
+        ops: data.ops,
+        mSt: data.mSt,
+        tSt: data.tSt,
+        userMoves: [],
+        machines: data.machines,
+        toolMap: data.toolMap,
+        workdays: data.workdays,
+        nDays: data.nDays,
+        workforceConfig: data.workforceConfig,
+        rule: dispatchRule,
+        supplyBoosts: supplyBoosts.size > 0 ? supplyBoosts : undefined,
+        thirdShift: planState.thirdShift ?? settings.thirdShiftDefault,
+        machineTimelines: data.machineTimelines,
+        toolTimelines: data.toolTimelines,
+        twinValidationReport: data.twinValidationReport,
+        dates: data.dates,
+        orderBased: data.orderBased,
+      });
+      resultBlocks = overflowResult.blocks;
+      resultMoves = overflowResult.autoMoves;
+      resultAdvances = overflowResult.autoAdvances ?? [];
+      resultDecisions = overflowResult.decisions ?? [];
+      resultFeasibility = overflowResult.feasibilityReport ?? null;
+    }
+  } else if (settings.useServerSolver) {
     // CP-SAT server-side solver
     try {
       const request = engineDataToSolverRequest(data, {
@@ -233,8 +284,8 @@ export async function runSchedulePipeline(
     }
   }
 
-  const thirdShiftRecommended = !!(
-    resultFeasibility?.remediations?.some((r) => r.type === 'THIRD_SHIFT')
+  const thirdShiftRecommended = !!resultFeasibility?.remediations?.some(
+    (r) => r.type === 'THIRD_SHIFT',
   );
 
   return {

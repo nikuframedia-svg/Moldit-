@@ -6,6 +6,8 @@ from __future__ import annotations
 import math
 from datetime import UTC, datetime
 
+UTC = UTC
+
 from .schemas import DimensionScore, TrustIndexResult
 
 # Máquinas válidas (conforme CLAUDE.md — PRM020 FORA DE USO)

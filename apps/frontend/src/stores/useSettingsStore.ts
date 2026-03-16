@@ -11,6 +11,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { invalidateScheduleCache } from '../hooks/useScheduleData';
+import { DEFAULT_DEFINITIONS, DEFAULT_FORMULAS, DEFAULT_RULES } from './settings-defaults';
 import type {
   ConceptDefinition,
   DemandSemantics,
@@ -21,7 +22,6 @@ import type {
   SolverObjective,
 } from './settings-types';
 import { WEIGHT_PROFILES } from './settings-types';
-import { DEFAULT_DEFINITIONS, DEFAULT_FORMULAS, DEFAULT_RULES } from './settings-defaults';
 
 export type { EngineConfig, MRPConfig, TransformConfigFromSettings } from './settings-config';
 export { getEngineConfig, getMRPConfig, getTransformConfig } from './settings-config';
@@ -96,7 +96,8 @@ export const useSettingsStore = create<SettingsState>()(
       demandSemantics: 'raw_np' as DemandSemantics,
 
       // ── §5c Defaults (Server Solver) ──
-      useServerSolver: false,
+      useServerSolver: true,
+      usePythonScheduler: false,
       serverSolverTimeLimit: 60,
       serverSolverObjective: 'weighted_tardiness' as SolverObjective,
 
@@ -255,6 +256,10 @@ export const useSettingsStore = create<SettingsState>()(
           set({ useServerSolver: v });
           invalidateScheduleCache();
         },
+        setUsePythonScheduler: (v) => {
+          set({ usePythonScheduler: v });
+          invalidateScheduleCache();
+        },
         setServerSolverTimeLimit: (v) => {
           set({ serverSolverTimeLimit: v });
           invalidateScheduleCache();
@@ -281,9 +286,7 @@ export const useSettingsStore = create<SettingsState>()(
         updateDefinition: (updated: ConceptDefinition) => {
           set((state) => ({
             definitions: state.definitions.map((d) =>
-              d.id === updated.id
-                ? { ...updated, versions: updated.versions.slice(-10) }
-                : d,
+              d.id === updated.id ? { ...updated, versions: updated.versions.slice(-10) } : d,
             ),
           }));
         },
@@ -291,9 +294,7 @@ export const useSettingsStore = create<SettingsState>()(
         updateFormula: (updated: FormulaConfig) => {
           set((state) => ({
             formulas: state.formulas.map((f) =>
-              f.id === updated.id
-                ? { ...updated, versions: updated.versions.slice(-10) }
-                : f,
+              f.id === updated.id ? { ...updated, versions: updated.versions.slice(-10) } : f,
             ),
           }));
         },
@@ -301,9 +302,7 @@ export const useSettingsStore = create<SettingsState>()(
         updateRule: (updated: RuleConfig) => {
           set((state) => ({
             rules: state.rules.map((r) =>
-              r.id === updated.id
-                ? { ...updated, versions: updated.versions.slice(-10) }
-                : r,
+              r.id === updated.id ? { ...updated, versions: updated.versions.slice(-10) } : r,
             ),
           }));
         },
