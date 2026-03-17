@@ -14,6 +14,7 @@ from .learning import learning_router
 from .ledger import ledger_router
 from .metrics import metrics_router
 from .nikufra import nikufra_router
+from .optimal import optimal_router
 from .pipeline import pipeline_router
 from .plan import router as plan_router
 from .scheduling import scheduling_router
@@ -44,4 +45,5 @@ router.include_router(learning_router)
 router.include_router(scheduling_router)
 router.include_router(settings_router)
 router.include_router(solver_router)
+router.include_router(optimal_router)
 router.include_router(stock_alerts_router)

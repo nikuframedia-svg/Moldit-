@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from ..types import AdvanceAction, Block, EOp, MoveAction, ScheduleResult
 
 # RunScheduleFn: (moves, advances?) -> ScheduleResult
-RunScheduleFn = Callable[[list[MoveAction], list[AdvanceAction] | None], ScheduleResult]
+RunScheduleFn = Callable[..., ScheduleResult]
 
 
 @dataclass

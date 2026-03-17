@@ -578,6 +578,59 @@ def _exec_ver_producao_hoje(args: dict) -> str:
     )
 
 
+def _exec_ver_robustez(_args: dict) -> str:
+    """Show Monte Carlo robustness analysis from the optimal pipeline."""
+    sr = copilot_state.solver_result
+    if sr is None:
+        return _dumps(
+            {
+                "error": "Nenhuma análise de robustez disponível. "
+                "Execute o solver CP-SAT (pipeline óptimo) primeiro."
+            }
+        )
+
+    robustness = sr.get("robustness")
+    if robustness is None:
+        return _dumps(
+            {
+                "info": "Solver CP-SAT executou mas sem análise Monte Carlo.",
+                "solver_status": sr.get("status"),
+                "tardiness": sr.get("tardiness"),
+            }
+        )
+
+    vulnerable = robustness.get("vulnerable_jobs", [])
+    buffers = robustness.get("suggested_buffers", [])
+
+    return _dumps(
+        {
+            "robustez": {
+                "P(OTD=100%)": f"{robustness.get('p_otd_100', 0)}%",
+                "P(OTD>=95%)": f"{robustness.get('p_otd_95', 0)}%",
+                "tardiness_média": f"{robustness.get('mean_tardiness', 0)} min",
+                "cenários": robustness.get("n_scenarios", 0),
+                "tempo_análise": f"{robustness.get('elapsed_s', 0)}s",
+            },
+            "jobs_vulneráveis": [
+                {
+                    "job": v.get("job_id"),
+                    "atrasado_em": f"{v.get('late_pct', 0)}% dos cenários",
+                    "atraso_médio": f"{v.get('avg_tardiness_min', 0)} min",
+                }
+                for v in vulnerable[:10]
+            ],
+            "buffers_sugeridos": [
+                {
+                    "job": b.get("job_id"),
+                    "buffer": f"{b.get('buffer_min', 0)} min",
+                    "razão": b.get("reason", ""),
+                }
+                for b in buffers[:10]
+            ],
+        }
+    )
+
+
 # ─── Tool Dispatcher ──────────────────────────────────────────────────────────
 
 
@@ -596,6 +649,7 @@ EXECUTORS = {
     "explicar_logica": _exec_explicar_logica,
     "ver_decisoes": _exec_ver_decisoes,
     "ver_producao_hoje": _exec_ver_producao_hoje,
+    "ver_robustez": _exec_ver_robustez,
 }
 
 

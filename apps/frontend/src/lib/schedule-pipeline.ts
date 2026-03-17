@@ -12,7 +12,8 @@ import {
   engineDataToSolverRequest,
   solverResultToBlocks,
 } from '../features/scheduling/api/solver-bridge';
-import { callServerSolver } from '../features/scheduling/api/solverApi';
+import type { OptimalResult } from '../features/scheduling/api/solverApi';
+import { callOptimalPipeline } from '../features/scheduling/api/solverApi';
 import type { TransformConfigFromSettings } from '../stores/settings-config';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import type {
@@ -52,6 +53,8 @@ export interface CacheEntry {
   resolvedDispatchRule: DispatchRule;
   /** True when feasibility report includes THIRD_SHIFT remediation */
   thirdShiftRecommended: boolean;
+  /** Monte Carlo robustness data from optimal pipeline (null if not available) */
+  robustness?: OptimalResult['robustness'];
 }
 
 export interface DataSourceLike {
@@ -144,9 +147,70 @@ async function tryBackendPipeline(
 }
 
 /**
+ * Try the optimal pipeline (CP-SAT + Recovery + Monte Carlo).
+ * Returns CacheEntry on success, null if backend unavailable.
+ */
+async function tryOptimalPipeline(
+  data: EngineData,
+  mrp: MRPResult,
+  dispatchRule: DispatchRule,
+  settings: ReturnType<typeof useSettingsStore.getState>,
+): Promise<CacheEntry | null> {
+  if (!settings.useServerSolver) return null;
+
+  try {
+    const request = engineDataToSolverRequest(data, {
+      oee: settings.oee,
+      timeLimit: settings.serverSolverTimeLimit,
+      objective: settings.serverSolverObjective,
+    });
+
+    const optimalResult = await callOptimalPipeline({
+      solver_request: request,
+      frozen_ops: [],
+      alt_machines: null,
+      run_monte_carlo: true,
+      n_scenarios: 200,
+    });
+
+    const blocks = solverResultToBlocks(optimalResult.solver_result, data);
+
+    console.info(
+      `[schedule-pipeline] Optimal pipeline OK: ${blocks.length} blocks, ` +
+        `solver=${optimalResult.solver_result.solver_used}, ` +
+        `status=${optimalResult.solver_result.status}, ` +
+        `tardiness=${optimalResult.solver_result.total_tardiness_min}min, ` +
+        `recovery=${optimalResult.recovery_used ? `L${optimalResult.recovery_level}` : 'none'}, ` +
+        `P(OTD=100%)=${optimalResult.robustness?.p_otd_100 ?? 'N/A'}%`,
+    );
+
+    return {
+      engine: data,
+      blocks,
+      autoMoves: [],
+      autoAdvances: [],
+      decisions: [],
+      feasibilityReport: null,
+      transparencyReport: null,
+      mrp,
+      resolvedDispatchRule: dispatchRule,
+      thirdShiftRecommended: false,
+      robustness: optimalResult.robustness,
+    };
+  } catch (e) {
+    console.warn(
+      '[schedule-pipeline] Optimal pipeline failed:',
+      e instanceof Error ? e.message : String(e),
+    );
+    return null;
+  }
+}
+
+/**
  * Run the full scheduling pipeline:
- * 1. Try backend pipeline (sends NikufraData, backend does everything)
- * 2. Fallback: client-side transform + MRP + schedule
+ * 1. Try optimal pipeline (CP-SAT + Recovery + Monte Carlo)
+ * 2. Try backend Python ATCS pipeline
+ * 3. Fallback: client-side TS engine (autoRouteOverflow)
  */
 export async function runSchedulePipeline(
   ds: DataSourceLike,
@@ -159,16 +223,9 @@ export async function runSchedulePipeline(
     throw new Error(`Falha ao carregar dados: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  // ── PRIMARY: Backend pipeline ──
   const settings = useSettingsStore.getState();
-  if (settings.usePythonScheduler) {
-    const backendResult = await tryBackendPipeline(ds, planState, tcfg);
-    if (backendResult) return backendResult;
-  }
 
-  // ── FALLBACK: Client-side scheduling ──
-
-  // 1. Transform PlanState → EngineData
+  // ── Always transform locally (needed for analytics + fallbacks) ──
   const transformConfig: TransformConfig = {
     moStrategy: tcfg.moStrategy,
     moNominalPG1: tcfg.moNominalPG1,
@@ -204,17 +261,27 @@ export async function runSchedulePipeline(
     }
   }
 
-  // 2. Compute MRP + supply priority
   const mrp = computeMRP(data);
   const supplyBoosts = computeSupplyPriority(data, mrp);
 
-  // 3. Read scheduling settings
   const dispatchRule: DispatchRule =
     settings.dispatchRule === 'AUTO'
       ? DISPATCH_BANDIT.select()
       : (settings.dispatchRule as DispatchRule);
 
-  // 4. Schedule
+  // ── STEP 1: Optimal Pipeline (CP-SAT + Recovery + Monte Carlo) ──
+  const optimalResult = await tryOptimalPipeline(data, mrp, dispatchRule, settings);
+  if (optimalResult) {
+    return applyPreStart(optimalResult, data);
+  }
+
+  // ── STEP 2: Backend Python ATCS pipeline ──
+  if (settings.usePythonScheduler) {
+    const backendResult = await tryBackendPipeline(ds, planState, tcfg);
+    if (backendResult) return backendResult;
+  }
+
+  // ── STEP 3: Client-side TS engine ──
   let resultBlocks: Block[];
   let resultMoves: MoveAction[] = [];
   let resultAdvances: AdvanceAction[] = [];
@@ -222,90 +289,7 @@ export async function runSchedulePipeline(
   let resultFeasibility: FeasibilityReport | null = null;
   let resultTransparency: TransparencyReport | null = null;
 
-  if (settings.usePythonScheduler) {
-    // Python ATCS scheduler — try direct EngineData call as secondary fallback
-    try {
-      const { callPythonScheduler } = await import('../features/scheduling/api/schedulingApi');
-      const pyResult = await callPythonScheduler({
-        engine_data: data,
-        rule: dispatchRule,
-        third_shift: planState.thirdShift ?? settings.thirdShiftDefault,
-      });
-      resultBlocks = pyResult.blocks;
-      resultMoves = pyResult.auto_moves ?? [];
-      resultAdvances = pyResult.auto_advances ?? [];
-      resultDecisions = pyResult.decisions ?? [];
-      resultFeasibility = pyResult.feasibility_report ?? null;
-    } catch (e) {
-      console.warn(
-        '[schedule-pipeline] Python scheduler failed, falling back to TS client-side:',
-        e instanceof Error ? e.message : String(e),
-      );
-      const overflowResult = autoRouteOverflow({
-        ops: data.ops,
-        mSt: data.mSt,
-        tSt: data.tSt,
-        userMoves: [],
-        machines: data.machines,
-        toolMap: data.toolMap,
-        workdays: data.workdays,
-        nDays: data.nDays,
-        workforceConfig: data.workforceConfig,
-        rule: dispatchRule,
-        supplyBoosts: supplyBoosts.size > 0 ? supplyBoosts : undefined,
-        thirdShift: planState.thirdShift ?? settings.thirdShiftDefault,
-        machineTimelines: data.machineTimelines,
-        toolTimelines: data.toolTimelines,
-        twinValidationReport: data.twinValidationReport,
-        dates: data.dates,
-        orderBased: data.orderBased,
-      });
-      resultBlocks = overflowResult.blocks;
-      resultMoves = overflowResult.autoMoves;
-      resultAdvances = overflowResult.autoAdvances ?? [];
-      resultDecisions = overflowResult.decisions ?? [];
-      resultFeasibility = overflowResult.feasibilityReport ?? null;
-    }
-  } else if (settings.useServerSolver) {
-    try {
-      const request = engineDataToSolverRequest(data, {
-        oee: settings.oee,
-        timeLimit: settings.serverSolverTimeLimit,
-        objective: settings.serverSolverObjective,
-      });
-      const solverResult = await callServerSolver(request);
-      resultBlocks = solverResultToBlocks(solverResult, data);
-    } catch (e) {
-      console.warn(
-        '[schedule-pipeline] Server solver failed, falling back to client-side:',
-        e instanceof Error ? e.message : String(e),
-      );
-      const overflowResult = autoRouteOverflow({
-        ops: data.ops,
-        mSt: data.mSt,
-        tSt: data.tSt,
-        userMoves: [],
-        machines: data.machines,
-        toolMap: data.toolMap,
-        workdays: data.workdays,
-        nDays: data.nDays,
-        workforceConfig: data.workforceConfig,
-        rule: dispatchRule,
-        supplyBoosts: supplyBoosts.size > 0 ? supplyBoosts : undefined,
-        thirdShift: planState.thirdShift ?? settings.thirdShiftDefault,
-        machineTimelines: data.machineTimelines,
-        toolTimelines: data.toolTimelines,
-        twinValidationReport: data.twinValidationReport,
-        dates: data.dates,
-        orderBased: data.orderBased,
-      });
-      resultBlocks = overflowResult.blocks;
-      resultMoves = overflowResult.autoMoves;
-      resultAdvances = overflowResult.autoAdvances ?? [];
-      resultDecisions = overflowResult.decisions ?? [];
-      resultFeasibility = overflowResult.feasibilityReport ?? null;
-    }
-  } else if (settings.enableAutoReplan) {
+  if (settings.enableAutoReplan) {
     const replanResult: AutoReplanResult = autoReplan(
       {
         ops: data.ops,
@@ -361,22 +345,7 @@ export async function runSchedulePipeline(
     resultFeasibility = overflowResult.feasibilityReport ?? null;
   }
 
-  // 5. Mark pre-start blocks
-  const preN = data._preStartDays ?? 0;
-  if (preN > 0) {
-    for (const b of resultBlocks) {
-      if (b.dayIdx < preN) {
-        b.preStart = true;
-        b.preStartReason = `Producao antecipada ${preN - b.dayIdx} dia(s) antes do ISOP`;
-      }
-    }
-  }
-
-  const thirdShiftRecommended = !!resultFeasibility?.remediations?.some(
-    (r) => r.type === 'THIRD_SHIFT',
-  );
-
-  return {
+  const entry: CacheEntry = {
     engine: data,
     blocks: resultBlocks,
     autoMoves: resultMoves,
@@ -386,6 +355,22 @@ export async function runSchedulePipeline(
     transparencyReport: resultTransparency,
     mrp,
     resolvedDispatchRule: dispatchRule,
-    thirdShiftRecommended,
+    thirdShiftRecommended: !!resultFeasibility?.remediations?.some((r) => r.type === 'THIRD_SHIFT'),
   };
+
+  return applyPreStart(entry, data);
+}
+
+/** Mark pre-start blocks and third-shift recommendation. */
+function applyPreStart(entry: CacheEntry, data: EngineData): CacheEntry {
+  const preN = data._preStartDays ?? 0;
+  if (preN > 0) {
+    for (const b of entry.blocks) {
+      if (b.dayIdx < preN) {
+        b.preStart = true;
+        b.preStartReason = `Producao antecipada ${preN - b.dayIdx} dia(s) antes do ISOP`;
+      }
+    }
+  }
+  return entry;
 }

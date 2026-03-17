@@ -87,7 +87,32 @@ export interface SolverResult {
   operator_warnings: Record<string, unknown>[];
 }
 
-// ── API call ──
+// ── Optimal Pipeline types ──
+
+export interface OptimalRequest {
+  solver_request: SolverRequest;
+  frozen_ops: string[];
+  alt_machines: Record<string, string[]> | null;
+  run_monte_carlo: boolean;
+  n_scenarios: number;
+}
+
+export interface OptimalResult {
+  solver_result: SolverResult;
+  recovery_used: boolean;
+  recovery_level: number;
+  robustness: {
+    p_otd_100: number;
+    p_otd_95: number;
+    mean_tardiness: number;
+    vulnerable_jobs: Array<{ job_id: string; late_pct: number; avg_tardiness_min: number }>;
+    suggested_buffers: Array<{ job_id: string; buffer_min: number; reason: string }>;
+    n_scenarios: number;
+    elapsed_s: number;
+  } | null;
+}
+
+// ── API calls ──
 
 export async function callServerSolver(request: SolverRequest): Promise<SolverResult> {
   const base = config.apiBaseURL;
@@ -101,6 +126,22 @@ export async function callServerSolver(request: SolverRequest): Promise<SolverRe
   });
   if (!res.ok) {
     throw new Error(`Solver HTTP ${res.status}: ${await res.text().catch(() => 'unknown')}`);
+  }
+  return await res.json();
+}
+
+export async function callOptimalPipeline(request: OptimalRequest): Promise<OptimalResult> {
+  const base = config.apiBaseURL;
+  const res = await fetch(`${base}/v1/optimal/solve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': crypto.randomUUID(),
+    },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    throw new Error(`Optimal HTTP ${res.status}: ${await res.text().catch(() => 'unknown')}`);
   }
   return await res.json();
 }

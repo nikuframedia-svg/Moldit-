@@ -116,7 +116,7 @@ class ETool(BaseModel):
 
     id: str
     m: str  # primary machine
-    alt: str = "-"  # alternative machine
+    alt: str | None = "-"  # alternative machine (None or "-" = no alt)
     sH: float = 0.75  # setup hours
     pH: int = 100  # pieces per hour
     op: int = 1  # operators required

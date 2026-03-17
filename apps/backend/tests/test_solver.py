@@ -796,9 +796,9 @@ class TestSolverRouter:
         assert result.solver_used == "cpsat"
 
     def test_router_large_uses_heuristic(self):
-        """>200 ops → heuristic fallback."""
+        """>800 ops → heuristic fallback."""
         jobs = []
-        for i in range(210):
+        for i in range(810):
             jobs.append(
                 _make_job(
                     f"J{i}",
@@ -813,7 +813,7 @@ class TestSolverRouter:
 
         result = self.router.solve(request)
         assert result.solver_used == "heuristic"
-        assert result.n_ops == 210
+        assert result.n_ops == 810
 
     def test_router_empty(self):
         """0 jobs → handled gracefully."""

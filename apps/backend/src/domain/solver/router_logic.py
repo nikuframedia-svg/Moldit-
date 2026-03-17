@@ -15,8 +15,8 @@ class SolverRouter:
     Routes scheduling requests to the appropriate solver:
     - Lexicographic mode: 3-phase solver (tardiness→JIT→setups)
     - <50 ops: CP-SAT with 120s time limit (optimal)
-    - 50-200 ops: CP-SAT with 60s time limit
-    - >200 ops: ATCS heuristic fallback
+    - 50-800 ops: CP-SAT with 60s time limit (Incompol ~593 jobs)
+    - >800 ops: ATCS heuristic fallback
     """
 
     def __init__(self):
@@ -40,7 +40,8 @@ class SolverRouter:
         if n_ops < 50:
             request.config.time_limit_s = min(request.config.time_limit_s, 120)
             return self.cpsat.solve(request)
-        elif n_ops < 200:
+        elif n_ops < 800:
+            # Incompol has ~593 jobs — CP-SAT handles up to 800
             request.config.time_limit_s = min(request.config.time_limit_s, 60)
             return self.cpsat.solve(request)
         else:

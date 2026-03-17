@@ -31,6 +31,7 @@ class CopilotState:
         self.last_schedule_at: str | None = None
         self.solver_used: str = ""
         self.solve_time_s: float = 0.0
+        self.solver_result: dict | None = None  # Optimal pipeline: status + robustness
 
     # ── Config & Rules ──
 

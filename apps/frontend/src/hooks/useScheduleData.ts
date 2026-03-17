@@ -30,7 +30,7 @@ import { runSchedulePipeline } from '../lib/schedule-pipeline';
 import { getTransformConfig, settingsHashSelector } from '../stores/settings-config';
 import { useBanditStore } from '../stores/useBanditStore';
 import { useDataStore } from '../stores/useDataStore';
-import { useMasterDataStore, overridesVersionSelector } from '../stores/useMasterDataStore';
+import { overridesVersionSelector, useMasterDataStore } from '../stores/useMasterDataStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useDataSource } from './useDataSource';
 
@@ -62,6 +62,13 @@ let cachedSettingsHash: string | null = null;
 let cacheVersion = 0;
 
 export function useScheduleData(): ScheduleData {
+  // Listen for external cache invalidation (e.g. copilot recalculation)
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    const handler = () => forceUpdate((v) => v + 1);
+    window.addEventListener('schedule-invalidate', handler);
+    return () => window.removeEventListener('schedule-invalidate', handler);
+  }, []);
   const ds = useDataSource();
   const dataVersion = useDataStore((s) => s.loadedAt);
   const isMerging = useDataStore((s) => s.isMerging);
@@ -267,6 +274,8 @@ export function useScheduleData(): ScheduleData {
 
 // Allow external code to invalidate cache when replan happens
 export function invalidateScheduleCache(): void {
+  // Dispatch event so useScheduleData re-renders
+  window.dispatchEvent(new Event('schedule-invalidate'));
   cached = null;
   cachePromise = null;
   cacheVersion++;

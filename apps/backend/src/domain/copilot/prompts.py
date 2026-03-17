@@ -88,6 +88,20 @@ ESTADO ACTUAL DO PLANO:
 - Decisões registadas: {len(copilot_state.decisions)}
 """)
 
+    # Robustness from optimal pipeline
+    sr = copilot_state.solver_result
+    if sr and sr.get("robustness"):
+        rob = sr["robustness"]
+        n_vuln = len(rob.get("vulnerable_jobs", []))
+        parts.append(f"""
+ROBUSTEZ (Monte Carlo {rob.get("n_scenarios", 200)} cenários):
+- P(OTD=100%) = {rob.get("p_otd_100", "?")}%
+- P(OTD>=95%) = {rob.get("p_otd_95", "?")}%
+- Tardiness média = {rob.get("mean_tardiness", "?")} min
+- Jobs vulneráveis: {n_vuln}
+- Usa a tool 'ver_robustez' para detalhes completos.
+""")
+
     alerts = copilot_state.alerts or []
     if alerts:
         top = alerts[:5]

@@ -338,7 +338,7 @@ def transform_plan_state(
             tool_map[tool_id] = ETool(
                 id=tool_id,
                 m=machine_id,
-                alt=op_raw.get("alt", "-"),
+                alt=op_raw.get("alt") or "-",
                 sH=op_raw.get("sH", 0.75),
                 pH=op_raw.get("pH", 100),
                 op=op_raw.get("op", 1),

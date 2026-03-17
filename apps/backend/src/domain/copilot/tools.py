@@ -260,4 +260,15 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "ver_robustez",
+            "description": "Mostra a análise Monte Carlo do plano: probabilidade OTD, jobs vulneráveis, buffers sugeridos.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+    },
 ]
