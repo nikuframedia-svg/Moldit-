@@ -4,6 +4,7 @@ import type { ParseError, ParseResult } from '../../../domain/isop';
 import { parseISOPFile } from '../../../domain/isop';
 import type { NikufraData } from '../../../domain/nikufra-types';
 import { invalidateScheduleCache } from '../../../hooks/useScheduleData';
+import { fetchWithTimeout } from '../../../lib/fetchWithTimeout';
 import type { LoadMeta } from '../../../stores/useDataStore';
 import { useDataActions, useDataStore, useNikufraData } from '../../../stores/useDataStore';
 import { useSettingsStore } from '../../../stores/useSettingsStore';
@@ -88,38 +89,42 @@ export function useIsopParser() {
     // Sync ISOP to backend for copilot context
     try {
       const ops = uploadState.data.operations;
-      await fetch(`${config.apiBaseURL}/v1/nikufra/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          skus: Object.fromEntries(
-            ops.map((op) => [
-              op.sku,
-              {
-                sku: op.sku,
-                designation: op.nm,
-                machine: op.m,
-                tool: op.t,
-                pieces_per_hour: op.pH,
-                stock: op.atr >= 0 ? op.atr : 0,
-                atraso: op.atr < 0 ? op.atr : 0,
-                twin_ref: op.twin ?? null,
-                clients: op.cl ? [op.cl] : [],
-                orders: (op.d ?? [])
-                  .map((v, i) => (v !== null && v < 0 ? { qty: Math.abs(v), day_idx: i } : null))
-                  .filter(Boolean),
-              },
-            ]),
-          ),
-          isop_date: uploadState.data.dates?.[0] ?? null,
-          total_orders: ops.reduce(
-            (n, op) => n + (op.d ?? []).filter((v) => v !== null && v < 0).length,
-            0,
-          ),
-          machines: [...new Set(ops.map((op) => op.m))],
-          total_tools: new Set(ops.map((op) => op.t)).size,
-        }),
-      });
+      await fetchWithTimeout(
+        `${config.apiBaseURL}/v1/nikufra/upload`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            skus: Object.fromEntries(
+              ops.map((op) => [
+                op.sku,
+                {
+                  sku: op.sku,
+                  designation: op.nm,
+                  machine: op.m,
+                  tool: op.t,
+                  pieces_per_hour: op.pH,
+                  stock: op.atr >= 0 ? op.atr : 0,
+                  atraso: op.atr < 0 ? op.atr : 0,
+                  twin_ref: op.twin ?? null,
+                  clients: op.cl ? [op.cl] : [],
+                  orders: (op.d ?? [])
+                    .map((v, i) => (v !== null && v < 0 ? { qty: Math.abs(v), day_idx: i } : null))
+                    .filter(Boolean),
+                },
+              ]),
+            ),
+            isop_date: uploadState.data.dates?.[0] ?? null,
+            total_orders: ops.reduce(
+              (n, op) => n + (op.d ?? []).filter((v) => v !== null && v < 0).length,
+              0,
+            ),
+            machines: [...new Set(ops.map((op) => op.m))],
+            total_tools: new Set(ops.map((op) => op.t)).size,
+          }),
+        },
+        30_000,
+      );
     } catch (e) {
       console.warn('[ISOP] Failed to sync to backend copilot:', e);
     }

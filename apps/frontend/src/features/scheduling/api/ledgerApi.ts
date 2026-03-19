@@ -3,6 +3,8 @@
  * Falls back to localStorage if backend unavailable.
  */
 
+import { fetchWithTimeout } from '../../../lib/fetchWithTimeout';
+
 const API_BASE = '/api/v1';
 const LOCAL_KEY = 'pp1-ledger-fallback';
 
@@ -28,11 +30,15 @@ export interface LedgerEntryResponse extends LedgerEntryCreate {
 
 export async function createLedgerEntry(data: LedgerEntryCreate): Promise<LedgerEntryResponse> {
   try {
-    const res = await fetch(`${API_BASE}/ledger/entries`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
+    const res = await fetchWithTimeout(
+      `${API_BASE}/ledger/entries`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      },
+      5_000,
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch {
@@ -53,7 +59,7 @@ export async function createLedgerEntry(data: LedgerEntryCreate): Promise<Ledger
 
 export async function listLedgerEntries(): Promise<LedgerEntryResponse[]> {
   try {
-    const res = await fetch(`${API_BASE}/ledger/entries`);
+    const res = await fetchWithTimeout(`${API_BASE}/ledger/entries`, {}, 5_000);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch {

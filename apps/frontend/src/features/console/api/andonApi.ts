@@ -5,6 +5,7 @@
  */
 
 import type { AndonCategory } from '@/stores/useAndonStore';
+import { fetchWithTimeout } from '../../../lib/fetchWithTimeout';
 
 const API_BASE = '/api/v1';
 const LOCAL_KEY = 'pp1-andon-fallback';
@@ -42,11 +43,15 @@ export async function postMachineDown(
   };
 
   try {
-    const res = await fetch(`${API_BASE}/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetchWithTimeout(
+      `${API_BASE}/events`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      5_000,
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch {
@@ -72,11 +77,15 @@ export async function postMachineUp(
   };
 
   try {
-    const res = await fetch(`${API_BASE}/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetchWithTimeout(
+      `${API_BASE}/events`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      5_000,
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch {

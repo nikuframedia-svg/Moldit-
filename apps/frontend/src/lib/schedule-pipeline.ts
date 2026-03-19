@@ -17,6 +17,7 @@ import type { OptimalResult } from '../features/scheduling/api/solverApi';
 import { callOptimalPipeline } from '../features/scheduling/api/solverApi';
 import type { TransformConfigFromSettings } from '../stores/settings-config';
 import { useSettingsStore } from '../stores/useSettingsStore';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 /** Fast health check — returns true if backend responds within 2s. */
 let _backendAlive: boolean | null = null;
@@ -27,10 +28,7 @@ async function isBackendAlive(): Promise<boolean> {
   if (_healthCheckPromise) return _healthCheckPromise;
   _healthCheckPromise = (async () => {
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 2000);
-      const res = await fetch(`${config.apiBaseURL}/health`, { signal: ctrl.signal });
-      clearTimeout(t);
+      const res = await fetchWithTimeout(`${config.apiBaseURL}/health`, {}, 2_000);
       _backendAlive = res.ok;
     } catch {
       _backendAlive = false;
@@ -167,6 +165,7 @@ async function tryBackendPipeline(
       thirdShiftRecommended,
     };
   } catch (e) {
+    _backendAlive = false;
     console.warn(
       '[schedule-pipeline] Backend pipeline unavailable, falling back to client-side:',
       e instanceof Error ? e.message : String(e),
@@ -227,6 +226,7 @@ async function tryOptimalPipeline(
       robustness: optimalResult.robustness,
     };
   } catch (e) {
+    _backendAlive = false;
     console.warn(
       '[schedule-pipeline] Optimal pipeline failed:',
       e instanceof Error ? e.message : String(e),

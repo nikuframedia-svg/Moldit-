@@ -3,6 +3,7 @@
  */
 
 import { config } from '../../config';
+import { fetchWithTimeout } from '../../lib/fetchWithTimeout';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -15,11 +16,15 @@ export interface ChatResponse {
 }
 
 export async function sendCopilotMessage(messages: ChatMessage[]): Promise<ChatResponse> {
-  const res = await fetch(`${config.apiBaseURL}/v1/copilot/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages }),
-  });
+  const res = await fetchWithTimeout(
+    `${config.apiBaseURL}/v1/copilot/chat`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+    },
+    15_000,
+  );
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`Copilot HTTP ${res.status}: ${text}`);
@@ -33,7 +38,7 @@ export interface CopilotTool {
 }
 
 export async function listCopilotTools(): Promise<CopilotTool[]> {
-  const res = await fetch(`${config.apiBaseURL}/v1/copilot/tools`);
+  const res = await fetchWithTimeout(`${config.apiBaseURL}/v1/copilot/tools`, {}, 5_000);
   if (!res.ok) throw new Error(`Copilot tools HTTP ${res.status}`);
   const data = await res.json();
   return data.tools ?? data;

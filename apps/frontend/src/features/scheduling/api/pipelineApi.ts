@@ -14,6 +14,7 @@ import type {
   FeasibilityReport,
   MoveAction,
 } from '../../../lib/engine';
+import { fetchWithTimeout } from '../../../lib/fetchWithTimeout';
 
 export interface PipelineKPIs {
   total_blocks: number;
@@ -47,24 +48,17 @@ export async function callBackendPipeline(
   settings: Record<string, unknown>,
 ): Promise<PipelineResponse> {
   const base = config.apiBaseURL;
-  // SAT-08: 30s timeout — backend ATCS pipeline should be fast, but never wait forever
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30_000);
-  try {
-    const res = await fetch(`${base}/v1/pipeline/schedule`, {
+  const res = await fetchWithTimeout(
+    `${base}/v1/pipeline/schedule`,
+    {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nikufra_data: nikufraData,
-        settings,
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      throw new Error(`Pipeline HTTP ${res.status}: ${await res.text().catch(() => 'unknown')}`);
-    }
-    return await res.json();
-  } finally {
-    clearTimeout(timer);
+      body: JSON.stringify({ nikufra_data: nikufraData, settings }),
+    },
+    30_000,
+  );
+  if (!res.ok) {
+    throw new Error(`Pipeline HTTP ${res.status}: ${await res.text().catch(() => 'unknown')}`);
   }
+  return await res.json();
 }

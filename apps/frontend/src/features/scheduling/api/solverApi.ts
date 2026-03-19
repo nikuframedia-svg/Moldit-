@@ -4,6 +4,7 @@
  */
 
 import { config } from '../../../config';
+import { fetchWithTimeout } from '../../../lib/fetchWithTimeout';
 
 // ── Request types (mirror backend schemas.py) ──
 
@@ -115,13 +116,6 @@ export interface OptimalResult {
 
 // ── API calls ──
 
-/** SAT-08: Fetch with AbortController timeout (default 5s for connection, solver has its own time_limit_s) */
-function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
-}
-
 export async function callServerSolver(request: SolverRequest): Promise<SolverResult> {
   const base = config.apiBaseURL;
   // Solver timeout = time_limit_s + 5s buffer for network
@@ -146,10 +140,10 @@ export async function callServerSolver(request: SolverRequest): Promise<SolverRe
 
 export async function callOptimalPipeline(request: OptimalRequest): Promise<OptimalResult> {
   const base = config.apiBaseURL;
-  // Optimal pipeline: solver + recovery + monte carlo — give generous timeout
-  // but cap at 90s to avoid infinite waits when backend is down
+  // Optimal pipeline: solver + recovery + monte carlo
+  // Cap at 30s — health cache invalidation handles dead backends fast
   const solverLimit = request.solver_request.config.time_limit_s;
-  const timeoutMs = Math.min((solverLimit + 30) * 1000, 90_000);
+  const timeoutMs = Math.min((solverLimit + 30) * 1000, 30_000);
   const res = await fetchWithTimeout(
     `${base}/v1/optimal/solve`,
     {

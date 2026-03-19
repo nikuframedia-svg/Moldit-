@@ -14,6 +14,7 @@ import type {
   FeasibilityReport,
   MoveAction,
 } from '../../../lib/engine';
+import { fetchWithTimeout } from '../../../lib/fetchWithTimeout';
 
 export interface SchedulingRunRequest {
   engine_data: EngineData;
@@ -38,13 +39,15 @@ export async function callPythonScheduler(
   request: SchedulingRunRequest,
 ): Promise<SchedulingRunResponse> {
   const base = config.apiBaseURL;
-  const res = await fetch(`${base}/v1/scheduling/run`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const res = await fetchWithTimeout(
+    `${base}/v1/scheduling/run`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
     },
-    body: JSON.stringify(request),
-  });
+    60_000,
+  );
   if (!res.ok) {
     throw new Error(`Scheduling HTTP ${res.status}: ${await res.text().catch(() => 'unknown')}`);
   }

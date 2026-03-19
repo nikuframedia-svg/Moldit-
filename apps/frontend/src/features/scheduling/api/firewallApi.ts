@@ -3,6 +3,8 @@
  * Falls back to client-side estimation if backend unavailable.
  */
 
+import { fetchWithTimeout } from '../../../lib/fetchWithTimeout';
+
 const API_BASE = '/api/v1';
 
 export interface DeviationRequest {
@@ -24,11 +26,15 @@ export interface DeviationAssessment {
 
 export async function assessDeviation(req: DeviationRequest): Promise<DeviationAssessment> {
   try {
-    const res = await fetch(`${API_BASE}/firewall/assess`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
+    const res = await fetchWithTimeout(
+      `${API_BASE}/firewall/assess`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req),
+      },
+      5_000,
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch {

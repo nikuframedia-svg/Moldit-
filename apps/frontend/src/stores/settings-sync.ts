@@ -8,6 +8,7 @@
  */
 
 import { config } from '../config';
+import { fetchWithTimeout } from '../lib/fetchWithTimeout';
 import { useSettingsStore } from './useSettingsStore';
 
 const SETTINGS_URL = `${config.apiBaseURL}/v1/settings`;
@@ -18,7 +19,7 @@ const SETTINGS_URL = `${config.apiBaseURL}/v1/settings`;
  */
 export async function fetchSettingsFromBackend(): Promise<boolean> {
   try {
-    const res = await fetch(SETTINGS_URL);
+    const res = await fetchWithTimeout(SETTINGS_URL, {}, 5_000);
     if (!res.ok) return false;
     const data = await res.json();
 
@@ -39,11 +40,15 @@ export async function fetchSettingsFromBackend(): Promise<boolean> {
 export async function syncSettingsToBackend(): Promise<boolean> {
   try {
     const { actions: _, ...data } = useSettingsStore.getState();
-    const res = await fetch(SETTINGS_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
+    const res = await fetchWithTimeout(
+      SETTINGS_URL,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      },
+      5_000,
+    );
     return res.ok;
   } catch {
     return false;
