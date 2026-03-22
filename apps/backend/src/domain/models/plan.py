@@ -9,6 +9,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -67,6 +68,7 @@ class WorkOrder(Base):
     """Ordem de trabalho"""
 
     __tablename__ = "workorders"
+    __table_args__ = (CheckConstraint("quantity >= 0", name="ck_workorder_quantity_nonneg"),)
 
     workorder_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     plan_id = Column(
@@ -89,6 +91,13 @@ class PlanOperation(Base):
     """Operação do plano"""
 
     __tablename__ = "plan_operations"
+    __table_args__ = (
+        CheckConstraint("quantity >= 0", name="ck_planop_quantity_nonneg"),
+        CheckConstraint(
+            "operators_required IS NULL OR operators_required >= 0",
+            name="ck_planop_operators_nonneg",
+        ),
+    )
 
     operation_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     plan_id = Column(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 
 from ...db.base import Base
@@ -14,6 +14,7 @@ class Rule(Base):
     """A configurable rule for the decision engine."""
 
     __tablename__ = "rules"
+    __table_args__ = (CheckConstraint("priority >= 0", name="ck_rule_priority_nonneg"),)
 
     id = Column(String(100), primary_key=True)
     name = Column(String(200), nullable=False)
