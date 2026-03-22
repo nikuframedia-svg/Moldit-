@@ -94,7 +94,7 @@ def _setup_state():
 
 
 def test_tools_schema():
-    assert len(TOOLS) == 15
+    assert len(TOOLS) == 19
     for tool in TOOLS:
         assert tool["type"] == "function"
         assert "name" in tool["function"]
