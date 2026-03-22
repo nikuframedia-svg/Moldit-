@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -37,8 +38,11 @@ class Settings(BaseSettings):
     expose_stack_traces: bool = False  # Nunca expor em produção
     api_keys: list[str] = []  # Empty = dev mode (skip auth)
 
-    # CORS
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"]
+    # CORS — configurable via PP1_CORS_ORIGINS env var (JSON array or comma-separated)
+    cors_origins: list[str] = Field(
+        default=["http://localhost:5173", "http://localhost:5174"],
+        validation_alias="PP1_CORS_ORIGINS",
+    )
 
     model_config = {
         "env_file": ".env",
