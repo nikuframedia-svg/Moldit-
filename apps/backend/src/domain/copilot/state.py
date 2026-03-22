@@ -111,4 +111,15 @@ class CopilotState:
         ]
 
 
-copilot_state = CopilotState()
+_tenant_states: dict[str, CopilotState] = {}
+
+
+def get_copilot_state(tenant_id: str = "default") -> CopilotState:
+    """Return per-tenant CopilotState, creating lazily if needed."""
+    if tenant_id not in _tenant_states:
+        _tenant_states[tenant_id] = CopilotState()
+    return _tenant_states[tenant_id]
+
+
+# Backward-compat alias — existing imports continue to work
+copilot_state = get_copilot_state("default")
