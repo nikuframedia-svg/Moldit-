@@ -343,8 +343,8 @@ def parse_isop_file(
     # 1. Load workbook
     try:
         wb = openpyxl.load_workbook(filepath_or_bytes, data_only=data_only)
-    except Exception:
-        logger.exception("Failed to open ISOP XLSX file")
+    except Exception as e:
+        logger.exception("Failed to open ISOP XLSX file: %s", e)
         return ISOPParseResult(
             success=False,
             errors=["Ficheiro XLSX inválido — não foi possível abrir."],

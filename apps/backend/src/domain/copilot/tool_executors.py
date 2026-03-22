@@ -50,8 +50,8 @@ def _exec_adicionar_regra(args: dict) -> str:
                     "recalculo": json.loads(recalc),
                 }
             )
-        except Exception:
-            logger.exception("Auto-recalculate failed after adding rule '%s'", args["name"])
+        except Exception as e:
+            logger.exception("Auto-recalculate failed after adding rule '%s': %s", args["name"], e)
     return _dumps({"status": "ok", "message": f"Regra '{args['name']}' criada."})
 
 
@@ -70,8 +70,8 @@ def _exec_remover_regra(args: dict) -> str:
                     "recalculo": json.loads(recalc),
                 }
             )
-        except Exception:
-            logger.exception("Auto-recalculate failed after removing rule '%s'", args["id"])
+        except Exception as e:
+            logger.exception("Auto-recalculate failed after removing rule '%s': %s", args["id"], e)
     return _dumps({"status": "ok", "message": f"Regra {args['id']} removida."})
 
 
@@ -192,8 +192,8 @@ def _exec_agrupar_material(args: dict) -> str:
                     "recalculo": json.loads(recalc),
                 }
             )
-        except Exception:
-            logger.exception("Auto-recalculate failed after grouping material")
+        except Exception as e:
+            logger.exception("Auto-recalculate failed after grouping material: %s", e)
     return _dumps(
         {
             "status": "ok",
@@ -228,8 +228,8 @@ def _exec_mover_referencia(args: dict) -> str:
                     "recalculo": json.loads(recalc),
                 }
             )
-        except Exception:
-            logger.exception("Auto-recalculate failed after moving ref '%s'", sku)
+        except Exception as e:
+            logger.exception("Auto-recalculate failed after moving ref '%s': %s", sku, e)
     return _dumps({"status": "ok", "message": f"Referência {sku} movida para {target}."})
 
 

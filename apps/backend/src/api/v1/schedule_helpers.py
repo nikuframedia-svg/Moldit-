@@ -85,8 +85,8 @@ def _solve_and_analyze(
                 n_days=engine_data.n_days,
             )
         )
-    except Exception:
-        logger.exception("score_schedule failed")
+    except Exception as e:
+        logger.exception("score_schedule failed: %s", e)
     try:
         analytics["validation"] = _to_dict(
             validate_schedule(
@@ -98,8 +98,8 @@ def _solve_and_analyze(
                 n_days=engine_data.n_days,
             )
         )
-    except Exception:
-        logger.exception("validate_schedule failed")
+    except Exception as e:
+        logger.exception("validate_schedule failed: %s", e)
     try:
         analytics["coverage"] = _to_dict(
             audit_coverage(
@@ -109,12 +109,12 @@ def _solve_and_analyze(
                 twin_groups=engine_data.twin_groups,
             )
         )
-    except Exception:
-        logger.exception("audit_coverage failed")
+    except Exception as e:
+        logger.exception("audit_coverage failed: %s", e)
     try:
         analytics["cap"] = cap_analysis(blocks=blocks, machines=engine_data.machines)
-    except Exception:
-        logger.exception("cap_analysis failed")
+    except Exception as e:
+        logger.exception("cap_analysis failed: %s", e)
     try:
         analytics["late_deliveries"] = _to_dict(
             analyze_late_deliveries(
@@ -123,8 +123,8 @@ def _solve_and_analyze(
                 dates=engine_data.dates,
             )
         )
-    except Exception:
-        logger.exception("analyze_late_deliveries failed")
+    except Exception as e:
+        logger.exception("analyze_late_deliveries failed: %s", e)
 
     return {
         "blocks": [_to_dict(b) for b in blocks],

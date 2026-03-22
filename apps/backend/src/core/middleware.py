@@ -282,8 +282,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
             )
             db.add(entry)
             db.commit()
-        except Exception:
-            logger.exception("Audit DB write failed")
+        except Exception as e:
+            logger.exception("Audit DB write failed: %s", e)
             db.rollback()
             raise
         finally:
@@ -358,9 +358,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             response.headers["X-Request-Duration-Ms"] = str(duration_ms)
 
             return response
-        except Exception:
+        except Exception as e:
             # Parar timer em caso de erro
-            logger.exception("Unhandled error in request %s %s", request.method, request.url.path)
+            logger.exception(
+                "Unhandled error in request %s %s: %s", request.method, request.url.path, e
+            )
             timer_stop(timer_id, f"http_request.{request.method.lower()}.{request.url.path}")
             increment(
                 "http_requests_error",

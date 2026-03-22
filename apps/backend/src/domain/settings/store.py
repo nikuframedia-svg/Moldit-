@@ -35,8 +35,10 @@ class SettingsStore:
             try:
                 raw = json.loads(self._path.read_text(encoding="utf-8"))
                 self._settings = SettingsModel(**raw)
-            except Exception:
-                logger.exception("Failed to load settings from %s, using defaults", self._path)
+            except Exception as e:
+                logger.exception(
+                    "Failed to load settings from %s, using defaults: %s", self._path, e
+                )
                 self._settings = SettingsModel()
 
     def _save(self) -> None:
