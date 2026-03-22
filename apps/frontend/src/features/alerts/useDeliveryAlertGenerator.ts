@@ -17,10 +17,7 @@ import { useAlertStore } from './useAlertStore';
 const ALERT_PREFIX = 'delivery-late-';
 const exprParser = new Parser();
 
-function priorityFromEntry(
-  entry: LateDeliveryEntry,
-  urgenteExpr: string | null,
-): AlertPriority {
+function priorityFromEntry(entry: LateDeliveryEntry, urgenteExpr: string | null): AlertPriority {
   // L4 definition boost: if 'urgente' definition matches, boost to at least HIGH
   if (urgenteExpr) {
     try {
@@ -34,7 +31,9 @@ function priorityFromEntry(
       const result = exprParser.parse(urgenteExpr).evaluate(vars);
       if (result && tier <= 1) return 'CRITICAL';
       if (result) return 'HIGH';
-    } catch { /* fallback to hardcoded logic */ }
+    } catch {
+      /* fallback to hardcoded logic */
+    }
   }
   if (entry.clientTier <= 1) return 'CRITICAL';
   if (entry.clientTier <= 2) return 'HIGH';

@@ -7,8 +7,8 @@
 
 import { Parser } from 'expr-eval';
 import type { RuleGroupType } from 'react-querybuilder';
-import type { ConceptDefinition, FormulaConfig } from '../stores/settings-types';
 import type { Block, EngineData, EOp } from '../lib/engine';
+import type { ConceptDefinition, FormulaConfig } from '../stores/settings-types';
 
 // Singleton parser — avoid re-instantiation per evaluation
 const parser = new Parser();
@@ -113,10 +113,7 @@ export function evaluateFormula(formula: FormulaConfig, vars: EvalVars): number 
 }
 
 /** Evaluate a rule query (react-querybuilder RuleGroupType), return boolean */
-export function evaluateRule(
-  group: RuleGroupType,
-  ctx: Record<string, unknown>,
-): boolean {
+export function evaluateRule(group: RuleGroupType, ctx: Record<string, unknown>): boolean {
   const results = (group.rules || []).map((rule) => {
     if ('rules' in rule) return evaluateRule(rule as RuleGroupType, ctx);
     const val = ctx[rule.field];

@@ -22,7 +22,7 @@ export function OptResultsList({ optResults, applyOptResult }: OptResultsListPro
             padding: 10,
             borderRadius: 6,
             background: ri === 0 ? `${C.pp}08` : C.bg,
-            border: `1px solid ${ri === 0 ? C.pp + '33' : C.bd}`,
+            border: `1px solid ${ri === 0 ? `${C.pp}33` : C.bd}`,
             borderLeft: `3px solid ${ri === 0 ? C.pp : C.t4}`,
             display: 'flex',
             justifyContent: 'space-between',

@@ -145,7 +145,7 @@ export function PulseStrip() {
       },
       {
         label: 'Operadores',
-        value: `${metrics.peakOps}/${metrics.overOps > 0 ? metrics.overOps + ' over' : 'OK'}`,
+        value: `${metrics.peakOps}/${metrics.overOps > 0 ? `${metrics.overOps} over` : 'OK'}`,
         variant: metrics.overOps > 0 ? 'amber' : 'teal',
         sparkData: dailyOps,
       },

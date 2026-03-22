@@ -3,6 +3,8 @@
  */
 
 import { useCallback, useState } from 'react';
+import { getCachedNikufraData } from '../../../hooks/useScheduleData';
+import { scheduleReplanApi } from '../../../lib/api';
 import type {
   Block,
   EngineData,
@@ -10,8 +12,6 @@ import type {
   ImpactReport,
   MoveAction,
 } from '../../../lib/engine';
-import { scheduleReplanApi } from '../../../lib/api';
-import { getCachedNikufraData } from '../../../hooks/useScheduleData';
 import { useToastStore } from '../../../stores/useToastStore';
 
 export interface FailureState {
@@ -45,7 +45,7 @@ export interface FailureActions {
 }
 
 export function useFailureManagement(
-  data: EngineData,
+  _data: EngineData,
   blocks: Block[],
   wdi: number[],
   _buildArInput: () => unknown,
@@ -129,24 +129,15 @@ export function useFailureManagement(
     setFailureImpacts(impacts);
     setShowFailureForm(false);
     setFfDesc('');
-  }, [
-    ffResType,
-    ffResId,
-    ffSev,
-    ffCap,
-    ffStartDay,
-    ffEndDay,
-    ffDesc,
-    failures,
-    blocks,
-    data.nDays,
-  ]);
+  }, [ffResType, ffResId, ffSev, ffCap, ffStartDay, ffEndDay, ffDesc, failures, blocks]);
 
   const removeFailure = useCallback(
     (id: string) => {
       const newF = failures.filter((f) => f.id !== id);
       setFailures(newF);
-      setFailureImpacts(newF.length > 0 ? failureImpacts.filter((i) => i.failureEvent.id !== id) : []);
+      setFailureImpacts(
+        newF.length > 0 ? failureImpacts.filter((i) => i.failureEvent.id !== id) : [],
+      );
     },
     [failures, failureImpacts],
   );
@@ -178,7 +169,7 @@ export function useFailureManagement(
         settings: { nikufra_data: nikufraData },
       });
 
-      const mvs = ((response.auto_moves ?? []) as unknown as MoveAction[]);
+      const mvs = (response.auto_moves ?? []) as unknown as MoveAction[];
       for (const mv of mvs) applyMove(mv.opId, mv.toM);
       useToastStore
         .getState()

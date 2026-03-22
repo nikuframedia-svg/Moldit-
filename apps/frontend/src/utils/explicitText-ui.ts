@@ -2,7 +2,7 @@
 //  explicitText-ui.ts — Empty states, confirmations, toasts
 // ═══════════════════════════════════════════════════════════
 
-import type { EmptyStateText, ConfirmationText } from './explicitText';
+import type { ConfirmationText, EmptyStateText } from './explicitText';
 
 // ── Empty States ────────────────────────────────────────────
 
@@ -91,8 +91,7 @@ export function confirmationText(
       return {
         title: `Registar paragem${targetMachine ? ` — ${targetMachine}` : ''}`,
         detail: 'A máquina será marcada como parada no plano actual.',
-        consequence:
-          'O PP1 vai recalcular o plano e propor redistribuição de carga.',
+        consequence: 'O PP1 vai recalcular o plano e propor redistribuição de carga.',
       };
     default:
       return {
@@ -105,10 +104,7 @@ export function confirmationText(
 
 // ── Badge Tooltip ───────────────────────────────────────────
 
-export function badgeTooltip(
-  module: 'materials' | 'alerts' | 'plan',
-  count: number,
-): string {
+export function badgeTooltip(module: 'materials' | 'alerts' | 'plan', count: number): string {
   if (count === 0) return '';
 
   switch (module) {
@@ -123,11 +119,7 @@ export function badgeTooltip(
 
 // ── Trade-off Text ──────────────────────────────────────────
 
-export function tradeoffText(
-  action: string,
-  benefit: string,
-  cost: string,
-): string {
+export function tradeoffText(action: string, benefit: string, cost: string): string {
   return `${action}: ${benefit}. ${cost}.`;
 }
 
@@ -149,7 +141,7 @@ export function toastMessage(
     case 'replan_applied':
       return count && targetMachine
         ? `Feito. ${count} lote${count > 1 ? 's' : ''} movido${count > 1 ? 's' : ''} para ${targetMachine}.${otdDelta ? ` OTD-D ${otdDelta > 0 ? '+' : ''}${otdDelta.toFixed(0)}%.` : ''}`
-        : detail ?? 'Plano actualizado com sucesso.';
+        : (detail ?? 'Plano actualizado com sucesso.');
     case 'whatif_applied':
       return `Cenario aplicado.${otdDelta ? ` OTD-D ${otdDelta > 0 ? '+' : ''}${otdDelta.toFixed(0)}%.` : ''}`;
     case 'andon_started':

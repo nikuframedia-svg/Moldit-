@@ -105,7 +105,7 @@ export function computeCTPScenarios(
     const extDay = Math.min(targetDay + 7, engine.dates.length - 1);
     if (extDay > targetDay) {
       const extResult = computeCTPSku({ sku, quantity: qty, targetDay: extDay }, mrp, engine);
-      if (extResult && extResult.feasible && extResult.earliestFeasibleDay != null) {
+      if (extResult?.feasible && extResult.earliestFeasibleDay != null) {
         const alreadyHasBetter = scenarios.some(
           (s) =>
             s.id !== 'infeasible' &&

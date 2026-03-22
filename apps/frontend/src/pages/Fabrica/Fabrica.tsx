@@ -1,17 +1,13 @@
-import React, { useCallback, useMemo } from 'react';
-import { Collapsible } from '../../components/Common/Collapsible';
+import { useCallback, useMemo } from 'react';
 import { EmptyState } from '../../components/Common/EmptyState';
-import { HeatmapLegend } from '../../components/Common/HeatmapLegend';
 import { SkeletonCard, SkeletonTable } from '../../components/Common/SkeletonLoader';
 import { StatusBanner } from '../../components/Common/StatusBanner';
-import { Term } from '../../components/Common/Tooltip';
 import { useScheduleData } from '../../hooks/useScheduleData';
-import type { DayLoad } from '../../lib/engine';
 import { C, DAY_CAP, opsByDayFromWorkforce } from '../../lib/engine';
 import { useUIStore } from '../../stores/useUIStore';
-import { gridDensityVars, showDetailedCells } from '../../utils/gridDensity';
-import { utilColor } from '../../utils/utilColor';
+import { FabricaLoadHeatmap } from './FabricaLoadHeatmap';
 import { FabricaMachineCards } from './FabricaMachineCards';
+import { FabricaOperatorTable } from './FabricaOperatorTable';
 import './Fabrica.css';
 
 export function Fabrica() {
@@ -187,175 +183,26 @@ export function Fabrica() {
       />
 
       {/* Section 2: Full Load Heatmap */}
-      <div className="fab__section-card">
-        <div style={{ fontSize: 12, fontWeight: 600, color: C.t1, marginBottom: 8 }}>
-          Mapa de Cargas
-        </div>
-        <HeatmapLegend />
-        <div
-          className="fab__heatmap-full"
-          style={
-            {
-              gridTemplateColumns: `72px repeat(${wdi.length}, 1fr)`,
-              '--n-days': wdi.length,
-              ...gridDensityVars(wdi.length),
-            } as React.CSSProperties
-          }
-        >
-          <div className="fab__hf-corner" />
-          {wdi.map((i, pos) => {
-            const isWeekBorder = pos > 0 && engine.dnames[i]?.toLowerCase() === 'seg';
-            return (
-              <div
-                key={i}
-                className={`fab__hf-header${isWeekBorder ? ' fab__hf-header--week-start' : ''}`}
-              >
-                <span style={{ fontWeight: 600 }}>{engine.dnames[i]}</span>
-                <span style={{ color: C.t3 }}>
-                  {wdi.length > 30 ? engine.dates[i]?.slice(0, 2) : engine.dates[i]}
-                </span>
-              </div>
-            );
-          })}
-          {engine.machines.map((m) => {
-            const mc = cap[m.id] || [];
-            const detailed = showDetailedCells(wdi.length);
-            return (
-              <React.Fragment key={m.id}>
-                <div
-                  className="fab__hf-label fab__hf-label--clickable"
-                  onClick={() => handleMachineClick(m.id)}
-                  data-testid={`fab-hm-label-${m.id}`}
-                >
-                  <span
-                    style={{
-                      fontFamily: "'JetBrains Mono',monospace",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: C.t1,
-                    }}
-                  >
-                    {m.id}
-                  </span>
-                  <span style={{ fontSize: 12, color: C.t3 }}>{m.area}</span>
-                </div>
-                {wdi.map((i, pos) => {
-                  const d: DayLoad = mc[i] || { prod: 0, setup: 0, ops: 0, pcs: 0, blk: 0 };
-                  const total = d.prod + d.setup;
-                  const u = total / DAY_CAP;
-                  const isWeekBorder = pos > 0 && engine.dnames[i]?.toLowerCase() === 'seg';
-                  return (
-                    <div
-                      key={i}
-                      className={`fab__hf-cell fab__hf-cell--clickable${isWeekBorder ? ' fab__hf-cell--week-start' : ''}`}
-                      style={{
-                        background: utilColor(u),
-                        ...(d.blk > 0 ? { borderLeft: '2px solid var(--semantic-red)' } : {}),
-                      }}
-                      onClick={() => handleCellClick(m.id, i)}
-                      title={`${m.id} ${engine.dnames[i]} ${engine.dates[i]}: ${Math.round(total)}min (${(u * 100).toFixed(0)}%) — ${d.pcs} pcs${d.blk > 0 ? `, ${d.blk} bloqueada(s)` : ''}`}
-                      data-testid={`fab-hm-cell-${m.id}-${i}`}
-                    >
-                      <span className="fab__hf-val">
-                        {detailed ? Math.round(total) : `${(u * 100).toFixed(0)}%`}
-                      </span>
-                      {detailed && (
-                        <span className="fab__hf-sub">
-                          {(u * 100).toFixed(0)}% · {d.pcs} pcs
-                        </span>
-                      )}
-                      {detailed && d.setup > 0 && (
-                        <span style={{ fontSize: 7, color: C.pp }}>{Math.round(d.setup)}m</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </React.Fragment>
-            );
-          })}
-          {/* Total row */}
-          <div className="fab__hf-label" style={{ borderTop: `1px solid ${C.bd}` }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.t2 }}>TOTAL</span>
-          </div>
-          {dailyTotals.map((t, idx) => (
-            <div key={idx} className="fab__hf-cell" style={{ borderTop: `1px solid ${C.bd}` }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.t1 }}>{Math.round(t)}</span>
-              <span style={{ fontSize: 12, color: C.t3 }}>
-                {((t / factoryCap) * 100).toFixed(0)}%
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <FabricaLoadHeatmap
+        machines={engine.machines}
+        cap={cap}
+        wdi={wdi}
+        dnames={engine.dnames}
+        dates={engine.dates}
+        dailyTotals={dailyTotals}
+        factoryCap={factoryCap}
+        onMachineClick={handleMachineClick}
+        onCellClick={handleCellClick}
+      />
 
       {/* Section 3: Operator Demand */}
-      <div className="fab__section-card">
-        <Collapsible title="Operadores por Dia" defaultOpen={true}>
-          <table className="fab__op-table">
-            <thead>
-              <tr>
-                <th>Dia</th>
-                <th>Data</th>
-                <th style={{ textAlign: 'right' }}>
-                  <Term code="PG1" />
-                </th>
-                <th style={{ textAlign: 'right' }}>
-                  Cap <Term code="PG1" />
-                </th>
-                <th style={{ textAlign: 'right' }}>
-                  <Term code="PG2" />
-                </th>
-                <th style={{ textAlign: 'right' }}>
-                  Cap <Term code="PG2" />
-                </th>
-                <th style={{ textAlign: 'right' }}>Total</th>
-                <th style={{ textAlign: 'right' }}>Cap</th>
-                <th style={{ textAlign: 'center' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {wdi.map((di) => {
-                const od = opsByDay[di];
-                if (!od) return null;
-                const cp1 = engine.mo?.PG1[di] ?? 4;
-                const cp2 = engine.mo?.PG2[di] ?? 4;
-                const totalCap = cp1 + cp2;
-                const over = od.total > totalCap;
-                return (
-                  <tr key={di} style={{ color: over ? C.rd : undefined }}>
-                    <td style={{ fontWeight: 600 }}>{engine.dnames[di]}</td>
-                    <td>{engine.dates[di]}</td>
-                    <td style={{ textAlign: 'right' }}>{od.pg1}</td>
-                    <td style={{ textAlign: 'right', color: C.t3 }}>{cp1.toFixed(1)}</td>
-                    <td style={{ textAlign: 'right' }}>{od.pg2}</td>
-                    <td style={{ textAlign: 'right', color: C.t3 }}>{cp2.toFixed(1)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{od.total}</td>
-                    <td style={{ textAlign: 'right', color: C.t3 }}>{totalCap.toFixed(1)}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      {over ? (
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: C.rd,
-                            background: C.rdS,
-                            padding: '1px 4px',
-                            borderRadius: 3,
-                          }}
-                        >
-                          OVER
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: 12, color: C.ac }}>OK</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </Collapsible>
-      </div>
+      <FabricaOperatorTable
+        wdi={wdi}
+        dnames={engine.dnames}
+        dates={engine.dates}
+        opsByDay={opsByDay}
+        mo={engine.mo}
+      />
     </div>
   );
 }

@@ -32,10 +32,7 @@ export function OperationsDrawer({
     () => blocks.filter((b) => b.dayIdx === dayIdx && b.type !== 'blocked'),
     [blocks, dayIdx],
   );
-  const machineCount = useMemo(
-    () => new Set(dayBlocks.map((b) => b.machineId)).size,
-    [dayBlocks],
-  );
+  const machineCount = useMemo(() => new Set(dayBlocks.map((b) => b.machineId)).size, [dayBlocks]);
 
   return (
     <Drawer

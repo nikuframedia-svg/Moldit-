@@ -57,7 +57,7 @@ export function DecisionAudit({
                   borderRadius: 4,
                   fontSize: 12,
                   fontWeight: 600,
-                  background: DECISION_CATEGORY_COLORS[catKey] + '15',
+                  background: `${DECISION_CATEGORY_COLORS[catKey]}15`,
                   color: DECISION_CATEGORY_COLORS[catKey],
                 }}
               >
@@ -98,7 +98,7 @@ export function DecisionAudit({
                 fontFamily: 'inherit',
                 fontSize: 12,
                 fontWeight: 600,
-                background: decFilter === 'all' ? C.ac + '25' : C.s1,
+                background: decFilter === 'all' ? `${C.ac}25` : C.s1,
                 color: decFilter === 'all' ? C.ac : C.t3,
               }}
             >
@@ -120,7 +120,7 @@ export function DecisionAudit({
                     fontSize: 12,
                     fontWeight: 600,
                     background:
-                      decFilter === catKey ? DECISION_CATEGORY_COLORS[catKey] + '25' : C.s1,
+                      decFilter === catKey ? `${DECISION_CATEGORY_COLORS[catKey]}25` : C.s1,
                     color: decFilter === catKey ? DECISION_CATEGORY_COLORS[catKey] : C.t3,
                   }}
                 >

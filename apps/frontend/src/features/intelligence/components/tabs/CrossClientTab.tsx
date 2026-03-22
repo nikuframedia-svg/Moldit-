@@ -19,7 +19,7 @@ export function CrossClientView({ data }: { data: IntelData }) {
           { label: 'Cross-Client SKUs', value: crossClient.length, color: C.pp },
           {
             label: 'Total Demand',
-            value: fmtQty(crossClient.reduce((s, c) => s + c.totalDemand, 0)) + ' pcs',
+            value: `${fmtQty(crossClient.reduce((s, c) => s + c.totalDemand, 0))} pcs`,
           },
           {
             label: 'Clients Involved',

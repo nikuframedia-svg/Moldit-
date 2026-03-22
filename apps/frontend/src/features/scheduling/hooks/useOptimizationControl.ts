@@ -3,6 +3,8 @@
  */
 
 import { useCallback, useState } from 'react';
+import { getCachedNikufraData } from '../../../hooks/useScheduleData';
+import { scheduleOptimizeApi } from '../../../lib/api';
 import type {
   Block,
   EngineData,
@@ -11,8 +13,6 @@ import type {
   ObjectiveProfile,
   OptResult,
 } from '../../../lib/engine';
-import { scheduleOptimizeApi } from '../../../lib/api';
-import { getCachedNikufraData } from '../../../hooks/useScheduleData';
 import { useToastStore } from '../../../stores/useToastStore';
 
 export interface OptimizationState {
@@ -110,7 +110,7 @@ export function useOptimizationControl(
           setupByShift: { X: 0, Y: 0, Z: 0 },
           capByMachine: {},
           workforceDemand: [],
-          label: `Alt ${String.fromCharCode(65 + (response.alternatives.indexOf(alt)))}`,
+          label: `Alt ${String.fromCharCode(65 + response.alternatives.indexOf(alt))}`,
           deadlineFeasible: true,
         };
       });

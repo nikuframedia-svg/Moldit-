@@ -49,11 +49,14 @@ export function MachineDownPicker({
           return (
             <button
               key={m.id}
-              onClick={() => { setSelectedMachine(isSel ? null : m.id); setSelectedDuration(null); }}
+              onClick={() => {
+                setSelectedMachine(isSel ? null : m.id);
+                setSelectedDuration(null);
+              }}
               style={{
                 padding: '10px 16px',
                 borderRadius: 8,
-                border: `1.5px solid ${isSel ? C.rd + '66' : C.bd}`,
+                border: `1.5px solid ${isSel ? `${C.rd}66` : C.bd}`,
                 background: isSel ? C.rdS : 'transparent',
                 cursor: 'pointer',
                 fontFamily: 'monospace',
@@ -74,7 +77,9 @@ export function MachineDownPicker({
 
       {selectedMachine && (
         <>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.t1, marginBottom: 8, marginTop: 4 }}>
+          <div
+            style={{ fontSize: 13, fontWeight: 600, color: C.t1, marginBottom: 8, marginTop: 4 }}
+          >
             Duração estimada da paragem
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -88,7 +93,7 @@ export function MachineDownPicker({
                   style={{
                     padding: '8px 14px',
                     borderRadius: 8,
-                    border: `1.5px solid ${isSel ? C.rd + '66' : C.bd}`,
+                    border: `1.5px solid ${isSel ? `${C.rd}66` : C.bd}`,
                     background: isSel ? C.rdS : 'transparent',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
@@ -139,10 +144,16 @@ export function MachineDownPicker({
             padding: '10px 14px',
             borderRadius: 8,
             background: replanResult.emergencyNightShift ? C.rdS : C.acS,
-            border: `1px solid ${replanResult.emergencyNightShift ? C.rd + '33' : C.ac + '33'}`,
+            border: `1px solid ${replanResult.emergencyNightShift ? `${C.rd}33` : `${C.ac}33`}`,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, color: replanResult.emergencyNightShift ? C.rd : C.ac }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: replanResult.emergencyNightShift ? C.rd : C.ac,
+            }}
+          >
             Camada {replanResult.layer}: {LAYER_LABELS[replanResult.layer]}
           </div>
           <div style={{ fontSize: 12, color: C.t2, marginTop: 4 }}>

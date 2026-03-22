@@ -10,8 +10,8 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from ..constants import DAY_CAP
-from ..overflow.overflow_helpers import cap_analysis
 from ..types import Block, EMachine, EOp, ETool, MoveAction
+from .cap_analysis import cap_analysis
 
 DecisionSeverity = Literal["critical", "high", "medium", "low"]
 DecisionKind = Literal["replan", "blocked"]
@@ -91,9 +91,12 @@ def gen_decisions(
             + (2 if total_pcs > 20000 else 1 if total_pcs > 5000 else 0)
         )
         severity: str = (
-            "critical" if sev_score >= 5
-            else "high" if sev_score >= 3
-            else "medium" if sev_score >= 1
+            "critical"
+            if sev_score >= 5
+            else "high"
+            if sev_score >= 3
+            else "medium"
+            if sev_score >= 1
             else "low"
         )
         reasoning: list[str] = []
@@ -102,17 +105,19 @@ def gen_decisions(
             reasoning.append(f"Ferramenta {b.tool_id} AVARIADA.")
             if op.atr > 0:
                 reasoning.append(f"Backlog: {_fmt_num(op.atr)} pcs.")
-            decs.append(ReplanProposal(
-                id=f"D_{b.op_id}_TF",
-                op_id=b.op_id,
-                type="blocked",
-                severity="critical" if op.atr > 0 else "high",
-                title=f"{b.tool_id} avariada",
-                desc=f"{b.nm} ({b.sku})",
-                reasoning=reasoning,
-                impact={"pcsLost": total_pcs, "hrsLost": f"{total_h:.1f}"},
-                action=None,
-            ))
+            decs.append(
+                ReplanProposal(
+                    id=f"D_{b.op_id}_TF",
+                    op_id=b.op_id,
+                    type="blocked",
+                    severity="critical" if op.atr > 0 else "high",
+                    title=f"{b.tool_id} avariada",
+                    desc=f"{b.nm} ({b.sku})",
+                    reasoning=reasoning,
+                    impact={"pcsLost": total_pcs, "hrsLost": f"{total_h:.1f}"},
+                    action=None,
+                )
+            )
             continue
 
         reasoning.append(f"Máquina {b.orig_m} DOWN → {b.tool_id}/{b.sku} afetada.")
@@ -123,24 +128,24 @@ def gen_decisions(
             if not has_stk:
                 reasoning.append("STOCK ZERO → paragem.")
             else:
-                reasoning.append(
-                    f"Buffer: {_fmt_num(tool.stk)} pcs (≈{stk_days:.1f}d)."
+                reasoning.append(f"Buffer: {_fmt_num(tool.stk)} pcs (≈{stk_days:.1f}d).")
+            decs.append(
+                ReplanProposal(
+                    id=f"D_{b.op_id}_NA",
+                    op_id=b.op_id,
+                    type="blocked",
+                    severity="critical" if not has_stk else severity,
+                    title=f"{b.tool_id} sem alternativa",
+                    desc=b.nm,
+                    reasoning=reasoning,
+                    impact={
+                        "pcsLost": total_pcs,
+                        "hrsLost": f"{total_h:.1f}",
+                        "stkDays": f"{stk_days:.1f}",
+                    },
+                    action=None,
                 )
-            decs.append(ReplanProposal(
-                id=f"D_{b.op_id}_NA",
-                op_id=b.op_id,
-                type="blocked",
-                severity="critical" if not has_stk else severity,
-                title=f"{b.tool_id} sem alternativa",
-                desc=b.nm,
-                reasoning=reasoning,
-                impact={
-                    "pcsLost": total_pcs,
-                    "hrsLost": f"{total_h:.1f}",
-                    "stkDays": f"{stk_days:.1f}",
-                },
-                action=None,
-            ))
+            )
             continue
 
         candidates: list[str] = []
@@ -149,17 +154,19 @@ def gen_decisions(
 
         if not candidates:
             reasoning.append(f"Alt. {b.alt_m} TAMBÉM DOWN.")
-            decs.append(ReplanProposal(
-                id=f"D_{b.op_id}_AD",
-                op_id=b.op_id,
-                type="blocked",
-                severity="critical",
-                title=f"{b.tool_id}: ambas DOWN",
-                desc=b.nm,
-                reasoning=reasoning,
-                impact={"pcsLost": total_pcs, "hrsLost": f"{total_h:.1f}"},
-                action=None,
-            ))
+            decs.append(
+                ReplanProposal(
+                    id=f"D_{b.op_id}_AD",
+                    op_id=b.op_id,
+                    type="blocked",
+                    severity="critical",
+                    title=f"{b.tool_id}: ambas DOWN",
+                    desc=b.nm,
+                    reasoning=reasoning,
+                    impact={"pcsLost": total_pcs, "hrsLost": f"{total_h:.1f}"},
+                    action=None,
+                )
+            )
             continue
 
         # Score candidates using RUNNING capacity
@@ -177,39 +184,35 @@ def gen_decisions(
                 first_prod_day = next((i for i, v in enumerate(op.d) if v > 0), 0)
                 add_setup = setup_min_val if di == first_prod_day or di == 0 else 0
                 total = dc["prod"] + dc["setup"] + add_prod + add_setup
-                d_load.append({
-                    "day": di,
-                    "current": dc["prod"] + dc["setup"],
-                    "added": add_prod + add_setup,
-                    "total": total,
-                    "util": total / DAY_CAP if DAY_CAP > 0 else 0,
-                })
+                d_load.append(
+                    {
+                        "day": di,
+                        "current": dc["prod"] + dc["setup"],
+                        "added": add_prod + add_setup,
+                        "total": total,
+                        "util": total / DAY_CAP if DAY_CAP > 0 else 0,
+                    }
+                )
 
             peak = max((dl["util"] for dl in d_load), default=0)
             over_days = [dl for dl in d_load if dl["util"] > 1.0]
-            shared_mp = (
-                tool.mp is not None
-                and any(
-                    t2.mp == tool.mp
-                    and t2.id != tool.id
-                    and (t2.m == c_id or t2.alt == c_id)
-                    for t2 in tools
-                )
+            shared_mp = tool.mp is not None and any(
+                t2.mp == tool.mp and t2.id != tool.id and (t2.m == c_id or t2.alt == c_id)
+                for t2 in tools
             )
             score = (
-                peak * 100
-                + len(over_days) * 50
-                + setup_min_val * 0.1
-                - (30 if shared_mp else 0)
+                peak * 100 + len(over_days) * 50 + setup_min_val * 0.1 - (30 if shared_mp else 0)
             )
-            scored.append({
-                "mId": c_id,
-                "dLoad": d_load,
-                "peak": peak,
-                "overDays": over_days,
-                "sharedMP": shared_mp,
-                "score": score,
-            })
+            scored.append(
+                {
+                    "mId": c_id,
+                    "dLoad": d_load,
+                    "peak": peak,
+                    "overDays": over_days,
+                    "sharedMP": shared_mp,
+                    "score": score,
+                }
+            )
 
         scored.sort(key=lambda s: s["score"])
         best = scored[0]
@@ -227,18 +230,13 @@ def gen_decisions(
 
         reasoning.append(f"Alt. disponível: {best['mId']}.")
         if best["overDays"]:
-            prior_count = sum(
-                1 for d in decs
-                if d.action and d.action.get("toM") == best["mId"]
-            )
+            prior_count = sum(1 for d in decs if d.action and d.action.get("toM") == best["mId"])
             reasoning.append(
                 f"{best['mId']} sobrecarga {len(best['overDays'])}d "
                 f"(inclui {prior_count} ops já propostas)."
             )
         else:
-            reasoning.append(
-                f"Capacidade {best['mId']}: pico {best['peak'] * 100:.0f}% — OK."
-            )
+            reasoning.append(f"Capacidade {best['mId']}: pico {best['peak'] * 100:.0f}% — OK.")
         reasoning.append(f"Setup: +{setup_min_val:.0f}min ({tool.sH}h).")
         if best["sharedMP"]:
             reasoning.append(f"MP {tool.mp} partilhada — agrupar.")
@@ -248,30 +246,32 @@ def gen_decisions(
             reasoning.append("STOCK ZERO — OTD em risco.")
         reasoning.append(f"→ Mover {b.tool_id} → {best['mId']}.")
 
-        decs.append(ReplanProposal(
-            id=f"D_{b.op_id}_RP",
-            op_id=b.op_id,
-            type="replan",
-            severity=severity,
-            title=f"{b.tool_id} → {best['mId']}",
-            desc=f"{b.nm} ({b.sku})",
-            reasoning=reasoning,
-            impact={
-                "fromM": b.orig_m,
-                "toM": best["mId"],
-                "setupMin": setup_min_val,
-                "pcs": total_pcs,
-                "hrs": f"{total_h:.1f}",
-                "destPeak": f"{best['peak'] * 100:.0f}",
-                "overDays": len(best["overDays"]),
-                "ops": tool.op,
-                "stockRisk": not has_stk and tool.lt > 0,
-                "atr": op.atr,
-                "sharedMP": best["sharedMP"],
-                "dLoad": best["dLoad"],
-            },
-            action={"opId": b.op_id, "toM": best["mId"]},
-        ))
+        decs.append(
+            ReplanProposal(
+                id=f"D_{b.op_id}_RP",
+                op_id=b.op_id,
+                type="replan",
+                severity=severity,
+                title=f"{b.tool_id} → {best['mId']}",
+                desc=f"{b.nm} ({b.sku})",
+                reasoning=reasoning,
+                impact={
+                    "fromM": b.orig_m,
+                    "toM": best["mId"],
+                    "setupMin": setup_min_val,
+                    "pcs": total_pcs,
+                    "hrs": f"{total_h:.1f}",
+                    "destPeak": f"{best['peak'] * 100:.0f}",
+                    "overDays": len(best["overDays"]),
+                    "ops": tool.op,
+                    "stockRisk": not has_stk and tool.lt > 0,
+                    "atr": op.atr,
+                    "sharedMP": best["sharedMP"],
+                    "dLoad": best["dLoad"],
+                },
+                action={"opId": b.op_id, "toM": best["mId"]},
+            )
+        )
 
     # Lote económico warnings
     for b in blocks:
@@ -279,20 +279,22 @@ def gen_decisions(
             tool = tool_map.get(b.tool_id)
             if not tool:
                 continue
-            decs.append(ReplanProposal(
-                id=f"D_{b.op_id}_LT",
-                op_id=b.op_id,
-                type="replan",
-                severity="low",
-                title=f"{b.sku} abaixo lote econ.",
-                desc=f"{_fmt_num(b.qty)} < {_fmt_num(tool.lt)} pcs",
-                reasoning=[
-                    f"Qty {_fmt_num(b.qty)} abaixo lote económico {_fmt_num(tool.lt)}.",
-                    "Considerar agrupar com próxima encomenda.",
-                ],
-                impact={"qty": b.qty, "lotEconomic": tool.lt},
-                action=None,
-            ))
+            decs.append(
+                ReplanProposal(
+                    id=f"D_{b.op_id}_LT",
+                    op_id=b.op_id,
+                    type="replan",
+                    severity="low",
+                    title=f"{b.sku} abaixo lote econ.",
+                    desc=f"{_fmt_num(b.qty)} < {_fmt_num(tool.lt)} pcs",
+                    reasoning=[
+                        f"Qty {_fmt_num(b.qty)} abaixo lote económico {_fmt_num(tool.lt)}.",
+                        "Considerar agrupar com próxima encomenda.",
+                    ],
+                    impact={"qty": b.qty, "lotEconomic": tool.lt},
+                    action=None,
+                )
+            )
 
     sev_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 

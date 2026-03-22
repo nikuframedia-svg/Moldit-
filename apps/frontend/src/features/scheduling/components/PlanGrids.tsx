@@ -61,7 +61,7 @@ export function QuickReplan({
             padding: '8px 12px',
             borderRadius: 6,
             background: arSummary.actions.length > 0 ? C.s1 : C.acS,
-            border: `1px solid ${arSummary.actions.length > 0 ? C.bd : C.ac + '33'}`,
+            border: `1px solid ${arSummary.actions.length > 0 ? C.bd : `${C.ac}33`}`,
           }}
         >
           {arSummary.actions.length === 0 ? (

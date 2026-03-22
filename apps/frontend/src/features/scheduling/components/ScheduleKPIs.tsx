@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { useClassifications } from '../../../hooks/useClassifications';
 import type {
   Block,
   CoverageAuditResult,
@@ -7,7 +8,6 @@ import type {
   EngineData,
 } from '../../../lib/engine';
 import { C } from '../../../lib/engine';
-import { useClassifications } from '../../../hooks/useClassifications';
 import type { FeasibilitySummary } from '../hooks/useScheduleValidation';
 import { Card } from './atoms';
 import { DecisionAudit } from './DecisionAudit';
@@ -73,20 +73,25 @@ export function PlanView({
     u === 0
       ? 'transparent'
       : u < 0.3
-        ? C.ac + '15'
+        ? `${C.ac}15`
         : u < 0.6
-          ? C.ac + '25'
+          ? `${C.ac}25`
           : u < 0.85
-            ? C.yl + '25'
+            ? `${C.yl}25`
             : u < 1
-              ? C.yl + '40'
-              : C.rd + '35';
+              ? `${C.yl}40`
+              : `${C.rd}35`;
 
   const { definitionCounts } = useClassifications();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <KPISummaryCards blocks={blocks} data={data} audit={audit} definitionCounts={definitionCounts} />
+      <KPISummaryCards
+        blocks={blocks}
+        data={data}
+        audit={audit}
+        definitionCounts={definitionCounts}
+      />
 
       {audit && (
         <AuditBanner
@@ -156,7 +161,7 @@ function AuditBanner({
         padding: '10px 14px',
         borderRadius: 8,
         background: audit.isComplete ? C.acS : C.rdS,
-        border: `1px solid ${audit.isComplete ? C.ac + '33' : C.rd + '33'}`,
+        border: `1px solid ${audit.isComplete ? `${C.ac}33` : `${C.rd}33`}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',

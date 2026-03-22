@@ -24,7 +24,7 @@
 
 @media (max-width: 768px) {
   .app-layout__main {
-    margin-left: 0 !important;
+    margin-left: 0;
   }
 }
 
@@ -118,18 +118,18 @@
 }
 
 .app-header .ant-breadcrumb a {
-  color: var(--text-muted) !important;
+  color: var(--text-muted);
   transition: color var(--transition-fast);
 }
 
 .app-header .ant-breadcrumb a:hover {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .app-header .ant-breadcrumb li:last-child span {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .app-header .ant-breadcrumb-separator {
-  color: var(--text-ghost) !important;
+  color: var(--text-ghost);
 }

@@ -98,7 +98,7 @@ export function DecisionItem({
             {d.reversible && (
               <span
                 style={{
-                  fontSize: 7,
+                  fontSize: 12,
                   padding: '1px 4px',
                   borderRadius: 3,
                   background: C.acS,

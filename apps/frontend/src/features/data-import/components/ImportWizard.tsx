@@ -119,12 +119,8 @@ export function ImportWizard({ open, presets, onClose }: ImportWizardProps) {
         <div className="import-wizard__step">
           <p className="import-wizard__text">Cliente com mais encomendas:</p>
           <div className="import-wizard__client-badge">
-            <span className="import-wizard__client-name">
-              {topClient.name || topClient.id}
-            </span>
-            <span className="import-wizard__client-count">
-              {topClient.orderCount} operações
-            </span>
+            <span className="import-wizard__client-name">{topClient.name || topClient.id}</span>
+            <span className="import-wizard__client-count">{topClient.orderCount} operações</span>
           </div>
           <p className="import-wizard__text">Definir como prioridade maxima?</p>
           <div className="import-wizard__actions">

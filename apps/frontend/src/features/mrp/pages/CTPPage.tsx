@@ -1,64 +1,59 @@
 /**
  * CTPPage — Capable-to-Promise standalone page with 3-scenario simulation.
  * Route: /mrp/ctp
+ * Uses backend POST /v1/schedule/ctp — no client-side CTP computation.
  */
 
-import { AlertTriangle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
-import { useScheduleData } from '@/hooks/useScheduleData';
+import { getCachedNikufraData, useScheduleData } from '@/hooks/useScheduleData';
+import type { CTPApiScenario } from '@/lib/api';
+import { scheduleCTPApi } from '@/lib/api';
 import { C } from '@/lib/engine';
 import { useDataStore } from '@/stores/useDataStore';
 import { CTPChart } from '../components/CTPChart';
+import { CTPCommitmentsTable } from '../components/CTPCommitmentsTable';
 import { CTPForm } from '../components/CTPForm';
 import { CTPScenarioCard } from '../components/CTPScenarioCard';
+import { CTPTrustWarning } from '../components/CTPTrustWarning';
 import { KCard } from '../components/KCard';
 import type { CTPCommitment } from '../utils/ctp-compute';
-import { computeConfidenceInterval, computeCTPScenarios } from '../utils/ctp-compute';
-import { fmtQty, mono } from '../utils/mrp-helpers';
+import { computeConfidenceInterval } from '../utils/ctp-compute';
 
-function TrustWarning({ score }: { score: number }) {
-  if (score >= 0.7) return null;
-  return (
-    <div
-      style={{
-        padding: '6px 12px',
-        background: `${C.yl}14`,
-        border: `1px solid ${C.yl}30`,
-        borderRadius: 4,
-        fontSize: 12,
-        color: C.yl,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 12,
-      }}
-    >
-      <AlertTriangle size={12} />
-      TrustIndex baixo ({(score * 100).toFixed(0)}%) — resultados CTP com menor fiabilidade
-    </div>
-  );
-}
-
-function CommitmentRow({ c }: { c: CTPCommitment }) {
-  return (
-    <tr>
-      <td style={{ ...mono, fontSize: 12, color: C.t1 }}>{c.sku}</td>
-      <td style={{ fontSize: 12, color: C.t2 }}>{c.customer ?? '-'}</td>
-      <td style={{ ...mono, fontSize: 12, color: C.t1, textAlign: 'right' }}>
-        {fmtQty(c.quantity)}
-      </td>
-      <td style={{ ...mono, fontSize: 12, color: C.ac }}>{c.promisedDate}</td>
-      <td style={{ ...mono, fontSize: 12, color: C.t2 }}>{c.machine}</td>
-      <td style={{ ...mono, fontSize: 12, color: C.t3 }}>{c.confidencePercent}%</td>
-    </tr>
-  );
+/** Map backend CTPApiScenario to the shape CTPScenarioCard expects. */
+function toScenarioCardProps(s: CTPApiScenario) {
+  return {
+    id: s.id as 'best' | 'tradeoff' | 'infeasible',
+    label: s.label,
+    machine: s.machine,
+    isAlt: s.is_alt,
+    dateLabel: s.date_label,
+    result: {
+      feasible: s.feasible,
+      earliestFeasibleDay: s.earliest_feasible_day,
+      requiredMin: s.required_min,
+      availableMinOnDay: s.available_min_on_day,
+      capacitySlack: s.capacity_slack,
+      confidence: s.confidence,
+      reason: s.reason,
+      machine: s.machine,
+      toolCode: '',
+      projectedStockOnDay: 0,
+      stockAfterOrder: 0,
+      capacityTimeline: s.capacity_timeline.map((c) => ({
+        dayIndex: c.day_index,
+        existingLoad: c.existing_load,
+        newOrderLoad: c.new_order_load,
+        capacity: c.capacity,
+      })),
+    },
+  };
 }
 
 export function CTPPage() {
-  const { engine, mrp, loading, error } = useScheduleData();
+  const { engine, loading, error } = useScheduleData();
   const trustScore = useDataStore((s) => s.meta?.trustScore) ?? 0.5;
 
   const [sku, setSku] = useState('');
@@ -66,29 +61,45 @@ export function CTPPage() {
   const [targetDay, setTargetDay] = useState(0);
   const [customer, setCustomer] = useState('');
   const [commitments, setCommitments] = useState<CTPCommitment[]>([]);
+  const [scenarios, setScenarios] = useState<CTPApiScenario[]>([]);
+  const [ctpLoading, setCtpLoading] = useState(false);
   const [ran, setRan] = useState(false);
 
-  const scenarios = useMemo(() => {
-    if (!ran || !sku || !mrp || !engine) return [];
-    return computeCTPScenarios(sku, qty, targetDay, mrp, engine);
-  }, [ran, sku, qty, targetDay, mrp, engine]);
+  const handleRun = useCallback(async () => {
+    if (!sku || qty <= 0) return;
+    const nikufraData = getCachedNikufraData();
+    if (!nikufraData) return;
 
-  const bestScenario = scenarios.find((s) => s.result.feasible) ?? scenarios[0] ?? null;
+    setRan(true);
+    setCtpLoading(true);
+    try {
+      const response = await scheduleCTPApi({
+        nikufra_data: nikufraData,
+        sku,
+        quantity: qty,
+        target_day: targetDay,
+      });
+      setScenarios(response.scenarios);
+    } catch {
+      setScenarios([]);
+    } finally {
+      setCtpLoading(false);
+    }
+  }, [sku, qty, targetDay]);
+
+  const scenarioProps = useMemo(() => scenarios.map(toScenarioCardProps), [scenarios]);
+  const bestScenario = scenarioProps.find((s) => s.result.feasible) ?? scenarioProps[0] ?? null;
 
   const confidenceMap = useMemo(() => {
     if (!engine) return new Map<string, ReturnType<typeof computeConfidenceInterval>>();
     const map = new Map<string, ReturnType<typeof computeConfidenceInterval>>();
-    for (const s of scenarios) {
+    for (const s of scenarioProps) {
       map.set(s.id + s.machine, computeConfidenceInterval(s.result, trustScore, engine));
     }
     return map;
-  }, [scenarios, trustScore, engine]);
+  }, [scenarioProps, trustScore, engine]);
 
-  const handleRun = () => {
-    if (sku && qty > 0) setRan(true);
-  };
-
-  const handleCommit = (s: (typeof scenarios)[0]) => {
+  const handleCommit = (s: (typeof scenarioProps)[0]) => {
     if (!engine || s.result.earliestFeasibleDay == null) return;
     const op = engine.ops.find((o) => o.sku === sku);
     const ci = confidenceMap.get(s.id + s.machine);
@@ -115,7 +126,7 @@ export function CTPPage() {
         <SkeletonTable rows={6} cols={4} />
       </div>
     );
-  if (error || !engine || !mrp) {
+  if (error || !engine) {
     return (
       <div style={{ padding: 24 }}>
         <Link to="/mrp" style={{ fontSize: 12, color: C.ac, textDecoration: 'none' }}>
@@ -144,7 +155,7 @@ export function CTPPage() {
         Capable-to-Promise
       </h1>
 
-      <TrustWarning score={trustScore} />
+      <CTPTrustWarning score={trustScore} />
 
       <CTPForm
         engine={engine}
@@ -152,6 +163,7 @@ export function CTPPage() {
         setSku={(v) => {
           setSku(v);
           setRan(false);
+          setScenarios([]);
         }}
         qty={qty}
         setQty={setQty}
@@ -162,7 +174,13 @@ export function CTPPage() {
         onRun={handleRun}
       />
 
-      {ran && scenarios.length > 0 && bestScenario && (
+      {ctpLoading && (
+        <div style={{ padding: 24, textAlign: 'center', color: C.t3, fontSize: 12 }}>
+          A calcular CTP...
+        </div>
+      )}
+
+      {ran && !ctpLoading && scenarioProps.length > 0 && bestScenario && (
         <>
           <div
             className="mrp__kpis"
@@ -212,9 +230,9 @@ export function CTPPage() {
 
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: C.t1, marginBottom: 8 }}>
-              Cenários ({scenarios.length})
+              Cenários ({scenarioProps.length})
             </div>
-            {scenarios.map((s) => (
+            {scenarioProps.map((s) => (
               <CTPScenarioCard
                 key={s.id + s.machine}
                 scenario={s}
@@ -241,36 +259,13 @@ export function CTPPage() {
         </>
       )}
 
-      {ran && scenarios.length === 0 && (
+      {ran && !ctpLoading && scenarioProps.length === 0 && (
         <div style={{ padding: 24, textAlign: 'center', color: C.t3, fontSize: 12 }}>
           SKU não encontrado ou sem dados CTP
         </div>
       )}
 
-      {commitments.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.t1, marginBottom: 8 }}>
-            Compromissos Registados ({commitments.length})
-          </div>
-          <table className="mrp__table">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Cliente</th>
-                <th style={{ textAlign: 'right' }}>Qtd</th>
-                <th>Data Prometida</th>
-                <th>Máquina</th>
-                <th>Confiança</th>
-              </tr>
-            </thead>
-            <tbody>
-              {commitments.map((c) => (
-                <CommitmentRow key={c.id} c={c} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <CTPCommitmentsTable commitments={commitments} />
     </div>
   );
 }

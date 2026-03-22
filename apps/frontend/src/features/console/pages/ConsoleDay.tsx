@@ -210,7 +210,13 @@ export function ConsoleDay() {
           value={`${(dayData.factoryUtil * 100).toFixed(0)}`}
           unit="%"
           statusColor={utilColor(dayData.factoryUtil)}
-          subtitle={formatUtilization(dayData.factoryUtil, dayData.machineLoads.filter((m) => m.utilization > 0).length, dayData.machineLoads.length).qualifier}
+          subtitle={
+            formatUtilization(
+              dayData.factoryUtil,
+              dayData.machineLoads.filter((m) => m.utilization > 0).length,
+              dayData.machineLoads.length,
+            ).qualifier
+          }
         />
       </div>
 
@@ -229,7 +235,19 @@ export function ConsoleDay() {
         <Collapsible title="Em Curso" defaultOpen badge={`${inProgress.length}`}>
           <div className="cday__ops-list">
             {inProgress.map((b) => (
-              <div key={b.opId} className="cday__op-row" role="button" tabIndex={0} onClick={() => handleBlockClick(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBlockClick(b); } }}>
+              <div
+                key={b.opId}
+                className="cday__op-row"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleBlockClick(b)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleBlockClick(b);
+                  }
+                }}
+              >
                 <span className="cday__op-sku">{b.sku}</span>
                 <span className="cday__op-machine">{b.machineId}</span>
                 <span className="cday__op-time">
@@ -249,7 +267,19 @@ export function ConsoleDay() {
         ) : (
           <div className="cday__ops-list">
             {pending.map((b) => (
-              <div key={b.opId} className="cday__op-row" role="button" tabIndex={0} onClick={() => handleBlockClick(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBlockClick(b); } }}>
+              <div
+                key={b.opId}
+                className="cday__op-row"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleBlockClick(b)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleBlockClick(b);
+                  }
+                }}
+              >
                 <span className="cday__op-sku">{b.sku}</span>
                 <span className="cday__op-machine">{b.machineId}</span>
                 <span className="cday__op-time">
@@ -269,7 +299,19 @@ export function ConsoleDay() {
         ) : (
           <div className="cday__ops-list">
             {completed.map((b) => (
-              <div key={b.opId} className="cday__op-row" role="button" tabIndex={0} onClick={() => handleBlockClick(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBlockClick(b); } }}>
+              <div
+                key={b.opId}
+                className="cday__op-row"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleBlockClick(b)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleBlockClick(b);
+                  }
+                }}
+              >
                 <span className="cday__op-sku">{b.sku}</span>
                 <span className="cday__op-machine">{b.machineId}</span>
                 <span className="cday__op-time">

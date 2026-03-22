@@ -88,8 +88,9 @@ export function OptimizationSliders() {
 
       {previewKpis && !isComputing && (
         <div className="opt-sliders__impact" data-testid="sliders-impact">
-          OTD-D {previewKpis.otdPct.toFixed(1)}% · Tardiness {previewKpis.avgTardinessDays.toFixed(1)}
-          d · Setups {Math.round(previewKpis.totalSetupMin)}min
+          OTD-D {previewKpis.otdPct.toFixed(1)}% · Tardiness{' '}
+          {previewKpis.avgTardinessDays.toFixed(1)}d · Setups{' '}
+          {Math.round(previewKpis.totalSetupMin)}min
         </div>
       )}
     </div>

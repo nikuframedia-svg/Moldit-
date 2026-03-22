@@ -79,7 +79,9 @@ export function SchedulingExtras() {
           value={preStartBufferDays}
           min={0}
           max={10}
-          onChange={(e) => setPreStartBufferDays(Math.max(0, Math.min(10, Number(e.target.value) || 0)))}
+          onChange={(e) =>
+            setPreStartBufferDays(Math.max(0, Math.min(10, Number(e.target.value) || 0)))
+          }
           data-testid="pre-start-buffer-days"
           style={{ width: 80 }}
         />
@@ -142,16 +144,23 @@ export function SchedulingExtras() {
               <select
                 className="constraint-toggles__param-select"
                 value={solverObjective}
-                onChange={(e) => setSolverObjective(e.target.value as 'weighted_tardiness' | 'makespan' | 'tardiness')}
+                onChange={(e) =>
+                  setSolverObjective(
+                    e.target.value as 'weighted_tardiness' | 'makespan' | 'tardiness',
+                  )
+                }
                 data-testid="solver-objective"
               >
                 {SOLVER_OBJECTIVES.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
                 ))}
               </select>
             </div>
             <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4, lineHeight: 1.5 }}>
-              CP-SAT e usado para problemas &lt;200 ops. Acima disso, fallback para ATCS client-side.
+              CP-SAT e usado para problemas &lt;200 ops. Acima disso, fallback para ATCS
+              client-side.
             </div>
           </>
         )}

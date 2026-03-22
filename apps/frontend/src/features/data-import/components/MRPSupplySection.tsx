@@ -31,7 +31,7 @@ export function MRPSupplySection() {
           <label className="carregar-dados__param-label">Nivel de servico</label>
           <select
             value={serviceLevel}
-            onChange={(e) => setServiceLevel(parseInt(e.target.value) as ServiceLevelOption)}
+            onChange={(e) => setServiceLevel(parseInt(e.target.value, 10) as ServiceLevelOption)}
             className="carregar-dados__semantics-select"
             data-testid="service-level"
           >
@@ -48,8 +48,8 @@ export function MRPSupplySection() {
             max={7}
             value={coverageThresholdDays}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 1 && n <= 7) setCoverageThresholdDays(n);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 1 && n <= 7) setCoverageThresholdDays(n);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="coverage-threshold"
@@ -68,8 +68,8 @@ export function MRPSupplySection() {
             step={5}
             value={Math.round(abcThresholdA * 100)}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 70 && n <= 90) setABCThresholds(n / 100, abcThresholdB);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 70 && n <= 90) setABCThresholds(n / 100, abcThresholdB);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="abc-a"
@@ -84,8 +84,8 @@ export function MRPSupplySection() {
             step={1}
             value={Math.round(abcThresholdB * 100)}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 90 && n <= 98) setABCThresholds(abcThresholdA, n / 100);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 90 && n <= 98) setABCThresholds(abcThresholdA, n / 100);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="abc-b"
@@ -101,7 +101,7 @@ export function MRPSupplySection() {
             value={xyzThresholdX}
             onChange={(e) => {
               const n = parseFloat(e.target.value);
-              if (!isNaN(n) && n >= 0.3 && n <= 0.7) setXYZThresholds(n, xyzThresholdY);
+              if (!Number.isNaN(n) && n >= 0.3 && n <= 0.7) setXYZThresholds(n, xyzThresholdY);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="xyz-x"
@@ -117,7 +117,7 @@ export function MRPSupplySection() {
             value={xyzThresholdY}
             onChange={(e) => {
               const n = parseFloat(e.target.value);
-              if (!isNaN(n) && n >= 0.7 && n <= 1.5) setXYZThresholds(xyzThresholdX, n);
+              if (!Number.isNaN(n) && n >= 0.7 && n <= 1.5) setXYZThresholds(xyzThresholdX, n);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="xyz-y"

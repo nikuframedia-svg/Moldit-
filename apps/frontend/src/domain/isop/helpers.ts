@@ -37,7 +37,7 @@ export function parseNumeric(value: unknown, fallback: number = 0): number {
   if (typeof value === 'string') {
     const cleaned = value.replace(',', '.').trim();
     const n = Number(cleaned);
-    return isNaN(n) ? fallback : n;
+    return Number.isNaN(n) ? fallback : n;
   }
   return fallback;
 }
@@ -61,7 +61,7 @@ export function normalizeString(value: unknown): string {
 export function parseDateCell(value: unknown): Date | null {
   if (value == null) return null;
   if (value instanceof Date) {
-    return isNaN(value.getTime()) ? null : value;
+    return Number.isNaN(value.getTime()) ? null : value;
   }
   if (typeof value === 'number') {
     const d = XLSX.SSF.parse_date_code(value);

@@ -114,9 +114,7 @@ export function MachinesPage() {
                       border: '1px solid var(--border-subtle)',
                       borderRadius: 3,
                       padding: '2px 4px',
-                      borderLeft: m.overriddenFields.area
-                        ? '2px solid var(--accent)'
-                        : undefined,
+                      borderLeft: m.overriddenFields.area ? '2px solid var(--accent)' : undefined,
                     }}
                   >
                     <option value="PG1">PG1</option>
@@ -134,14 +132,11 @@ export function MachinesPage() {
                     style={{
                       fontSize: 12,
                       background: 'var(--bg-card)',
-                      color:
-                        m.status === 'running' ? 'var(--accent)' : 'var(--semantic-red)',
+                      color: m.status === 'running' ? 'var(--accent)' : 'var(--semantic-red)',
                       border: '1px solid var(--border-subtle)',
                       borderRadius: 3,
                       padding: '2px 4px',
-                      borderLeft: m.overriddenFields.status
-                        ? '2px solid var(--accent)'
-                        : undefined,
+                      borderLeft: m.overriddenFields.status ? '2px solid var(--accent)' : undefined,
                     }}
                   >
                     <option value="running">Running</option>

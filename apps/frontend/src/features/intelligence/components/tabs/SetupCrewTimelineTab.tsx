@@ -138,7 +138,7 @@ export function SetupCrewView({ data }: { data: IntelData }) {
                             textAnchor="middle"
                             style={{
                               fill: C.w,
-                              fontSize: 7.5,
+                              fontSize: 12,
                               ...mono,
                               fontWeight: 600,
                               pointerEvents: 'none' as const,

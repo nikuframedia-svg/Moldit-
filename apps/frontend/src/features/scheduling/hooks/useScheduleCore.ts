@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDataSource } from '../../../hooks/useDataSource';
-import { useScheduleData, invalidateScheduleCache } from '../../../hooks/useScheduleData';
+import { invalidateScheduleCache, useScheduleData } from '../../../hooks/useScheduleData';
 import type { AutoReplanResult, EngineData, EOp, MoveAction } from '../../../lib/engine';
 import { useReplanStore } from '../../../stores/useReplanStore';
 import { useToastStore } from '../../../stores/useToastStore';
@@ -46,7 +46,7 @@ export function useScheduleCore(initialView = 'plan') {
       setIsopBanner(null);
       prevOpsRef.current = engineData.ops;
     }
-  }, [engineData]);
+  }, [engineData, filterActions.resetFilters]);
 
   const loadData = useCallback(() => {
     invalidateScheduleCache();
@@ -125,7 +125,7 @@ export function useScheduleCore(initialView = 'plan') {
         setView('plan');
       }
     },
-    [ds, moves, mSt, tSt, engineData, loadData],
+    [ds, moves, mSt, tSt, engineData, loadData, setMSt, setTSt],
   );
 
   useEffect(() => {

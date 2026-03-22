@@ -3,17 +3,18 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import { getCachedNikufraData } from '../../../hooks/useScheduleData';
+import { scheduleWhatIfApi } from '../../../lib/api';
 import type {
   AreaCaps,
   DispatchRule,
   EngineData,
   ETool,
+  MoveableOp,
   ObjectiveProfile,
   OptResult,
+  QuickValidateResult,
 } from '../../../lib/engine';
-import type { MoveableOp, QuickValidateResult } from '../../../lib/engine';
-import { scheduleWhatIfApi } from '../../../lib/api';
-import { getCachedNikufraData } from '../../../hooks/useScheduleData';
 
 export interface WhatIfScenario {
   t1: number;
@@ -141,10 +142,7 @@ export function useWhatIf(
       }
 
       setProg(30);
-      const response = await scheduleWhatIfApi(
-        { nikufra_data: nikufraData, mutations },
-        120_000,
-      );
+      const response = await scheduleWhatIfApi({ nikufra_data: nikufraData, mutations }, 120_000);
       setProg(90);
 
       // Map response to OptResult shape

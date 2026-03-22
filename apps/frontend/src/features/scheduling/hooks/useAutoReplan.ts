@@ -6,6 +6,8 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import { getCachedNikufraData } from '../../../hooks/useScheduleData';
+import { scheduleReplanApi } from '../../../lib/api';
 import type {
   AlternativeAction,
   AutoReplanResult,
@@ -15,8 +17,6 @@ import type {
   ReplanActionDetail,
   ReplanSimulation,
 } from '../../../lib/engine';
-import { scheduleReplanApi } from '../../../lib/api';
-import { getCachedNikufraData } from '../../../hooks/useScheduleData';
 import { useSettingsStore } from '../../../stores/useSettingsStore';
 import { useToastStore } from '../../../stores/useToastStore';
 
@@ -109,7 +109,8 @@ export function useAutoReplan(
       if (!nikufraData) throw new Error('No schedule data cached');
 
       // Find first down machine for disruption
-      const downMachine = Object.entries(mSt).find(([, st]) => st === 'down')?.[0] ?? data.machines[0]?.id ?? '';
+      const downMachine =
+        Object.entries(mSt).find(([, st]) => st === 'down')?.[0] ?? data.machines[0]?.id ?? '';
 
       const response = await scheduleReplanApi({
         blocks: [] as unknown as Record<string, unknown>[],
@@ -154,28 +155,25 @@ export function useAutoReplan(
         );
     }
     setArRunning(false);
-  }, [buildArInput, mSt, data.machines, downStartDay, downEndDay]);
+  }, [mSt, data.machines, downStartDay, downEndDay]);
 
-  const handleArUndo = useCallback(
-    (_decisionId: string) => {
-      useToastStore.getState().actions.addToast('Undo via backend — em desenvolvimento', 'info', 3000);
-    },
-    [],
-  );
+  const handleArUndo = useCallback((_decisionId: string) => {
+    useToastStore
+      .getState()
+      .actions.addToast('Undo via backend — em desenvolvimento', 'info', 3000);
+  }, []);
 
-  const handleArAlt = useCallback(
-    (_decisionId: string, _alt: AlternativeAction) => {
-      useToastStore.getState().actions.addToast('Alternativa via backend — em desenvolvimento', 'info', 3000);
-    },
-    [],
-  );
+  const handleArAlt = useCallback((_decisionId: string, _alt: AlternativeAction) => {
+    useToastStore
+      .getState()
+      .actions.addToast('Alternativa via backend — em desenvolvimento', 'info', 3000);
+  }, []);
 
-  const handleArSimulate = useCallback(
-    (_decisionId: string) => {
-      useToastStore.getState().actions.addToast('Simulação via backend — em desenvolvimento', 'info', 3000);
-    },
-    [],
-  );
+  const handleArSimulate = useCallback((_decisionId: string) => {
+    useToastStore
+      .getState()
+      .actions.addToast('Simulação via backend — em desenvolvimento', 'info', 3000);
+  }, []);
 
   const handleArUndoAll = useCallback(() => {
     setArResult(null);
@@ -194,7 +192,9 @@ export function useAutoReplan(
       arResult.overtimeActions.length > 0 && `${arResult.overtimeActions.length} horas extra`,
       arResult.splitActions.length > 0 && `${arResult.splitActions.length} splits`,
       arResult.thirdShiftActivated && '3º turno activado',
-    ].filter(Boolean).join(', ');
+    ]
+      .filter(Boolean)
+      .join(', ');
     useToastStore
       .getState()
       .actions.addToast(`Auto-replan aplicado: ${summary || 'sem alterações'}`, 'success', 5000);

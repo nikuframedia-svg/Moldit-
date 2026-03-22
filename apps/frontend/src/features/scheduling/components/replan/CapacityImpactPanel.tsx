@@ -78,7 +78,7 @@ export function CapacityImpactPanel({ data, blocks, cap, mSt, moves }: CapacityI
                           <div
                             style={{
                               height: `${Math.min((dc.setup / DAY_CAP) * 100, 30)}%`,
-                              background: C.pp + '66',
+                              background: `${C.pp}66`,
                               minHeight: 1,
                             }}
                           />
@@ -87,7 +87,7 @@ export function CapacityImpactPanel({ data, blocks, cap, mSt, moves }: CapacityI
                           <div
                             style={{
                               height: `${Math.min((dc.prod / DAY_CAP) * 100, 100)}%`,
-                              background: isD ? C.rd + '44' : u > 1 ? C.rd + '66' : C.ac + '66',
+                              background: isD ? `${C.rd}44` : u > 1 ? `${C.rd}66` : `${C.ac}66`,
                               minHeight: 1,
                             }}
                           />

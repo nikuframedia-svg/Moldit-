@@ -9,15 +9,26 @@ vi.mock('@/lib/engine', () => ({
   C: { ac: '#3B82F6', yl: '#F59E0B', rd: '#EF4444' },
 }));
 
-import type { InfeasibilityEntry, ScheduleViolation } from '@/lib/engine';
 import { AlertsPanel } from '@/features/console/components/AlertsPanel';
+import type { InfeasibilityEntry, ScheduleViolation } from '@/lib/engine';
 
-const mkV = (ov: Partial<ScheduleViolation> & Pick<ScheduleViolation, 'id' | 'severity' | 'title' | 'detail'>): ScheduleViolation => ({
-  type: 'SETUP_CREW_OVERLAP', affectedOps: [], suggestedFix: null, action: null, ...ov,
+const mkV = (
+  ov: Partial<ScheduleViolation> & Pick<ScheduleViolation, 'id' | 'severity' | 'title' | 'detail'>,
+): ScheduleViolation => ({
+  type: 'SETUP_CREW_OVERLAP',
+  affectedOps: [],
+  suggestedFix: null,
+  action: null,
+  ...ov,
 });
 
-const mkI = (ov: Partial<InfeasibilityEntry> & Pick<InfeasibilityEntry, 'opId' | 'machineId' | 'toolId' | 'reason' | 'detail'>): InfeasibilityEntry => ({
-  attemptedAlternatives: [], suggestion: '', ...ov,
+const mkI = (
+  ov: Partial<InfeasibilityEntry> &
+    Pick<InfeasibilityEntry, 'opId' | 'machineId' | 'toolId' | 'reason' | 'detail'>,
+): InfeasibilityEntry => ({
+  attemptedAlternatives: [],
+  suggestion: '',
+  ...ov,
 });
 
 describe('AlertsPanel', () => {
@@ -28,9 +39,19 @@ describe('AlertsPanel', () => {
 
   it('renders infeasibility entries', () => {
     render(
-      <AlertsPanel violations={[]} infeasibilities={[
-        mkI({ opId: 'op1', machineId: 'PRM019', toolId: 'T100', reason: 'CAPACITY_OVERFLOW', detail: 'Sem capacidade', suggestion: 'Mover para PRM031' }),
-      ]} />,
+      <AlertsPanel
+        violations={[]}
+        infeasibilities={[
+          mkI({
+            opId: 'op1',
+            machineId: 'PRM019',
+            toolId: 'T100',
+            reason: 'CAPACITY_OVERFLOW',
+            detail: 'Sem capacidade',
+            suggestion: 'Mover para PRM031',
+          }),
+        ]}
+      />,
     );
     expect(screen.getByText('INFEASIBLE')).toBeInTheDocument();
     expect(screen.getByText('Mover para PRM031')).toBeInTheDocument();
@@ -38,9 +59,18 @@ describe('AlertsPanel', () => {
 
   it('renders violation entries with severity', () => {
     render(
-      <AlertsPanel violations={[
-        mkV({ id: 'v1', severity: 'medium', title: 'Setup crew overlap', detail: 'detail', suggestedFix: 'Desfasar 30 min' }),
-      ]} infeasibilities={[]} />,
+      <AlertsPanel
+        violations={[
+          mkV({
+            id: 'v1',
+            severity: 'medium',
+            title: 'Setup crew overlap',
+            detail: 'detail',
+            suggestedFix: 'Desfasar 30 min',
+          }),
+        ]}
+        infeasibilities={[]}
+      />,
     );
     expect(screen.getByText('MEDIUM')).toBeInTheDocument();
     expect(screen.getByText('Setup crew overlap')).toBeInTheDocument();
@@ -50,7 +80,15 @@ describe('AlertsPanel', () => {
     render(
       <AlertsPanel
         violations={[mkV({ id: 'v1', severity: 'critical', title: 'Overlap', detail: 'd1' })]}
-        infeasibilities={[mkI({ opId: 'op1', machineId: 'PRM019', toolId: 'T1', reason: 'CAPACITY_OVERFLOW', detail: 'Infeasible op' })]}
+        infeasibilities={[
+          mkI({
+            opId: 'op1',
+            machineId: 'PRM019',
+            toolId: 'T1',
+            reason: 'CAPACITY_OVERFLOW',
+            detail: 'Infeasible op',
+          }),
+        ]}
       />,
     );
     expect(screen.getByText('INFEASIBLE')).toBeInTheDocument();

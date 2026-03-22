@@ -7,6 +7,8 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { getCachedNikufraData, useScheduleData } from '../../../hooks/useScheduleData';
+import { scheduleReplanApi } from '../../../lib/api';
 import type {
   AutoReplanResult,
   Block,
@@ -15,8 +17,6 @@ import type {
   EOp,
   MoveAction,
 } from '../../../lib/engine';
-import { useScheduleData, getCachedNikufraData } from '../../../hooks/useScheduleData';
-import { scheduleReplanApi } from '../../../lib/api';
 import { useToastStore } from '../../../stores/useToastStore';
 import { useScheduleValidation } from './useScheduleValidation';
 
@@ -90,18 +90,18 @@ export function useScheduleComputed({
       autoMoves: (scheduleData.autoMoves ?? []) as MoveAction[],
       decisions: (scheduleData.decisions ?? []) as DecisionEntry[],
     };
-  }, [engineData, appliedReplan, scheduleData.blocks, scheduleData.autoMoves, scheduleData.decisions]);
+  }, [
+    engineData,
+    appliedReplan,
+    scheduleData.blocks,
+    scheduleData.autoMoves,
+    scheduleData.decisions,
+  ]);
 
   // Backend-computed analytics (no local scoreSchedule/capAnalysis)
-  const cap = useMemo(
-    () => scheduleData.cap ?? {},
-    [scheduleData.cap],
-  );
+  const cap = useMemo(() => scheduleData.cap ?? {}, [scheduleData.cap]);
 
-  const neMetrics = useMemo(
-    () => scheduleData.metrics ?? null,
-    [scheduleData.metrics],
-  );
+  const neMetrics = useMemo(() => scheduleData.metrics ?? null, [scheduleData.metrics]);
 
   const { validation, audit, feasibility } = useScheduleValidation(blocks, allOps, engineData);
 

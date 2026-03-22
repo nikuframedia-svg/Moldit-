@@ -1,5 +1,5 @@
+import { RefreshCw, Settings2, Target, Wrench, Zap } from 'lucide-react';
 import { useState } from 'react';
-import { Settings2, Wrench, RefreshCw, Target, Zap } from 'lucide-react';
 import { C } from '../../../../lib/engine';
 import { Card } from '../atoms';
 
@@ -90,8 +90,11 @@ export function SimpleWhatIfView({
         <div style={{ fontSize: 16, fontWeight: 700, color: C.t1, marginBottom: 6 }}>
           Simulação What-If
         </div>
-        <div style={{ fontSize: 12, color: C.t3, maxWidth: 420, margin: '0 auto', lineHeight: 1.6 }}>
-          Compara cenarios alternativos lado a lado. Cada opcao mostra o impacto em entregas, setups e utilização antes de aplicar.
+        <div
+          style={{ fontSize: 12, color: C.t3, maxWidth: 420, margin: '0 auto', lineHeight: 1.6 }}
+        >
+          Compara cenarios alternativos lado a lado. Cada opcao mostra o impacto em entregas, setups
+          e utilização antes de aplicar.
         </div>
       </Card>
 
@@ -123,7 +126,7 @@ export function SimpleWhatIfView({
                     width: 40,
                     height: 40,
                     borderRadius: 10,
-                    background: s.color + '18',
+                    background: `${s.color}18`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -156,7 +159,7 @@ export function SimpleWhatIfView({
                   padding: '10px 20px',
                   borderRadius: 8,
                   border: `1px solid ${selectedMachine === mId ? C.rd : C.bd}`,
-                  background: selectedMachine === mId ? C.rd + '18' : C.s1,
+                  background: selectedMachine === mId ? `${C.rd}18` : C.s1,
                   color: C.t1,
                   fontSize: 13,
                   fontWeight: 600,
@@ -192,8 +195,25 @@ export function SimpleWhatIfView({
           <div style={{ fontSize: 14, fontWeight: 600, color: C.ac, marginBottom: 12 }}>
             Fase 1 — Grid search...
           </div>
-          <div style={{ width: '100%', height: 8, borderRadius: 4, background: C.s2, overflow: 'hidden', marginBottom: 8 }}>
-            <div style={{ height: '100%', width: `${prog}%`, background: C.ac, borderRadius: 4, transition: 'width .15s' }} />
+          <div
+            style={{
+              width: '100%',
+              height: 8,
+              borderRadius: 4,
+              background: C.s2,
+              overflow: 'hidden',
+              marginBottom: 8,
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${prog}%`,
+                background: C.ac,
+                borderRadius: 4,
+                transition: 'width .15s',
+              }}
+            />
           </div>
           <div style={{ fontSize: 12, color: C.t3 }}>{prog}% concluído</div>
         </Card>

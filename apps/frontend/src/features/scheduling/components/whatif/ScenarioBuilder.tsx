@@ -167,7 +167,7 @@ export function ScenarioBuilder({
                   top: 0,
                   bottom: 0,
                   width: `${prog}%`,
-                  background: C.w + '15',
+                  background: `${C.w}15`,
                   transition: 'width .1s',
                 }}
               />

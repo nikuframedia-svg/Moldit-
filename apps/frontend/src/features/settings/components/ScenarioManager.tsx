@@ -34,7 +34,12 @@ export function ScenarioManager({ onPromote }: Props) {
             role="button"
             tabIndex={0}
             onClick={() => selectScenario(selectedId === sc.id ? null : sc.id)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectScenario(selectedId === sc.id ? null : sc.id); } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectScenario(selectedId === sc.id ? null : sc.id);
+              }
+            }}
             data-testid={`scenario-${sc.id}`}
           >
             <div className="scenario-manager__item-info">

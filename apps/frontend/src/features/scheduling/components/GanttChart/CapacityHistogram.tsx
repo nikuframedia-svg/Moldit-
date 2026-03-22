@@ -68,7 +68,12 @@ export function CapacityHistogram({ cap, machines, dayIdx }: CapacityHistogramPr
           markLine: {
             silent: true,
             symbol: 'none',
-            data: [{ yAxis: 100, lineStyle: { type: 'dashed' as const, color: 'var(--text-muted)', width: 1 } }],
+            data: [
+              {
+                yAxis: 100,
+                lineStyle: { type: 'dashed' as const, color: 'var(--text-muted)', width: 1 },
+              },
+            ],
             label: { show: false },
           },
         },

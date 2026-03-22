@@ -43,7 +43,7 @@ export function CapacityGrid({
         {machines
           .filter((mc) => {
             const cm = s.capByMachine[mc.id];
-            return cm && cm.days.some((d) => d.prod > 0 || d.setup > 0);
+            return cm?.days.some((d) => d.prod > 0 || d.setup > 0);
           })
           .map((mc) => {
             const isD = getResourceDownDays('machine', mc.id).size > 0;
@@ -69,12 +69,12 @@ export function CapacityGrid({
                     : u === 0
                       ? 'transparent'
                       : u < 0.6
-                        ? rc + '18'
+                        ? `${rc}18`
                         : u < 0.85
-                          ? rc + '30'
+                          ? `${rc}30`
                           : u < 1
-                            ? C.yl + '35'
-                            : C.rd + '35';
+                            ? `${C.yl}35`
+                            : `${C.rd}35`;
                   return (
                     <div
                       key={di}
@@ -155,7 +155,7 @@ export function OperatorsChart({
                 <div
                   style={{
                     height: `${Math.min((d.pg1 / avOps) * 50, 48)}px`,
-                    background: C.ac + '55',
+                    background: `${C.ac}55`,
                     borderRadius: '3px 3px 0 0',
                     display: 'flex',
                     alignItems: 'center',
@@ -169,7 +169,7 @@ export function OperatorsChart({
                 <div
                   style={{
                     height: `${Math.min((d.pg2 / avOps) * 50, 48)}px`,
-                    background: C.bl + '55',
+                    background: `${C.bl}55`,
                     borderRadius: '0 0 3px 3px',
                     display: 'flex',
                     alignItems: 'center',
@@ -211,7 +211,7 @@ export function OperatorsChart({
               width: 8,
               height: 8,
               borderRadius: 2,
-              background: C.ac + '55',
+              background: `${C.ac}55`,
               marginRight: 3,
             }}
           />
@@ -224,7 +224,7 @@ export function OperatorsChart({
               width: 8,
               height: 8,
               borderRadius: 2,
-              background: C.bl + '55',
+              background: `${C.bl}55`,
               marginRight: 3,
             }}
           />

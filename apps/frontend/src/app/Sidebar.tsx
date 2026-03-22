@@ -1,26 +1,33 @@
 import { Badge, Tooltip } from 'antd';
 import {
+  BarChart3,
+  Boxes,
+  Brain,
+  CalendarRange,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Eye,
-  Package,
-  CalendarRange,
-  Boxes,
-  Settings,
-  BarChart3,
-  Repeat,
-  FlaskConical,
-  Database,
-  ShoppingCart,
   Clock,
-  Brain,
+  Database,
+  Eye,
+  FileText,
+  FlaskConical,
+  GraduationCap,
+  Package,
+  Repeat,
+  Settings,
   ShieldAlert,
+  ShoppingCart,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { TrustIndexBadge } from '@/components/Common/TrustIndexBadge';
-import { useMrpRiskCount, useSidebarCollapsed, useSidebarMobileOpen, useUIActions } from '@/stores/useUIStore';
+import {
+  useMrpRiskCount,
+  useSidebarCollapsed,
+  useSidebarMobileOpen,
+  useUIActions,
+} from '@/stores/useUIStore';
 import { badgeTooltip } from '@/utils/explicitText';
 import './Sidebar.css';
 
@@ -84,6 +91,20 @@ const NAV_MODULES: NavModule[] = [
     basePath: '/risk',
     items: [{ label: 'Mapa de Risco', path: '/risk', icon: ShieldAlert }],
   },
+  {
+    id: 'audit',
+    label: 'Auditoria',
+    icon: FileText,
+    basePath: '/audit',
+    items: [{ label: 'Auditoria', path: '/audit', icon: FileText }],
+  },
+  {
+    id: 'learning',
+    label: 'Aprendizagem',
+    icon: GraduationCap,
+    basePath: '/learning',
+    items: [{ label: 'Aprendizagem', path: '/learning', icon: GraduationCap }],
+  },
 ];
 
 export function Sidebar() {
@@ -107,16 +128,17 @@ export function Sidebar() {
     if (path === '/mrp') return location.pathname === '/mrp';
     if (path === '/intelligence') return location.pathname === '/intelligence';
     if (path === '/risk') return location.pathname === '/risk';
+    if (path === '/audit') return location.pathname === '/audit';
+    if (path === '/learning') return location.pathname === '/learning';
     return location.pathname.startsWith(path);
   }
 
   const isSettingsActive = location.pathname.startsWith('/settings');
 
   // Close mobile sidebar on navigation
-  const pathname = location.pathname;
   useEffect(() => {
     closeMobileSidebar();
-  }, [pathname, closeMobileSidebar]);
+  }, [closeMobileSidebar]);
 
   // Close mobile sidebar when resizing to desktop
   useEffect(() => {
@@ -140,9 +162,10 @@ export function Sidebar() {
   return (
     <>
       {mobileOpen && (
-        <div
+        <button
+          type="button"
           className="sidebar-overlay"
-          role="presentation"
+          aria-label="Fechar menu"
           onClick={closeMobileSidebar}
           onKeyDown={(e) => {
             if (e.key === 'Escape') closeMobileSidebar();
@@ -181,9 +204,12 @@ export function Sidebar() {
                 >
                   {(() => {
                     const badge = mod.id === 'materials' ? mrpRiskCount : mod.badgeCount;
-                    const module = mod.id === 'materials' ? 'materials' as const
-                      : mod.id === 'plan' ? 'plan' as const
-                      : 'alerts' as const;
+                    const module =
+                      mod.id === 'materials'
+                        ? ('materials' as const)
+                        : mod.id === 'plan'
+                          ? ('plan' as const)
+                          : ('alerts' as const);
                     return badge ? (
                       <Tooltip title={badgeTooltip(module, badge)} placement="right">
                         <Badge count={badge} size="small" offset={[4, -4]}>

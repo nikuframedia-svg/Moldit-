@@ -34,7 +34,14 @@ function InfoField({ label, value, color }: { label: string; value: string; colo
 
 export function StockDetailPage() {
   const { sku } = useParams<{ sku: string }>();
-  const { engine, blocks, loading, error, mrpSkuView: skuView, mrpRopSku: ropSummary } = useScheduleData();
+  const {
+    engine,
+    blocks,
+    loading,
+    error,
+    mrpSkuView: skuView,
+    mrpRopSku: ropSummary,
+  } = useScheduleData();
   const trustScore = useDataStore((s) => s.meta?.trustScore);
 
   const skuRec = useMemo(() => {

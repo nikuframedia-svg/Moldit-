@@ -22,6 +22,7 @@ class CopilotState:
         self._rules: list[dict] = []
 
         # ── Decision intelligence fields ──
+        self.nikufra_data: dict | None = None
         self.engine_data: Any = None
         self.decisions: list[Any] = []
         self.kpis: dict[str, Any] | None = None

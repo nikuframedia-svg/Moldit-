@@ -87,7 +87,7 @@
 }
 
 .machines-tab__detail {
-  padding: 10px 8px 10px 32px !important;
+  padding: 10px 8px 10px 32px;
   background: rgba(255, 255, 255, 0.01);
 }
 

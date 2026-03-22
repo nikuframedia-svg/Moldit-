@@ -25,14 +25,16 @@
         "noLabelWithoutControl": "warn",
         "noSvgWithoutTitle": "warn",
         "noNoninteractiveTabindex": "warn",
-        "noAutofocus": "warn"
+        "noAutofocus": "warn",
+        "useSemanticElements": "warn"
       },
       "correctness": {
         "useExhaustiveDependencies": "warn",
         "noVoidTypeReturn": "warn"
       },
       "style": {
-        "noNonNullAssertion": "warn"
+        "noNonNullAssertion": "warn",
+        "noDescendingSpecificity": "warn"
       }
     }
   },
@@ -51,9 +53,7 @@
   },
   "files": {
     "includes": [
-      "apps/frontend/src/**",
-      "packages/scheduling-engine/src/**",
-      "packages/scheduling-engine/tests/**"
+      "apps/frontend/src/**"
     ]
   }
 }

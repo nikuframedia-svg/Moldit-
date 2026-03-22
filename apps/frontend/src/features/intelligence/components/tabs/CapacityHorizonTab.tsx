@@ -132,7 +132,7 @@ export function HorizonView({ data }: { data: IntelData }) {
                   x={x + (colW - 2) / 2}
                   y={PAD.t + maxH + 14}
                   textAnchor="middle"
-                  style={{ fill: bar.isWorking ? C.t3 : C.t4, fontSize: 7, ...mono }}
+                  style={{ fill: bar.isWorking ? C.t3 : C.t4, fontSize: 12, ...mono }}
                 >
                   {fmtDate(bar.date)}
                 </text>

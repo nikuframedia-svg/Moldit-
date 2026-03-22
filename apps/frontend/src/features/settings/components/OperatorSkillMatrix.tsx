@@ -126,7 +126,13 @@ export function OperatorSkillMatrix({ operators, machines }: OperatorSkillMatrix
       </div>
 
       <div
-        style={{ marginTop: 12, display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-muted)' }}
+        style={{
+          marginTop: 12,
+          display: 'flex',
+          gap: 16,
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
       >
         {CYCLE.map((level) => {
           const cfg = SKILL_CFG[level];

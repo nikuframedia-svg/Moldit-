@@ -69,7 +69,7 @@ export function computeExplainTrace(
         evidence:
           route.altMachines.length > 0
             ? `Can move to ${route.altMachines.join(', ')} if primary overloaded`
-            : 'No alternative — critical dependency on ' + route.machine,
+            : `No alternative — critical dependency on ${route.machine}`,
         ok: route.altMachines.length > 0,
       },
       {

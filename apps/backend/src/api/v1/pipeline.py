@@ -20,6 +20,7 @@ from ...core.logging import get_logger
 from ...domain.copilot.state import copilot_state
 from ...domain.guardian import InputValidator, Journal, JournalStep, OutputGuardian
 from ...domain.nikufra.isop_parser import parse_isop_file
+from ...domain.scheduling.analysis.cap_analysis import cap_analysis
 from ...domain.scheduling.analysis.coverage_audit import audit_coverage
 from ...domain.scheduling.analysis.gen_decisions import gen_decisions
 from ...domain.scheduling.analysis.late_delivery_analysis import analyze_late_deliveries
@@ -32,7 +33,6 @@ from ...domain.scheduling.mrp.mrp_coverage_sku import compute_coverage_matrix_sk
 from ...domain.scheduling.mrp.mrp_engine import compute_mrp
 from ...domain.scheduling.mrp.mrp_rop import compute_coverage_matrix, compute_rop, compute_rop_sku
 from ...domain.scheduling.mrp.mrp_sku_view import compute_mrp_sku_view
-from ...domain.scheduling.overflow.overflow_helpers import cap_analysis
 from ...domain.scheduling.transform import transform_plan_state
 from ...domain.scheduling.types import Block, DecisionEntry, FeasibilityReport
 from ...domain.solver.bridge import engine_data_to_solver_request, solver_result_to_blocks
@@ -113,6 +113,7 @@ class FullScheduleResponse(PipelineResponse):
     gen_decisions: list | None = None
     workforce_forecast: dict | None = None
     journal_summary: dict | None = None
+
 
 # ── Shared helpers ────────────────────────────────────────────
 
@@ -235,9 +236,17 @@ def _run_cpsat(engine_data: Any, settings_dict: dict) -> dict[str, Any]:
 
 
 def _populate_copilot_state(
-    blocks: list, decisions: list, feasibility: Any,
-    kpis: Any, engine_data: Any, solver_used: str, solve_time: float,
+    blocks: list,
+    decisions: list,
+    feasibility: Any,
+    kpis: Any,
+    engine_data: Any,
+    solver_used: str,
+    solve_time: float,
+    nikufra_data: dict[str, Any] | None = None,
 ) -> None:
+    if nikufra_data is not None:
+        copilot_state.nikufra_data = nikufra_data
     copilot_state.update_from_schedule_result(
         {
             "blocks": blocks,
@@ -284,7 +293,9 @@ async def schedule_from_data(request: PipelineScheduleRequest) -> PipelineRespon
 
     try:
         engine_data = transform_plan_state(
-            plan_state, demand_semantics=demand_semantics, order_based=order_based,
+            plan_state,
+            demand_semantics=demand_semantics,
+            order_based=order_based,
         )
     except Exception as e:
         logger.error("pipeline.schedule.transform.error", error=str(e))
@@ -309,20 +320,34 @@ async def schedule_from_data(request: PipelineScheduleRequest) -> PipelineRespon
     solver_used = cpsat_result["solver_used"]
     kpis = _compute_kpis(blocks, len(engine_data.ops))
 
-    _populate_copilot_state(blocks, decisions, feasibility, kpis, engine_data, solver_used, total_elapsed)
+    _populate_copilot_state(
+        blocks,
+        decisions,
+        feasibility,
+        kpis,
+        engine_data,
+        solver_used,
+        total_elapsed,
+        nikufra_data=nikufra_data,
+    )
 
     logger.info(
         "pipeline.schedule.done",
-        n_blocks=len(blocks), n_ops=len(engine_data.ops),
-        solver=solver_used, total_s=round(total_elapsed, 3),
+        n_blocks=len(blocks),
+        n_ops=len(engine_data.ops),
+        solver=solver_used,
+        total_s=round(total_elapsed, 3),
     )
 
     return PipelineResponse(
-        blocks=blocks, kpis=kpis, decisions=decisions,
+        blocks=blocks,
+        kpis=kpis,
+        decisions=decisions,
         feasibility_report=feasibility,
         solve_time_s=round(total_elapsed, 3),
         solver_used=solver_used,
-        n_blocks=len(blocks), n_ops=len(engine_data.ops),
+        n_blocks=len(blocks),
+        n_ops=len(engine_data.ops),
         nikufra_data=nikufra_data,
     )
 
@@ -377,12 +402,15 @@ async def run_pipeline(
 
     try:
         engine_data = transform_plan_state(
-            plan_state, demand_semantics=demand_semantics, order_based=order_based,
+            plan_state,
+            demand_semantics=demand_semantics,
+            order_based=order_based,
         )
     except Exception as e:
         logger.error("pipeline.transform.error", error=str(e))
         return PipelineResponse(
-            nikufra_data=nikufra_data, parse_meta=parse_meta,
+            nikufra_data=nikufra_data,
+            parse_meta=parse_meta,
             parse_warnings=warnings + [f"Erro na transformação: {e}"],
         )
 
@@ -400,7 +428,8 @@ async def run_pipeline(
     except Exception as e:
         logger.error("pipeline.schedule.error", error=str(e))
         return PipelineResponse(
-            nikufra_data=nikufra_data, parse_meta=parse_meta,
+            nikufra_data=nikufra_data,
+            parse_meta=parse_meta,
             parse_warnings=warnings + [f"Erro no scheduling: {e}"],
         )
 
@@ -418,22 +447,37 @@ async def run_pipeline(
         f"Total pipeline: {total_elapsed:.3f}s."
     )
 
-    _populate_copilot_state(blocks, decisions, feasibility, kpis, engine_data, solver_used, total_elapsed)
+    _populate_copilot_state(
+        blocks,
+        decisions,
+        feasibility,
+        kpis,
+        engine_data,
+        solver_used,
+        total_elapsed,
+        nikufra_data=nikufra_data,
+    )
 
     logger.info(
         "pipeline.run.done",
-        n_blocks=len(blocks), n_ops=len(engine_data.ops),
-        solver=solver_used, otd_pct=kpis.otd_pct,
+        n_blocks=len(blocks),
+        n_ops=len(engine_data.ops),
+        solver=solver_used,
+        otd_pct=kpis.otd_pct,
         total_s=round(total_elapsed, 3),
     )
 
     return PipelineResponse(
-        blocks=blocks, kpis=kpis, decisions=decisions,
+        blocks=blocks,
+        kpis=kpis,
+        decisions=decisions,
         feasibility_report=feasibility,
         solve_time_s=round(total_elapsed, 3),
         solver_used=solver_used,
-        n_blocks=len(blocks), n_ops=len(engine_data.ops),
-        parse_meta=parse_meta, parse_warnings=warnings,
+        n_blocks=len(blocks),
+        n_ops=len(engine_data.ops),
+        parse_meta=parse_meta,
+        parse_warnings=warnings,
         nikufra_data=nikufra_data,
     )
 
@@ -458,39 +502,129 @@ def _run_analytics(
     blocks: list[Block],
     engine_data: Any,
 ) -> dict[str, Any]:
-    """Run all analytics on a schedule result."""
+    """Run all analytics on a schedule result.
+
+    Uses ThreadPoolExecutor to run independent analytics in parallel.
+    Group A: no dependencies — run in parallel.
+    Group B: depends on MRP result — run in parallel after MRP completes.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     results: dict[str, Any] = {}
 
-    try:
-        results["score"] = _to_dict(score_schedule(
-            blocks=blocks, ops=engine_data.ops,
-            machines=engine_data.machines, n_days=engine_data.n_days,
-        ))
-    except Exception as e:
-        logger.warning("schedule.full.score.error", error=str(e))
+    def _safe(key: str, fn, *args, **kwargs):
+        """Run fn, return (key, result) or log warning on failure."""
+        try:
+            val = fn(*args, **kwargs)
+            if key == "gen_decisions":
+                return key, [_to_dict(d) for d in val]
+            return key, _to_dict(val) if not isinstance(val, (dict, list)) else val
+        except Exception as e:
+            logger.warning("schedule.full.%s.error", key, error=str(e))
+            return key, None
 
-    try:
-        results["validation"] = _to_dict(validate_schedule(
-            blocks=blocks, machines=engine_data.machines,
-            tool_map=engine_data.tool_map, ops=engine_data.ops,
-            third_shift=engine_data.third_shift, n_days=engine_data.n_days,
-        ))
-    except Exception as e:
-        logger.warning("schedule.full.validate.error", error=str(e))
+    # ── Group A: independent analytics (parallel) ──
+    group_a_tasks = [
+        (
+            "score",
+            score_schedule,
+            [],
+            {
+                "blocks": blocks,
+                "ops": engine_data.ops,
+                "machines": engine_data.machines,
+                "n_days": engine_data.n_days,
+            },
+        ),
+        (
+            "validation",
+            validate_schedule,
+            [],
+            {
+                "blocks": blocks,
+                "machines": engine_data.machines,
+                "tool_map": engine_data.tool_map,
+                "ops": engine_data.ops,
+                "third_shift": engine_data.third_shift,
+                "n_days": engine_data.n_days,
+            },
+        ),
+        (
+            "coverage",
+            audit_coverage,
+            [],
+            {
+                "blocks": blocks,
+                "ops": engine_data.ops,
+                "tool_map": engine_data.tool_map,
+                "twin_groups": engine_data.twin_groups,
+            },
+        ),
+        (
+            "cap",
+            cap_analysis,
+            [],
+            {
+                "blocks": blocks,
+                "machines": engine_data.machines,
+            },
+        ),
+        (
+            "late_deliveries",
+            analyze_late_deliveries,
+            [],
+            {
+                "blocks": blocks,
+                "ops": engine_data.ops,
+                "dates": engine_data.dates,
+            },
+        ),
+        (
+            "quick_validate",
+            quick_validate,
+            [],
+            {
+                "blocks": blocks,
+                "machines": engine_data.machines,
+                "tool_map": engine_data.tool_map,
+            },
+        ),
+        (
+            "gen_decisions",
+            gen_decisions,
+            [],
+            {
+                "ops": engine_data.ops,
+                "m_st": engine_data.m_st,
+                "t_st": engine_data.t_st,
+                "moves": [],
+                "blocks": blocks,
+                "machines": engine_data.machines,
+                "tool_map": engine_data.tool_map,
+                "focus_ids": engine_data.focus_ids,
+                "tools": engine_data.tools,
+            },
+        ),
+    ]
 
-    try:
-        results["coverage"] = _to_dict(audit_coverage(
-            blocks=blocks, ops=engine_data.ops,
-            tool_map=engine_data.tool_map, twin_groups=engine_data.twin_groups,
-        ))
-    except Exception as e:
-        logger.warning("schedule.full.coverage.error", error=str(e))
+    if engine_data.workforce_config is not None:
+        group_a_tasks.append(
+            (
+                "workforce_forecast",
+                compute_workforce_forecast,
+                [],
+                {
+                    "blocks": blocks,
+                    "workforce_config": engine_data.workforce_config,
+                    "workdays": engine_data.workdays,
+                    "dates": engine_data.dates,
+                    "tool_map": engine_data.tool_map,
+                    "third_shift": engine_data.third_shift,
+                },
+            )
+        )
 
-    try:
-        results["cap"] = cap_analysis(blocks=blocks, machines=engine_data.machines)
-    except Exception as e:
-        logger.warning("schedule.full.cap.error", error=str(e))
-
+    # MRP runs in Group A but we need the result for Group B
     mrp_result = None
     try:
         mrp_result = compute_mrp(engine_data)
@@ -498,76 +632,36 @@ def _run_analytics(
     except Exception as e:
         logger.warning("schedule.full.mrp.error", error=str(e))
 
-    try:
-        results["late_deliveries"] = _to_dict(analyze_late_deliveries(
-            blocks=blocks, ops=engine_data.ops, dates=engine_data.dates,
-        ))
-    except Exception as e:
-        logger.warning("schedule.full.late_deliveries.error", error=str(e))
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = {
+            pool.submit(_safe, key, fn, *args, **kwargs): key
+            for key, fn, args, kwargs in group_a_tasks
+        }
+        for future in as_completed(futures):
+            key, val = future.result()
+            if val is not None:
+                results[key] = val
 
+    # ── Group B: depends on MRP result (parallel) ──
     if mrp_result is not None:
-        try:
-            results["mrp_sku_view"] = _to_dict(compute_mrp_sku_view(mrp_result))
-        except Exception as e:
-            logger.warning("schedule.full.mrp_sku_view.error", error=str(e))
+        group_b_tasks = [
+            ("mrp_sku_view", compute_mrp_sku_view, [mrp_result], {}),
+            ("mrp_rop", compute_rop, [mrp_result, engine_data], {}),
+            ("mrp_rop_sku", compute_rop_sku, [mrp_result, engine_data], {}),
+            ("mrp_actions", compute_action_messages, [mrp_result, engine_data], {}),
+            ("mrp_coverage_sku", compute_coverage_matrix_sku, [mrp_result, engine_data], {}),
+            ("mrp_coverage_matrix", compute_coverage_matrix, [mrp_result, engine_data], {}),
+        ]
 
-        try:
-            results["mrp_rop"] = _to_dict(compute_rop(mrp_result, engine_data))
-        except Exception as e:
-            logger.warning("schedule.full.mrp_rop.error", error=str(e))
-
-        try:
-            results["mrp_rop_sku"] = _to_dict(compute_rop_sku(mrp_result, engine_data))
-        except Exception as e:
-            logger.warning("schedule.full.mrp_rop_sku.error", error=str(e))
-
-        try:
-            results["mrp_actions"] = _to_dict(compute_action_messages(mrp_result, engine_data))
-        except Exception as e:
-            logger.warning("schedule.full.mrp_actions.error", error=str(e))
-
-        try:
-            results["mrp_coverage_sku"] = _to_dict(
-                compute_coverage_matrix_sku(mrp_result, engine_data)
-            )
-        except Exception as e:
-            logger.warning("schedule.full.mrp_coverage_sku.error", error=str(e))
-
-        try:
-            results["mrp_coverage_matrix"] = _to_dict(
-                compute_coverage_matrix(mrp_result, engine_data)
-            )
-        except Exception as e:
-            logger.warning("schedule.full.mrp_coverage_matrix.error", error=str(e))
-
-    try:
-        results["quick_validate"] = _to_dict(quick_validate(
-            blocks=blocks, machines=engine_data.machines,
-            tool_map=engine_data.tool_map,
-        ))
-    except Exception as e:
-        logger.warning("schedule.full.quick_validate.error", error=str(e))
-
-    try:
-        decisions_list = gen_decisions(
-            ops=engine_data.ops, m_st=engine_data.m_st, t_st=engine_data.t_st,
-            moves=[], blocks=blocks, machines=engine_data.machines,
-            tool_map=engine_data.tool_map, focus_ids=engine_data.focus_ids,
-            tools=engine_data.tools,
-        )
-        results["gen_decisions"] = [_to_dict(d) for d in decisions_list]
-    except Exception as e:
-        logger.warning("schedule.full.gen_decisions.error", error=str(e))
-
-    if engine_data.workforce_config is not None:
-        try:
-            results["workforce_forecast"] = _to_dict(compute_workforce_forecast(
-                blocks=blocks, workforce_config=engine_data.workforce_config,
-                workdays=engine_data.workdays, dates=engine_data.dates,
-                tool_map=engine_data.tool_map, third_shift=engine_data.third_shift,
-            ))
-        except Exception as e:
-            logger.warning("schedule.full.workforce_forecast.error", error=str(e))
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futures = {
+                pool.submit(_safe, key, fn, *args, **kwargs): key
+                for key, fn, args, kwargs in group_b_tasks
+            }
+            for future in as_completed(futures):
+                key, val = future.result()
+                if val is not None:
+                    results[key] = val
 
     return results
 
@@ -617,7 +711,9 @@ async def schedule_full(request: PipelineScheduleRequest) -> FullScheduleRespons
 
     try:
         engine_data = transform_plan_state(
-            plan_state, demand_semantics=demand_semantics, order_based=order_based,
+            plan_state,
+            demand_semantics=demand_semantics,
+            order_based=order_based,
         )
     except Exception as e:
         logger.error("schedule.full.transform.error", error=str(e))
@@ -628,7 +724,9 @@ async def schedule_full(request: PipelineScheduleRequest) -> FullScheduleRespons
             journal_summary=journal.summary(),
         )
 
-    journal.info(JournalStep.TRANSFORM, f"Transformed {len(engine_data.ops)} ops, {engine_data.n_days} days")
+    journal.info(
+        JournalStep.TRANSFORM, f"Transformed {len(engine_data.ops)} ops, {engine_data.n_days} days"
+    )
     journal.step(JournalStep.SOLVE, "Running CP-SAT solver")
 
     try:
@@ -647,8 +745,11 @@ async def schedule_full(request: PipelineScheduleRequest) -> FullScheduleRespons
     feasibility = cpsat_result["feasibility_report"]
     solver_used = cpsat_result["solver_used"]
 
-    journal.info(JournalStep.SOLVE, f"CP-SAT: {len(blocks)} blocks ({solver_used})",
-                 metadata={"solve_time_s": cpsat_result.get("solve_time_s", 0)})
+    journal.info(
+        JournalStep.SOLVE,
+        f"CP-SAT: {len(blocks)} blocks ({solver_used})",
+        metadata={"solve_time_s": cpsat_result.get("solve_time_s", 0)},
+    )
 
     # ── Guardian: Output Validation ──
     workdays = getattr(engine_data, "workdays", None)
@@ -666,12 +767,23 @@ async def schedule_full(request: PipelineScheduleRequest) -> FullScheduleRespons
 
     total_elapsed = time.perf_counter() - t0
 
-    _populate_copilot_state(blocks, decisions, feasibility, kpis, engine_data, solver_used, total_elapsed)
+    _populate_copilot_state(
+        blocks,
+        decisions,
+        feasibility,
+        kpis,
+        engine_data,
+        solver_used,
+        total_elapsed,
+        nikufra_data=nikufra_data,
+    )
 
     logger.info(
         "schedule.full.done",
-        n_blocks=len(blocks), n_ops=len(engine_data.ops),
-        solver=solver_used, total_s=round(total_elapsed, 3),
+        n_blocks=len(blocks),
+        n_ops=len(engine_data.ops),
+        solver=solver_used,
+        total_s=round(total_elapsed, 3),
         analytics_keys=list(analytics.keys()),
     )
 
@@ -680,12 +792,16 @@ async def schedule_full(request: PipelineScheduleRequest) -> FullScheduleRespons
 
     # Cache store
     response_dict = dict(
-        blocks=blocks, kpis=kpis, decisions=decisions,
+        blocks=blocks,
+        kpis=kpis,
+        decisions=decisions,
         feasibility_report=feasibility,
         solve_time_s=round(total_elapsed, 3),
         solver_used=solver_used,
-        n_blocks=len(blocks), n_ops=len(engine_data.ops),
-        parse_warnings=warnings, nikufra_data=nikufra_data,
+        n_blocks=len(blocks),
+        n_ops=len(engine_data.ops),
+        parse_warnings=warnings,
+        nikufra_data=nikufra_data,
         engine_data=engine_data_dict,
         score=analytics.get("score"),
         validation=analytics.get("validation"),

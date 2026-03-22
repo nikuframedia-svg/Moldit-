@@ -4,7 +4,7 @@
 //  Cada acção tem resultado. PT-PT.
 // ═══════════════════════════════════════════════════════════
 
-import { differenceInBusinessDays, format, addDays } from 'date-fns';
+import { addDays, differenceInBusinessDays, format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { formatQuantity } from './helpers';
 
@@ -45,10 +45,7 @@ export interface ConfirmationText {
 
 // ── OTD ─────────────────────────────────────────────────────
 
-export function formatOTD(
-  otdPct: number,
-  target: number = 95,
-): ExplicitValue {
+export function formatOTD(otdPct: number, target: number = 95): ExplicitValue {
   const semantic: ExplicitValue['semantic'] =
     otdPct >= target ? 'good' : otdPct >= 85 ? 'warning' : 'critical';
   const status = otdPct >= target ? 'acima' : 'abaixo';
@@ -68,10 +65,7 @@ export function formatOTD(
 
 // ── OTD Delivery (per-delivery) ─────────────────────────────
 
-export function formatOTDDelivery(
-  otdPct: number,
-  target: number = 95,
-): ExplicitValue {
+export function formatOTDDelivery(otdPct: number, target: number = 95): ExplicitValue {
   const semantic: ExplicitValue['semantic'] =
     otdPct >= target ? 'good' : otdPct >= 85 ? 'warning' : 'critical';
   return {
@@ -98,15 +92,11 @@ export function formatCoverage(
   const missing = Math.max(0, totalDemand - totalProduced);
   const isComplete = pct >= 99.9;
 
-  const demandStr = totalDemand >= 1000
-    ? `${(totalDemand / 1000).toFixed(0)}K`
-    : formatQuantity(totalDemand);
-  const producedStr = totalProduced >= 1000
-    ? `${(totalProduced / 1000).toFixed(0)}K`
-    : formatQuantity(totalProduced);
-  const missingStr = missing >= 1000
-    ? `${(missing / 1000).toFixed(0)}K`
-    : formatQuantity(missing);
+  const demandStr =
+    totalDemand >= 1000 ? `${(totalDemand / 1000).toFixed(0)}K` : formatQuantity(totalDemand);
+  const producedStr =
+    totalProduced >= 1000 ? `${(totalProduced / 1000).toFixed(0)}K` : formatQuantity(totalProduced);
+  const missingStr = missing >= 1000 ? `${(missing / 1000).toFixed(0)}K` : formatQuantity(missing);
 
   return {
     raw: pct,
@@ -152,10 +142,7 @@ export function formatUtilization(
 
 // ── Setup Time ──────────────────────────────────────────────
 
-export function formatSetupTime(
-  totalMin: number,
-  setupCount: number,
-): ExplicitValue {
+export function formatSetupTime(totalMin: number, setupCount: number): ExplicitValue {
   const avgMin = setupCount > 0 ? totalMin / setupCount : 0;
   const hours = (totalMin / 60).toFixed(1);
   const semantic: ExplicitValue['semantic'] = avgMin <= 45 ? 'good' : 'warning';
@@ -189,12 +176,7 @@ export function formatAlerts(
     raw: total,
     formatted: `${total}`,
     context: parts.length > 0 ? parts.join(' · ') : 'Nenhum problema detectado',
-    qualifier:
-      total === 0
-        ? 'Sem problemas'
-        : total <= 3
-          ? 'Atenção'
-          : 'Intervencao necessaria',
+    qualifier: total === 0 ? 'Sem problemas' : total <= 3 ? 'Atenção' : 'Intervencao necessaria',
     semantic,
   };
 }
@@ -343,12 +325,11 @@ export function formatBlockLabel(
   return parts.join(' ');
 }
 
-
 // Re-export UI text functions for backwards compatibility
 export {
-  emptyStateMessage,
-  confirmationText,
   badgeTooltip,
-  tradeoffText,
+  confirmationText,
+  emptyStateMessage,
   toastMessage,
+  tradeoffText,
 } from './explicitText-ui';

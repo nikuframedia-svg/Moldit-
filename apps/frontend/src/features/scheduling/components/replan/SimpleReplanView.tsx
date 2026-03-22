@@ -65,13 +65,20 @@ export function SimpleReplanView({
                   padding: '8px 14px',
                   borderRadius: 8,
                   background: isDown ? C.rdS : `${C.ac}08`,
-                  border: `1.5px solid ${isDown ? C.rd + '44' : C.ac + '22'}`,
+                  border: `1.5px solid ${isDown ? `${C.rd}44` : `${C.ac}22`}`,
                   minWidth: 120,
                 }}
               >
                 <span style={dot(isDown ? C.rd : C.ac)} aria-hidden="true" />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: isDown ? C.rd : C.t1, fontFamily: 'monospace' }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: isDown ? C.rd : C.t1,
+                      fontFamily: 'monospace',
+                    }}
+                  >
                     {m.id}
                   </div>
                   <div style={{ fontSize: 12, color: isDown ? C.rd : C.ac, fontWeight: 500 }}>
@@ -112,8 +119,8 @@ export function SimpleReplanView({
                   gap: 10,
                   padding: '12px 14px',
                   borderRadius: 8,
-                  border: `1.5px solid ${isSel ? sc.color + '66' : C.bd}`,
-                  background: isSel ? sc.color + '12' : 'transparent',
+                  border: `1.5px solid ${isSel ? `${sc.color}66` : C.bd}`,
+                  background: isSel ? `${sc.color}12` : 'transparent',
                   cursor: 'pointer',
                   textAlign: 'left',
                   fontFamily: 'inherit',
@@ -122,9 +129,14 @@ export function SimpleReplanView({
               >
                 <div
                   style={{
-                    width: 36, height: 36, borderRadius: 8,
-                    background: sc.color + '18',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    background: `${sc.color}18`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                   }}
                 >
                   <Icon size={18} strokeWidth={1.5} style={{ color: sc.color }} />
@@ -163,9 +175,16 @@ export function SimpleReplanView({
           <button
             onClick={onSwitchAdvanced}
             style={{
-              width: '100%', padding: 12, borderRadius: 8, border: 'none',
-              background: C.yl, color: C.bg, fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit',
+              width: '100%',
+              padding: 12,
+              borderRadius: 8,
+              border: 'none',
+              background: C.yl,
+              color: C.bg,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             Seleccionar ferramenta
@@ -184,9 +203,16 @@ export function SimpleReplanView({
           <button
             onClick={onSwitchAdvanced}
             style={{
-              width: '100%', padding: 12, borderRadius: 8, border: 'none',
-              background: C.yl, color: C.bg, fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit',
+              width: '100%',
+              padding: 12,
+              borderRadius: 8,
+              border: 'none',
+              background: C.yl,
+              color: C.bg,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             Adicionar encomenda
@@ -207,27 +233,68 @@ export function SimpleReplanView({
             onClick={onRunAutoReplan}
             disabled={arRunning}
             style={{
-              width: '100%', padding: 12, borderRadius: 8, border: 'none',
-              background: arRunning ? C.s3 : C.ac, color: arRunning ? C.t3 : C.bg,
-              fontSize: 13, fontWeight: 600, cursor: arRunning ? 'wait' : 'pointer',
+              width: '100%',
+              padding: 12,
+              borderRadius: 8,
+              border: 'none',
+              background: arRunning ? C.s3 : C.ac,
+              color: arRunning ? C.t3 : C.bg,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: arRunning ? 'wait' : 'pointer',
               fontFamily: 'inherit',
             }}
           >
-            <RefreshCw size={14} strokeWidth={1.5} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+            <RefreshCw
+              size={14}
+              strokeWidth={1.5}
+              style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }}
+            />
             {arRunning ? 'A optimizar...' : 'Optimizar plano'}
           </button>
           {arResult != null && arActionsCount === 0 && (
-            <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 6, background: C.acS, fontSize: 12, fontWeight: 600, color: C.ac }}>
+            <div
+              style={{
+                marginTop: 10,
+                padding: '8px 12px',
+                borderRadius: 6,
+                background: C.acS,
+                fontSize: 12,
+                fontWeight: 600,
+                color: C.ac,
+              }}
+            >
               O plano actual ja esta na melhor configuracao possivel — sem redistribuicoes que
               melhorem OTD-D ou setups
             </div>
           )}
           {arResult != null && arActionsCount > 0 && (
-            <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 6, background: `${C.ac}12`, border: `1px solid ${C.ac}33`, fontSize: 12, color: C.ac, fontWeight: 500 }}>
+            <div
+              style={{
+                marginTop: 10,
+                padding: '8px 12px',
+                borderRadius: 6,
+                background: `${C.ac}12`,
+                border: `1px solid ${C.ac}33`,
+                fontSize: 12,
+                color: C.ac,
+                fontWeight: 500,
+              }}
+            >
               {arActionsCount} melhorias encontradas.{' '}
               <button
                 onClick={onSwitchAdvanced}
-                style={{ background: 'none', border: 'none', color: C.ac, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: 0 }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: C.ac,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: 0,
+                }}
               >
                 Ver detalhes
               </button>
@@ -237,9 +304,10 @@ export function SimpleReplanView({
       )}
 
       {moves.length > 0 && (
-        <Card style={{ padding: 16, background: C.acS, borderColor: C.ac + '33' }}>
+        <Card style={{ padding: 16, background: C.acS, borderColor: `${C.ac}33` }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.ac }}>
-            {moves.length} alteraç{moves.length > 1 ? 'ões' : 'ão'} pendente{moves.length > 1 ? 's' : ''}
+            {moves.length} alteraç{moves.length > 1 ? 'ões' : 'ão'} pendente
+            {moves.length > 1 ? 's' : ''}
           </div>
           <div style={{ fontSize: 12, color: C.t3, marginTop: 4 }}>
             Mude para o modo avançado para rever e aplicar as alterações
@@ -250,10 +318,19 @@ export function SimpleReplanView({
       <button
         onClick={onSwitchAdvanced}
         style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          padding: '10px 16px', borderRadius: 8, border: `1px solid ${C.bd}`,
-          background: 'transparent', color: C.t3, fontSize: 12, fontWeight: 500,
-          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          padding: '10px 16px',
+          borderRadius: 8,
+          border: `1px solid ${C.bd}`,
+          background: 'transparent',
+          color: C.t3,
+          fontSize: 12,
+          fontWeight: 500,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
         }}
       >
         <Settings2 size={13} strokeWidth={1.5} />

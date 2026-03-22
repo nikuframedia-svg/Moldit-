@@ -95,13 +95,13 @@ export function SchedulingPage({ initialView = 'plan' }: { initialView?: string 
                 fontWeight: 500,
               }}
             >
-              {lateDeliveries!.unresolvedCount} entrega
-              {lateDeliveries!.unresolvedCount > 1 ? 's' : ''} em atraso
+              {lateDeliveries?.unresolvedCount} entrega
+              {lateDeliveries?.unresolvedCount > 1 ? 's' : ''} em atraso
               {' · '}
-              {lateDeliveries!.totalShortfallPcs.toLocaleString()} pcs em falta
-              {lateDeliveries!.worstTierAffected <= 2 && (
+              {lateDeliveries?.totalShortfallPcs.toLocaleString()} pcs em falta
+              {lateDeliveries?.worstTierAffected <= 2 && (
                 <span style={{ fontWeight: 700 }}>
-                  {' · '}Cliente Tier {lateDeliveries!.worstTierAffected} afectado
+                  {' · '}Cliente Tier {lateDeliveries?.worstTierAffected} afectado
                 </span>
               )}
             </div>

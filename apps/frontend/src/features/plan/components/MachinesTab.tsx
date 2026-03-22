@@ -109,42 +109,40 @@ export function MachinesTab({ data }: MachinesTabProps) {
                   {m.hasOverride && <Pencil size={10} style={{ color: C.ac, opacity: 0.7 }} />}
                 </td>
                 {isExp && (
-                  <>
-                    <td colSpan={8} className="machines-tab__detail">
-                      <div className="machines-tab__detail-section">
-                        <div className="machines-tab__detail-title">
-                          Ferramentas compatíveis ({m.compatTools.length})
-                        </div>
-                        <div className="machines-tab__detail-list">
-                          {m.compatTools.map((t) => (
-                            <span key={t.id} className="machines-tab__detail-item">
-                              {t.id}
-                              {t.m !== m.id && (
-                                <span className="machines-tab__detail-alt">(alt)</span>
-                              )}
-                            </span>
-                          ))}
-                        </div>
+                  <td colSpan={8} className="machines-tab__detail">
+                    <div className="machines-tab__detail-section">
+                      <div className="machines-tab__detail-title">
+                        Ferramentas compatíveis ({m.compatTools.length})
                       </div>
-                      <div className="machines-tab__detail-section">
-                        <div className="machines-tab__detail-title">
-                          SKUs produzidos ({m.skus.length})
-                        </div>
-                        <div className="machines-tab__detail-list">
-                          {m.skus.slice(0, 20).map((o) => (
-                            <span key={o.id} className="machines-tab__detail-item">
-                              {o.sku} — {o.nm}
-                            </span>
-                          ))}
-                          {m.skus.length > 20 && (
-                            <span className="machines-tab__detail-more">
-                              +{m.skus.length - 20} mais
-                            </span>
-                          )}
-                        </div>
+                      <div className="machines-tab__detail-list">
+                        {m.compatTools.map((t) => (
+                          <span key={t.id} className="machines-tab__detail-item">
+                            {t.id}
+                            {t.m !== m.id && (
+                              <span className="machines-tab__detail-alt">(alt)</span>
+                            )}
+                          </span>
+                        ))}
                       </div>
-                    </td>
-                  </>
+                    </div>
+                    <div className="machines-tab__detail-section">
+                      <div className="machines-tab__detail-title">
+                        SKUs produzidos ({m.skus.length})
+                      </div>
+                      <div className="machines-tab__detail-list">
+                        {m.skus.slice(0, 20).map((o) => (
+                          <span key={o.id} className="machines-tab__detail-item">
+                            {o.sku} — {o.nm}
+                          </span>
+                        ))}
+                        {m.skus.length > 20 && (
+                          <span className="machines-tab__detail-more">
+                            +{m.skus.length - 20} mais
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
                 )}
               </tr>
             );

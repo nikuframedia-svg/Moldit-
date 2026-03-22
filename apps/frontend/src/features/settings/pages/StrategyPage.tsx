@@ -8,95 +8,15 @@ import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
 import { useScheduleData } from '@/hooks/useScheduleData';
-import type { StepFilter, StrategyStep } from '../components/StrategyStepEditor';
+import type { StrategyStep } from '../components/StrategyStepEditor';
 import { StrategyStepEditor } from '../components/StrategyStepEditor';
-
-interface StrategyPreset {
-  id: string;
-  name: string;
-  steps: StrategyStep[];
-  isCustom: boolean;
-}
-
-const INCOMPOL_STANDARD: StrategyStep[] = [
-  {
-    id: 's1',
-    name: 'Encomendas criticas forward',
-    filter: 'deadline_close',
-    rule: 'ATCS',
-    direction: 'forward',
-    guard: 'none',
-    weights: { otd: 80, setup: 10, utilization: 10 },
-  },
-  {
-    id: 's2',
-    name: 'Resto com setup grouping',
-    filter: 'deadline_far',
-    rule: 'ATCS',
-    direction: 'forward',
-    guard: 'none',
-    weights: { otd: 40, setup: 40, utilization: 20 },
-  },
-  {
-    id: 's3',
-    name: 'Preencher com lote economico',
-    filter: 'capacity_free',
-    rule: 'WSPT',
-    direction: 'forward',
-    guard: 'no_delay',
-    weights: { otd: 20, setup: 20, utilization: 60 },
-  },
-];
-
-const DEFAULT_PRESETS: StrategyPreset[] = [
-  { id: 'incompol_standard', name: 'Incompol Standard', steps: INCOMPOL_STANDARD, isCustom: false },
-  {
-    id: 'max_otd',
-    name: 'Maximo OTD-D',
-    steps: [
-      {
-        id: 'otd1',
-        name: 'Todas por EDD',
-        filter: 'all',
-        rule: 'EDD',
-        direction: 'forward',
-        guard: 'none',
-        weights: { otd: 100, setup: 0, utilization: 0 },
-      },
-    ],
-    isCustom: false,
-  },
-  {
-    id: 'min_setup',
-    name: 'Setup Minimo',
-    steps: [
-      {
-        id: 'su1',
-        name: 'Agrupar por familia',
-        filter: 'all',
-        rule: 'ATCS',
-        direction: 'forward',
-        guard: 'none',
-        weights: { otd: 10, setup: 80, utilization: 10 },
-      },
-    ],
-    isCustom: false,
-  },
-];
-
-function matchesFilter(
-  filter: StepFilter,
-  op: { d: number[] },
-  _toolMap: Record<string, { sH: number; pH: number }>,
-  nDays: number,
-): boolean {
-  const totalDemand = op.d.reduce((s, v) => s + Math.max(v, 0), 0);
-  if (filter === 'all') return true;
-  if (filter === 'deadline_close') return totalDemand > 0 && nDays <= 5;
-  if (filter === 'deadline_far') return nDays > 5;
-  if (filter === 'capacity_free') return totalDemand === 0;
-  return true;
-}
+import { StrategyTestResult } from '../components/StrategyTestResult';
+import {
+  DEFAULT_PRESETS,
+  INCOMPOL_STANDARD,
+  matchesFilter,
+  type StrategyPreset,
+} from '../components/strategy-presets';
 
 export function StrategyPage() {
   const { engine, loading, error } = useScheduleData();
@@ -296,32 +216,7 @@ export function StrategyPage() {
         </button>
       </div>
 
-      {testResult && (
-        <div
-          style={{
-            padding: 'var(--space-12)',
-            background: 'var(--accent-bg)',
-            border: '1px solid var(--accent-border)',
-            borderRadius: 'var(--radius-xs)',
-            fontSize: 'var(--text-sm)',
-            color: 'var(--accent-light)',
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>
-            Resultado: {testResult.total} operações distribuídas
-          </div>
-          {testResult.stepCounts.map((count, i) => (
-            <div key={steps[i]?.id ?? i} style={{ marginLeft: 8 }}>
-              Passo {i + 1} ({steps[i]?.name}): <strong>{count}</strong> ops
-            </div>
-          ))}
-          {testResult.total - testResult.stepCounts.reduce((s, v) => s + v, 0) > 0 && (
-            <div style={{ marginLeft: 8, color: 'var(--semantic-warning)' }}>
-              Nao atribuidas: {testResult.total - testResult.stepCounts.reduce((s, v) => s + v, 0)}
-            </div>
-          )}
-        </div>
-      )}
+      {testResult && <StrategyTestResult result={testResult} steps={steps} />}
 
       {isCustom && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

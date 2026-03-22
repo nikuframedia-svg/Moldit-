@@ -132,7 +132,12 @@ export function CoverageTimeline({ rows }: CoverageTimelineProps) {
                   <div style={{ fontSize: 12, fontWeight: 600, color: C.t1 }}>{row.sku}</div>
                   <div style={{ fontSize: 12, color: C.t3, marginBottom: 4 }}>{row.name}</div>
                   <div
-                    style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, fontSize: 12 }}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 2,
+                      fontSize: 12,
+                    }}
                   >
                     <span style={{ color: C.t3 }}>Cobertura</span>
                     <span style={{ color, fontWeight: 600 }}>{row.coverageDays} dias</span>

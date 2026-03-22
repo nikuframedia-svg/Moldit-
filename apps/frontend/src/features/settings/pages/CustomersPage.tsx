@@ -200,9 +200,8 @@ export function CustomersPage() {
                       width: 90,
                       textAlign: 'center',
                       color: tierColor(c.tier),
-                      borderLeft: storedTiers[c.code] != null
-                        ? '2px solid var(--accent)'
-                        : undefined,
+                      borderLeft:
+                        storedTiers[c.code] != null ? '2px solid var(--accent)' : undefined,
                     }}
                   >
                     {[1, 2, 3, 4, 5].map((t) => (

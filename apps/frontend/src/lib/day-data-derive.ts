@@ -21,10 +21,7 @@ import type {
   WorkforceForecast,
   ZoneShiftDemand,
 } from './engine';
-import {
-  DAY_CAP,
-  opsByDayFromWorkforce,
-} from './engine';
+import { DAY_CAP, opsByDayFromWorkforce } from './engine';
 
 export interface MachineLoad {
   machineId: string;
@@ -175,8 +172,7 @@ export function deriveDayData(input: DeriveDayDataInput): DayData {
     transparencyReport?.failureJustifications.filter((j) => dayOpIds.has(j.opId)) ?? [];
 
   // D+1 forecast — from backend analytics (no local computation)
-  const d1Forecast: WorkforceForecast | null =
-    transparencyReport?.workforceForecast ?? null;
+  const d1Forecast: WorkforceForecast | null = transparencyReport?.workforceForecast ?? null;
 
   return {
     dayIdx: idx,

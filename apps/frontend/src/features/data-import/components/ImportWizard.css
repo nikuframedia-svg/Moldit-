@@ -13,7 +13,9 @@
   height: 8px;
   border-radius: 50%;
   background: var(--border-default);
-  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .import-wizard__dot--active {
@@ -128,7 +130,9 @@
   background: var(--bg-raised);
   cursor: pointer;
   text-align: left;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .import-wizard__policy-card:hover {
@@ -169,7 +173,9 @@
   font-family: inherit;
   cursor: pointer;
   border: 1.5px solid transparent;
-  transition: opacity var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .import-wizard__btn:hover {

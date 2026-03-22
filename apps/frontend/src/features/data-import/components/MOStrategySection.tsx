@@ -34,13 +34,13 @@ export function MOStrategySection() {
 
   const handlePG1 = (v: string) => {
     const n = parseFloat(v);
-    if (isNaN(n) || n < 0) return;
+    if (Number.isNaN(n) || n < 0) return;
     if (moStrategy === 'custom') setMOCustom(n, moCustomPG2);
     else setMONominal(n, moNominalPG2);
   };
   const handlePG2 = (v: string) => {
     const n = parseFloat(v);
-    if (isNaN(n) || n < 0) return;
+    if (Number.isNaN(n) || n < 0) return;
     if (moStrategy === 'custom') setMOCustom(moCustomPG1, n);
     else setMONominal(moNominalPG1, n);
   };

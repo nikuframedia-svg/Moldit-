@@ -36,7 +36,7 @@ export function OperatorInputs({
               type="number"
               value={sc[f.k]}
               onChange={(e) => {
-                setSc((p) => ({ ...p, [f.k]: parseInt(e.target.value) || 0 }));
+                setSc((p) => ({ ...p, [f.k]: parseInt(e.target.value, 10) || 0 }));
                 setRes(null);
               }}
               style={{
@@ -104,7 +104,7 @@ export function SeedInput({
         type="number"
         value={sc.seed}
         onChange={(e) => {
-          setSc((p) => ({ ...p, seed: parseInt(e.target.value) || 0 }));
+          setSc((p) => ({ ...p, seed: parseInt(e.target.value, 10) || 0 }));
           setRes(null);
         }}
         style={{

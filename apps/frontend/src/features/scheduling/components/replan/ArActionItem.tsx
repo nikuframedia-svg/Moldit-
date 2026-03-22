@@ -53,7 +53,7 @@ export function ArActionItem({
         padding: 12,
         borderRadius: 6,
         background: isSim ? `${C.bl}08` : C.bg,
-        border: `1px solid ${isSim ? C.bl + '33' : C.bd}`,
+        border: `1px solid ${isSim ? `${C.bl}33` : C.bd}`,
         borderLeft: `3px solid ${sc2}`,
       }}
     >

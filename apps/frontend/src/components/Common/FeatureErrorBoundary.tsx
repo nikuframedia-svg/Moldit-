@@ -37,7 +37,9 @@ export class FeatureErrorBoundary extends React.Component<Props, State> {
             margin: 16,
           }}
         >
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--semantic-red)', marginBottom: 8 }}>
+          <div
+            style={{ fontSize: 16, fontWeight: 600, color: 'var(--semantic-red)', marginBottom: 8 }}
+          >
             Erro no módulo {this.props.module}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>

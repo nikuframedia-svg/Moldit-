@@ -22,7 +22,7 @@ export function ProductionWidget({ data }: { data: Record<string, unknown> }) {
     <div style={{ marginTop: 8 }}>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 600,
           color: 'var(--text-secondary)',
           marginBottom: 6,
@@ -37,7 +37,7 @@ export function ProductionWidget({ data }: { data: Record<string, unknown> }) {
         <div key={machineId} style={{ marginBottom: 6 }}>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 600,
               color: 'var(--text-primary)',
               fontFamily: "'JetBrains Mono',monospace",
@@ -52,7 +52,7 @@ export function ProductionWidget({ data }: { data: Record<string, unknown> }) {
               style={{
                 display: 'flex',
                 gap: 8,
-                fontSize: 10,
+                fontSize: 12,
                 color: 'var(--text-muted)',
                 paddingLeft: 8,
               }}
@@ -65,7 +65,7 @@ export function ProductionWidget({ data }: { data: Record<string, unknown> }) {
             </div>
           ))}
           {ops.length > 5 && (
-            <div style={{ fontSize: 10, color: 'var(--text-ghost)', paddingLeft: 8 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-ghost)', paddingLeft: 8 }}>
               +{ops.length - 5} mais
             </div>
           )}

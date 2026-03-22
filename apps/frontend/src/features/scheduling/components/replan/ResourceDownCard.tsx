@@ -147,7 +147,7 @@ export function ResourceDownCard({
                     : editingDown?.type === 'machine' && editingDown.id === m.id
                       ? `${C.ac}12`
                       : 'transparent',
-                  border: `1.5px solid ${isD ? C.rd + '44' : editingDown?.type === 'machine' && editingDown.id === m.id ? C.ac + '44' : C.bd}`,
+                  border: `1.5px solid ${isD ? `${C.rd}44` : editingDown?.type === 'machine' && editingDown.id === m.id ? `${C.ac}44` : C.bd}`,
                   fontFamily: 'inherit',
                 }}
               >

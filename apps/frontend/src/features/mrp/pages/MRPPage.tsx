@@ -2,17 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/Common/EmptyState';
 import { FeatureErrorBoundary } from '@/components/Common/FeatureErrorBoundary';
 import { SkeletonTable } from '@/components/Common/SkeletonLoader';
-import { StatusBanner } from '@/components/Common/StatusBanner';
 import type { MRPRecord, MRPSkuViewRecord } from '@/domain/mrp/mrp-types';
 import { useScheduleData } from '@/hooks/useScheduleData';
 import { C } from '@/lib/engine';
 import { useUIActions, useUIStore } from '@/stores/useUIStore';
+import { MRPPageHeader } from '../components/MRPPageHeader';
+import { MRPStatusSection } from '../components/MRPStatusSection';
 import { MRPTrustBanner } from '../components/MRPTrustBanner';
 import { CTPTab } from '../tabs/CTPTab';
 import { EncomendasTab } from '../tabs/EncomendasTab';
 import { MachineTableTab, SKUTableTab, ToolTableTab } from '../tabs/MRPTableTab';
 import { StocksTab } from '../tabs/StocksTab';
-import { mono } from '../utils/mrp-helpers';
 import './MRPPage.css';
 
 type Tab = 'stocks' | 'table' | 'encomendas' | 'ctp';
@@ -38,7 +38,16 @@ const VIEW_LABELS: Record<ViewMode, string> = {
 };
 
 export function MRPPage() {
-  const { engine, blocks, loading, error, metrics, lateDeliveries, mrp, mrpSkuView: skuView } = useScheduleData();
+  const {
+    engine,
+    blocks,
+    loading,
+    error,
+    metrics,
+    lateDeliveries,
+    mrp,
+    mrpSkuView: skuView,
+  } = useScheduleData();
   const panelOpen = useUIStore((s) => s.contextPanelOpen);
   const [tab, setTab] = useState<Tab>('stocks');
   const [viewMode, setViewMode] = useState<ViewMode>('sku');
@@ -138,174 +147,114 @@ export function MRPPage() {
 
   return (
     <FeatureErrorBoundary module="MRP">
-    <div className={`mrp${panelOpen ? ' mrp--panel-open' : ''}`} data-testid="mrp-page">
-      <div className="mrp__header">
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 600, color: C.t1, margin: 0 }}>
-            MRP — Necessidades de Produção
-          </h1>
-          <p className="page-desc">
-            Cálculo de necessidades: quando e quanto produzir, e onde falta capacidade.
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {metrics?.otdDelivery != null && (
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color:
-                  metrics.otdDelivery >= 0.95 ? 'var(--semantic-green)'
-                    : metrics.otdDelivery >= 0.80 ? 'var(--semantic-amber)'
-                    : 'var(--semantic-red)',
-                padding: '2px 8px',
-                borderRadius: 4,
-                background:
-                  metrics.otdDelivery >= 0.95 ? 'rgba(34,197,94,0.1)'
-                    : metrics.otdDelivery >= 0.80 ? 'rgba(245,158,11,0.1)'
-                    : 'rgba(239,68,68,0.1)',
-              }}
-            >
-              OTD-D {(metrics.otdDelivery * 100).toFixed(0)}%
-              {(lateDeliveries?.unresolvedCount ?? 0) > 0 && (
-                <span style={{ fontWeight: 500 }}> · {lateDeliveries!.unresolvedCount} atraso{lateDeliveries!.unresolvedCount > 1 ? 's' : ''}</span>
-              )}
-            </span>
+      <div className={`mrp${panelOpen ? ' mrp--panel-open' : ''}`} data-testid="mrp-page">
+        <MRPPageHeader
+          metrics={metrics}
+          lateDeliveries={lateDeliveries}
+          engine={engine}
+          skuView={skuView}
+          mrp={mrp}
+        />
+
+        <MRPTrustBanner />
+
+        <MRPStatusSection mrp={mrp} skuView={skuView} />
+
+        {/* View Mode Selector (only for table tab) + Tabs */}
+        <div className="mrp__view-bar">
+          {tab === 'table' && (
+            <div className="mrp__view-selector">
+              {(['sku', 'tool', 'machine'] as ViewMode[]).map((vm) => (
+                <button
+                  key={vm}
+                  className={`mrp__view-btn ${viewMode === vm ? 'mrp__view-btn--active' : ''}`}
+                  onClick={() => setViewMode(vm)}
+                >
+                  {VIEW_LABELS[vm]}
+                </button>
+              ))}
+            </div>
           )}
-          <span style={{ fontSize: 12, color: C.t3, ...mono }}>
-            {engine.dates[0]} — {engine.dates[engine.dates.length - 1]} · {skuView.summary.totalSkus}{' '}
-            SKUs · {mrp.records.length} tools
-          </span>
-        </div>
-      </div>
-
-      <MRPTrustBanner />
-
-      {/* Status Banner */}
-      {(() => {
-        const overloadedMachines = mrp.rccp.filter((e) => e.overloaded).length;
-        const { skusWithStockout, skusWithBacklog } = skuView.summary;
-        if (skusWithStockout > 5 || overloadedMachines > 3) {
-          return (
-            <StatusBanner
-              variant="critical"
-              message={`Risco — ${skusWithStockout} SKUs com stockout previsto, ${overloadedMachines} sobrecargas de máquina.`}
-              details={
-                skusWithBacklog > 0 ? `${skusWithBacklog} SKUs com backlog pendente.` : undefined
-              }
-            />
-          );
-        }
-        if (skusWithStockout > 0 || overloadedMachines > 0 || skusWithBacklog > 0) {
-          const parts: string[] = [];
-          if (skusWithStockout > 0) parts.push(`${skusWithStockout} stockouts`);
-          if (overloadedMachines > 0) parts.push(`${overloadedMachines} sobrecargas`);
-          if (skusWithBacklog > 0) parts.push(`${skusWithBacklog} backlogs`);
-          return <StatusBanner variant="warning" message={`Atenção — ${parts.join(', ')}.`} />;
-        }
-        return (
-          <StatusBanner
-            variant="ok"
-            message="Todas as necessidades cobertas, sem sobrecargas detectadas."
-          />
-        );
-      })()}
-
-      {/* View Mode Selector (only for table tab) + Tabs */}
-      <div className="mrp__view-bar">
-        {tab === 'table' && (
-          <div className="mrp__view-selector">
-            {(['sku', 'tool', 'machine'] as ViewMode[]).map((vm) => (
+          <div className="mrp__tabs">
+            {ALL_TABS.map((t) => (
               <button
-                key={vm}
-                className={`mrp__view-btn ${viewMode === vm ? 'mrp__view-btn--active' : ''}`}
-                onClick={() => setViewMode(vm)}
+                key={t}
+                className={`mrp__tab ${tab === t ? 'mrp__tab--active' : ''}`}
+                onClick={() => setTab(t)}
+                title={TAB_TOOLTIPS[t]}
               >
-                {VIEW_LABELS[vm]}
+                {TAB_LABELS[t]}
               </button>
             ))}
           </div>
-        )}
-        <div className="mrp__tabs">
-          {ALL_TABS.map((t) => (
-            <button
-              key={t}
-              className={`mrp__tab ${tab === t ? 'mrp__tab--active' : ''}`}
-              onClick={() => setTab(t)}
-              title={TAB_TOOLTIPS[t]}
-            >
-              {TAB_LABELS[t]}
-            </button>
-          ))}
         </div>
+
+        {/* Stocks Tab */}
+        {tab === 'stocks' && (
+          <StocksTab engine={engine} mrp={mrp} skuView={skuView} blocks={blocks} />
+        )}
+
+        {/* Table Tab */}
+        {tab === 'table' && viewMode === 'sku' && (
+          <SKUTableTab
+            records={filteredSkuRecords}
+            allRecords={skuView.skuRecords}
+            dates={engine.dates}
+            dnames={engine.dnames}
+            machines={machines}
+            filter={filter}
+            setFilter={setFilter}
+            machineFilter={machineFilter}
+            setMachineFilter={setMachineFilter}
+            search={search}
+            setSearch={setSearch}
+            expanded={expanded}
+            toggleExpand={toggleExpand}
+          />
+        )}
+        {tab === 'table' && viewMode === 'tool' && (
+          <ToolTableTab
+            records={filteredRecords}
+            allRecords={mrp.records}
+            dates={engine.dates}
+            dnames={engine.dnames}
+            machines={machines}
+            filter={filter}
+            setFilter={setFilter}
+            machineFilter={machineFilter}
+            setMachineFilter={setMachineFilter}
+            search={search}
+            setSearch={setSearch}
+            expanded={expanded}
+            toggleExpand={toggleExpand}
+          />
+        )}
+        {tab === 'table' && viewMode === 'machine' && (
+          <MachineTableTab
+            records={filteredRecords}
+            allRecords={mrp.records}
+            dates={engine.dates}
+            dnames={engine.dnames}
+            machines={machines}
+            filter={filter}
+            setFilter={setFilter}
+            machineFilter={machineFilter}
+            setMachineFilter={setMachineFilter}
+            search={search}
+            setSearch={setSearch}
+            expanded={expanded}
+            toggleExpand={toggleExpand}
+          />
+        )}
+
+        {/* Encomendas Tab */}
+        {tab === 'encomendas' && (
+          <EncomendasTab engine={engine} mrp={mrp} skuView={skuView} blocks={blocks} />
+        )}
+
+        {/* CTP Tab */}
+        {tab === 'ctp' && <CTPTab mrp={mrp} engine={engine} skuView={skuView} />}
       </div>
-
-      {/* Stocks Tab */}
-      {tab === 'stocks' && (
-        <StocksTab engine={engine} mrp={mrp} skuView={skuView} blocks={blocks} />
-      )}
-
-      {/* Table Tab */}
-      {tab === 'table' && viewMode === 'sku' && (
-        <SKUTableTab
-          records={filteredSkuRecords}
-          allRecords={skuView.skuRecords}
-          dates={engine.dates}
-          dnames={engine.dnames}
-          machines={machines}
-          filter={filter}
-          setFilter={setFilter}
-          machineFilter={machineFilter}
-          setMachineFilter={setMachineFilter}
-          search={search}
-          setSearch={setSearch}
-          expanded={expanded}
-          toggleExpand={toggleExpand}
-        />
-      )}
-      {tab === 'table' && viewMode === 'tool' && (
-        <ToolTableTab
-          records={filteredRecords}
-          allRecords={mrp.records}
-          dates={engine.dates}
-          dnames={engine.dnames}
-          machines={machines}
-          filter={filter}
-          setFilter={setFilter}
-          machineFilter={machineFilter}
-          setMachineFilter={setMachineFilter}
-          search={search}
-          setSearch={setSearch}
-          expanded={expanded}
-          toggleExpand={toggleExpand}
-        />
-      )}
-      {tab === 'table' && viewMode === 'machine' && (
-        <MachineTableTab
-          records={filteredRecords}
-          allRecords={mrp.records}
-          dates={engine.dates}
-          dnames={engine.dnames}
-          machines={machines}
-          filter={filter}
-          setFilter={setFilter}
-          machineFilter={machineFilter}
-          setMachineFilter={setMachineFilter}
-          search={search}
-          setSearch={setSearch}
-          expanded={expanded}
-          toggleExpand={toggleExpand}
-        />
-      )}
-
-      {/* Encomendas Tab */}
-      {tab === 'encomendas' && (
-        <EncomendasTab engine={engine} mrp={mrp} skuView={skuView} blocks={blocks} />
-      )}
-
-      {/* CTP Tab */}
-      {tab === 'ctp' && <CTPTab mrp={mrp} engine={engine} skuView={skuView} />}
-    </div>
     </FeatureErrorBoundary>
   );
 }

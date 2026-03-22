@@ -125,7 +125,7 @@ export function AutoReplanCard({
             style={{
               padding: '3px 10px',
               borderRadius: 4,
-              border: `1px solid ${arExclude.size > 0 ? C.yl + '44' : C.bd}`,
+              border: `1px solid ${arExclude.size > 0 ? `${C.yl}44` : C.bd}`,
               background: arExclude.size > 0 ? C.ylS : 'transparent',
               color: arExclude.size > 0 ? C.yl : C.t3,
               fontSize: 12,

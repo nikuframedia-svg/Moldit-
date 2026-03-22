@@ -6,8 +6,8 @@
 }
 
 .msg__card--maintenance {
-  border-color: #3B82F6;
-  background: color-mix(in srgb, #3B82F6 6%, var(--bg-card));
+  border-color: #3b82f6;
+  background: color-mix(in srgb, #3b82f6 6%, var(--bg-card));
 }
 
 .msg__card--idle {

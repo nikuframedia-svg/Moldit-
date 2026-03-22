@@ -84,10 +84,22 @@ export function StrategyStepEditor({
           spellCheck={false}
         />
         <div className="strategy-step__controls">
-          <button type="button" onClick={onMoveUp} disabled={isFirst} aria-label="Mover acima" title="Mover acima">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={isFirst}
+            aria-label="Mover acima"
+            title="Mover acima"
+          >
             <ArrowUp size={12} />
           </button>
-          <button type="button" onClick={onMoveDown} disabled={isLast} aria-label="Mover abaixo" title="Mover abaixo">
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={isLast}
+            aria-label="Mover abaixo"
+            title="Mover abaixo"
+          >
             <ArrowDown size={12} />
           </button>
           <button type="button" onClick={onDelete} aria-label="Eliminar" title="Eliminar">

@@ -39,8 +39,8 @@ export function OverflowRoutingSection() {
             step={1}
             value={Math.round(altUtilThreshold * 100)}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 80 && n <= 100) setAltUtilThreshold(n / 100);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 80 && n <= 100) setAltUtilThreshold(n / 100);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="alt-util-threshold"
@@ -55,8 +55,8 @@ export function OverflowRoutingSection() {
             max={32}
             value={maxAutoMoves}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 4 && n <= 32) setMaxAutoMoves(n);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 4 && n <= 32) setMaxAutoMoves(n);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="max-auto-moves"
@@ -71,8 +71,8 @@ export function OverflowRoutingSection() {
             max={5}
             value={maxOverflowIter}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 1 && n <= 5) setMaxOverflowIter(n);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 1 && n <= 5) setMaxOverflowIter(n);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="max-overflow-iter"
@@ -88,8 +88,8 @@ export function OverflowRoutingSection() {
             step={1}
             value={Math.round(otdTolerance * 100)}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 80 && n <= 100) setOTDTolerance(n / 100);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 80 && n <= 100) setOTDTolerance(n / 100);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="otd-tolerance"
@@ -105,8 +105,8 @@ export function OverflowRoutingSection() {
             step={1}
             value={Math.round(loadBalanceThreshold * 100)}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 5 && n <= 30) setLoadBalanceThreshold(n / 100);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 5 && n <= 30) setLoadBalanceThreshold(n / 100);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="load-balance-threshold"

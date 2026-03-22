@@ -43,7 +43,7 @@ export function formatQuantity(
   unit?: string,
   decimals: number = 0,
 ): string {
-  if (value === null || value === undefined || isNaN(value)) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
     return unit ? `- ${unit}` : '-';
   }
 
@@ -105,7 +105,7 @@ export function formatPercentage(
   isPercentage: boolean = false,
   decimals: number = 1,
 ): string {
-  if (value === null || value === undefined || isNaN(value)) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
     return '-';
   }
 
@@ -124,7 +124,7 @@ export function formatPercentage(
  * @returns String formatada (ex: "1h 30m", "45s")
  */
 export function formatDuration(seconds: number | null | undefined): string {
-  if (seconds === null || seconds === undefined || isNaN(seconds) || seconds < 0) {
+  if (seconds === null || seconds === undefined || Number.isNaN(seconds) || seconds < 0) {
     return '-';
   }
 
@@ -170,7 +170,7 @@ export function formatHash(
  * @returns String formatada (ex: "1.234,56 €")
  */
 export function formatCurrency(value: number | null | undefined, decimals: number = 2): string {
-  if (value === null || value === undefined || isNaN(value)) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
     return '- €';
   }
 

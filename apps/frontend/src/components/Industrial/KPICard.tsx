@@ -23,7 +23,16 @@ export interface KPICardProps {
   statusColor?: string;
 }
 
-export const KPICard = memo(function KPICard({ label, value, unit, subtitle, contextLine, trend, sparkline, statusColor }: KPICardProps) {
+export const KPICard = memo(function KPICard({
+  label,
+  value,
+  unit,
+  subtitle,
+  contextLine,
+  trend,
+  sparkline,
+  statusColor,
+}: KPICardProps) {
   const sparkOption = useMemo(() => {
     if (!sparkline || sparkline.length === 0) return null;
     return {
@@ -71,7 +80,15 @@ export const KPICard = memo(function KPICard({ label, value, unit, subtitle, con
       )}
 
       {contextLine && (
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.3, display: 'block', marginTop: 2 }}>
+        <span
+          style={{
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            lineHeight: 1.3,
+            display: 'block',
+            marginTop: 2,
+          }}
+        >
           {contextLine}
         </span>
       )}

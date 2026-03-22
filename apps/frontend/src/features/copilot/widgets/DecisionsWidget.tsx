@@ -20,7 +20,7 @@ export function DecisionsWidget({ data }: { data: Record<string, unknown> }) {
     <div style={{ marginTop: 8 }}>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 600,
           color: 'var(--text-secondary)',
           marginBottom: 4,
@@ -34,7 +34,7 @@ export function DecisionsWidget({ data }: { data: Record<string, unknown> }) {
           style={{
             display: 'flex',
             gap: 6,
-            fontSize: 10,
+            fontSize: 12,
             padding: '2px 0',
             borderBottom: '1px solid var(--border-default, rgba(255,255,255,0.06))',
           }}

@@ -10,7 +10,8 @@ import type { ThemeMode } from '@/stores/useUIStore';
 import { PRIMARY } from './production-colors';
 
 const sharedTokens = {
-  fontFamily: "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  fontFamily:
+    "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   fontSize: 14,
   borderRadius: 8,
   borderRadiusLG: 12,

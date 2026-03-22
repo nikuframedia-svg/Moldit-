@@ -18,13 +18,21 @@ export function StockKPIPanel({ kpis, totalSkus }: StockKPIPanelProps) {
       <KCard
         label="Stockout"
         value={String(kpis.stockoutCount)}
-        sub={kpis.stockoutCount === 0 ? 'Sem rupturas previstas' : `${kpis.stockoutCount} de ${totalSkus} SKUs em ruptura`}
+        sub={
+          kpis.stockoutCount === 0
+            ? 'Sem rupturas previstas'
+            : `${kpis.stockoutCount} de ${totalSkus} SKUs em ruptura`
+        }
         color={kpis.stockoutCount > 0 ? C.rd : C.ac}
       />
       <KCard
         label="Em Risco"
         value={String(kpis.riskCount)}
-        sub={kpis.riskCount === 0 ? 'Cobertura adequada em todos os SKUs' : `${kpis.riskCount} SKUs com menos de 15 dias de stock`}
+        sub={
+          kpis.riskCount === 0
+            ? 'Cobertura adequada em todos os SKUs'
+            : `${kpis.riskCount} SKUs com menos de 15 dias de stock`
+        }
         color={kpis.riskCount > 0 ? C.yl : C.ac}
       />
       <KCard
@@ -36,7 +44,13 @@ export function StockKPIPanel({ kpis, totalSkus }: StockKPIPanelProps) {
       <KCard
         label="Cobertura Media"
         value={`${Math.round(kpis.avgCoverage)}d`}
-        sub={kpis.avgCoverage >= 30 ? 'Nivel confortavel' : kpis.avgCoverage >= 15 ? 'Nivel aceitavel' : 'Abaixo do minimo — rever plano'}
+        sub={
+          kpis.avgCoverage >= 30
+            ? 'Nivel confortavel'
+            : kpis.avgCoverage >= 15
+              ? 'Nivel aceitavel'
+              : 'Abaixo do minimo — rever plano'
+        }
         color={kpis.avgCoverage < 15 ? C.yl : C.ac}
       />
     </div>

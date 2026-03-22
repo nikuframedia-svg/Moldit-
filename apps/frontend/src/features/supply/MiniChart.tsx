@@ -105,7 +105,7 @@ export function MiniChart({
           x={scaleX(i)}
           y={H - 2}
           textAnchor="middle"
-          style={{ fontSize: 7, fill: C.t4, ...mono }}
+          style={{ fontSize: 12, fill: C.t4, ...mono }}
         >
           {dnames[i] ?? ''}
         </text>
@@ -114,7 +114,7 @@ export function MiniChart({
         x={PAD.l - 4}
         y={PAD.t + 4}
         textAnchor="end"
-        style={{ fontSize: 7, fill: C.t4, ...mono }}
+        style={{ fontSize: 12, fill: C.t4, ...mono }}
       >
         {fmtQty(maxV)}
       </text>
@@ -122,7 +122,7 @@ export function MiniChart({
         x={PAD.l - 4}
         y={PAD.t + chartH}
         textAnchor="end"
-        style={{ fontSize: 7, fill: C.t4, ...mono }}
+        style={{ fontSize: 12, fill: C.t4, ...mono }}
       >
         {fmtQty(minV)}
       </text>

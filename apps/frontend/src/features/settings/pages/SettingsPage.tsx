@@ -1,6 +1,4 @@
-import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { FeatureErrorBoundary } from '@/components/Common/FeatureErrorBoundary';
 import {
   BookOpen,
   Building2,
@@ -17,7 +15,9 @@ import {
   UserCog,
   Wrench,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FeatureErrorBoundary } from '@/components/Common/FeatureErrorBoundary';
 
 interface SettingsCard {
   title: string;
@@ -182,39 +182,39 @@ export function SettingsPage() {
 
   return (
     <FeatureErrorBoundary module="Settings">
-    <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h2 style={{ color: 'var(--text-primary)', fontSize: 'var(--text-h3)', fontWeight: 600 }}>
-        Configurações
-      </h2>
+      <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <h2 style={{ color: 'var(--text-primary)', fontSize: 'var(--text-h3)', fontWeight: 600 }}>
+          Configurações
+        </h2>
 
-      <SettingsCardGrid cards={BASIC_CARDS} />
+        <SettingsCardGrid cards={BASIC_CARDS} />
 
-      <button
-        onClick={() => setShowAdvanced((p) => !p)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          padding: '10px 20px',
-          borderRadius: 8,
-          border: '1px solid var(--border-default)',
-          background: 'transparent',
-          color: 'var(--text-secondary)',
-          fontSize: 13,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          transition: 'border-color 0.15s',
-        }}
-      >
-        {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        {showAdvanced
-          ? 'Ocultar configurações avançadas'
-          : `Configurações avançadas (${ADVANCED_CARDS.length})`}
-      </button>
+        <button
+          onClick={() => setShowAdvanced((p) => !p)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '10px 20px',
+            borderRadius: 8,
+            border: '1px solid var(--border-default)',
+            background: 'transparent',
+            color: 'var(--text-secondary)',
+            fontSize: 13,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'border-color 0.15s',
+          }}
+        >
+          {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          {showAdvanced
+            ? 'Ocultar configurações avançadas'
+            : `Configurações avançadas (${ADVANCED_CARDS.length})`}
+        </button>
 
-      {showAdvanced && <SettingsCardGrid cards={ADVANCED_CARDS} />}
-    </div>
+        {showAdvanced && <SettingsCardGrid cards={ADVANCED_CARDS} />}
+      </div>
     </FeatureErrorBoundary>
   );
 }

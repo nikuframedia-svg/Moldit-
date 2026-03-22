@@ -101,7 +101,7 @@ export function FabricaMachineCards({
                       <div
                         style={{
                           height: `${Math.max(su * 100, 1)}%`,
-                          background: C.pp + '88',
+                          background: `${C.pp}88`,
                           borderRadius: '1px 1px 0 0',
                           minHeight: 1,
                         }}

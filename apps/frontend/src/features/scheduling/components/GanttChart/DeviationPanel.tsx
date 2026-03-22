@@ -148,7 +148,12 @@ export function DeviationPanel({
 
   return (
     <div className="dev-panel__overlay" onClick={onCancel} role="presentation">
-      <div className="dev-panel" role="dialog" aria-label="Desvio do Optimo" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="dev-panel"
+        role="dialog"
+        aria-label="Desvio do Optimo"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="dev-panel__title">
           Desvio do Optimo — {move.block.toolId} ({move.block.sku})
         </div>

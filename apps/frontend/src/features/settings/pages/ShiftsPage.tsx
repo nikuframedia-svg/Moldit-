@@ -92,7 +92,8 @@ export function ShiftsPage() {
           padding: '12px 16px',
           border: `1px solid ${thirdShiftRecommended && !thirdShiftDefault ? 'var(--semantic-warning, #FF8C00)' : 'var(--border-default)'}`,
           borderRadius: 8,
-          background: thirdShiftRecommended && !thirdShiftDefault ? 'rgba(255, 140, 0, 0.06)' : 'transparent',
+          background:
+            thirdShiftRecommended && !thirdShiftDefault ? 'rgba(255, 140, 0, 0.06)' : 'transparent',
         }}
       >
         <label

@@ -45,7 +45,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, isLoading]);
+  }, []);
 
   // Focus input when panel opens
   useEffect(() => {

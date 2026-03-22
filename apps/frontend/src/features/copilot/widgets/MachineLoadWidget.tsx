@@ -21,7 +21,7 @@ export function MachineLoadWidget({ data }: { data: Record<string, unknown> }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
         Carga por Máquina
       </div>
       {entries.map(([id, v]) => {
@@ -30,7 +30,7 @@ export function MachineLoadWidget({ data }: { data: Record<string, unknown> }) {
           <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontFamily: "'JetBrains Mono',monospace",
                 minWidth: 56,
                 color: 'var(--text-primary)',
@@ -48,7 +48,7 @@ export function MachineLoadWidget({ data }: { data: Record<string, unknown> }) {
             >
               <div style={{ ...BAR_STYLE, width: `${pct}%` }} />
             </div>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 40 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 40 }}>
               {v.jobs ?? 0}j
             </span>
           </div>

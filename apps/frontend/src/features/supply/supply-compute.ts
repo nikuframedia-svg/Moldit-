@@ -51,7 +51,7 @@ function checkMachineOverloaded(rec: MRPRecord, rccp: RCCPEntry[]): boolean {
   for (const bucket of rec.buckets) {
     if (bucket.plannedOrderRelease > 0) {
       const entry = rccp.find((e) => e.machine === rec.machine && e.dayIndex === bucket.dayIndex);
-      if (entry && entry.overloaded) return true;
+      if (entry?.overloaded) return true;
     }
   }
   return false;

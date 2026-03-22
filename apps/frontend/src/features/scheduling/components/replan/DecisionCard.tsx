@@ -51,7 +51,7 @@ export function DecisionCard({ d, dnames, xai, setXai, applyMove, sC }: Decision
               {
                 l: 'Pico',
                 v: `${imp.destPeak}%`,
-                c: parseInt(imp.destPeak as string) > 85 ? C.yl : C.ac,
+                c: parseInt(imp.destPeak as string, 10) > 85 ? C.yl : C.ac,
               },
             ] as Array<{ l: string; v: unknown; c?: string }>
           ).map((m, i) => (
@@ -115,7 +115,7 @@ export function DecisionCard({ d, dnames, xai, setXai, applyMove, sC }: Decision
                   <div
                     style={{
                       height: `${Math.min((dl.current / DAY_CAP) * 100, 100)}%`,
-                      background: C.bl + '44',
+                      background: `${C.bl}44`,
                       minHeight: dl.current > 0 ? 1 : 0,
                     }}
                   />
@@ -174,7 +174,7 @@ export function DecisionCard({ d, dnames, xai, setXai, applyMove, sC }: Decision
           Raciocínio ({d.reasoning.length})
         </button>
         {d.type === 'replan' && d.action && (
-          <Pill color={C.ac} active onClick={() => applyMove(d.action!.opId, d.action!.toM)}>
+          <Pill color={C.ac} active onClick={() => applyMove(d.action?.opId, d.action?.toM)}>
             <Check
               size={10}
               strokeWidth={2}

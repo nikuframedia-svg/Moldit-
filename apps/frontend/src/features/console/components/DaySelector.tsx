@@ -141,17 +141,12 @@ export function DaySelector({
       '.day-sel__pill--active',
     ) as HTMLElement | null;
     active?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  }, [selectedIdx]);
+  }, []);
 
   // ── Flat mode (<=14 days) ──
   if (!isCompact) {
     return (
-      <div
-        className="day-sel day-sel--flat"
-        ref={containerRef}
-        tabIndex={0}
-        data-testid="day-selector"
-      >
+      <div className="day-sel day-sel--flat" ref={containerRef} data-testid="day-selector">
         {dates.map((date, i) => {
           const isActive = i === selectedIdx;
           const isWeekend = !workdays[i];
@@ -180,12 +175,7 @@ export function DaySelector({
 
   // ── Grouped mode (>14 days) ──
   return (
-    <div
-      className="day-sel day-sel--grouped"
-      ref={containerRef}
-      tabIndex={0}
-      data-testid="day-selector"
-    >
+    <div className="day-sel day-sel--grouped" ref={containerRef} data-testid="day-selector">
       <div className="day-sel__summary">
         <span className="day-sel__summary-text">
           {dates[0]} — {dates[dates.length - 1]} · {dates.length} dias · {weeks.length} semanas

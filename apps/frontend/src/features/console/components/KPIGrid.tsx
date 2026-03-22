@@ -4,12 +4,7 @@
  */
 
 import { KPICard } from '@/components/Industrial/KPICard';
-import {
-  formatOTD,
-  formatUtilization,
-  formatSetupTime,
-  formatAlerts,
-} from '@/utils/explicitText';
+import { formatAlerts, formatOTD, formatSetupTime, formatUtilization } from '@/utils/explicitText';
 import './KPIGrid.css';
 
 export interface KPISparklines {
@@ -41,10 +36,13 @@ interface KPIGridProps {
 }
 
 const semanticColor = (s: 'good' | 'warning' | 'critical' | 'neutral'): string =>
-  s === 'good' ? 'var(--semantic-green)'
-    : s === 'warning' ? 'var(--semantic-amber)'
-    : s === 'critical' ? 'var(--semantic-red)'
-    : 'var(--accent)';
+  s === 'good'
+    ? 'var(--semantic-green)'
+    : s === 'warning'
+      ? 'var(--semantic-amber)'
+      : s === 'critical'
+        ? 'var(--semantic-red)'
+        : 'var(--accent)';
 
 export function KPIGrid(props: KPIGridProps) {
   const {
@@ -84,7 +82,9 @@ export function KPIGrid(props: KPIGridProps) {
         statusColor={
           lateDeliveriesCount > 0
             ? semanticColor('critical')
-            : otdE ? semanticColor(otdE.semantic) : undefined
+            : otdE
+              ? semanticColor(otdE.semantic)
+              : undefined
         }
       />
       <KPICard

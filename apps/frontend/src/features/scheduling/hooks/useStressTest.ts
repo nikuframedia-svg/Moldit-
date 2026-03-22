@@ -6,9 +6,9 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import type { Block, EngineData, EOp, OptResult } from '../../../lib/engine';
-import { scheduleReplanApi } from '../../../lib/api';
 import { getCachedNikufraData } from '../../../hooks/useScheduleData';
+import { scheduleReplanApi } from '../../../lib/api';
+import type { Block, EngineData, EOp, OptResult } from '../../../lib/engine';
 
 export interface StressTestResult {
   id: string;
@@ -44,31 +44,61 @@ const STRESS_TESTS: StressTestDef[] = [
     id: 'ST-002',
     name: 'Fornecedor atrasa 3 dias',
     description: 'Todas as deadlines deslocadas +3 dias (simula atraso de material)',
-    disruption: { type: 'demand_change', resource_id: 'all', start_day: 0, end_day: 3, capacity_factor: 0 },
+    disruption: {
+      type: 'demand_change',
+      resource_id: 'all',
+      start_day: 0,
+      end_day: 3,
+      capacity_factor: 0,
+    },
   },
   {
     id: 'ST-003',
     name: 'Procura +20%',
     description: 'Toda a procura aumenta 20%',
-    disruption: { type: 'demand_change', resource_id: 'all', start_day: 0, end_day: 80, capacity_factor: 1.2 },
+    disruption: {
+      type: 'demand_change',
+      resource_id: 'all',
+      start_day: 0,
+      end_day: 80,
+      capacity_factor: 1.2,
+    },
   },
   {
     id: 'ST-004',
     name: '2 operadores faltam',
     description: 'PG1 perde 2 operadores no turno X',
-    disruption: { type: 'machine_down', resource_id: 'PRM019', start_day: 0, end_day: 0, capacity_factor: 0.5 },
+    disruption: {
+      type: 'machine_down',
+      resource_id: 'PRM019',
+      start_day: 0,
+      end_day: 0,
+      capacity_factor: 0.5,
+    },
   },
   {
     id: 'ST-005',
     name: 'Rejeição sobe 5%',
     description: 'Taxa de rejeição aumenta — necessário produzir 5% mais peças',
-    disruption: { type: 'demand_change', resource_id: 'all', start_day: 0, end_day: 80, capacity_factor: 1.05 },
+    disruption: {
+      type: 'demand_change',
+      resource_id: 'all',
+      start_day: 0,
+      end_day: 80,
+      capacity_factor: 1.05,
+    },
   },
   {
     id: 'ST-006',
     name: 'Falha energia 2h',
     description: 'Todas as máquinas perdem 120min de capacidade no dia 0',
-    disruption: { type: 'machine_down', resource_id: 'all', start_day: 0, end_day: 0, capacity_factor: 0.85 },
+    disruption: {
+      type: 'machine_down',
+      resource_id: 'all',
+      start_day: 0,
+      end_day: 0,
+      capacity_factor: 0.85,
+    },
   },
 ];
 

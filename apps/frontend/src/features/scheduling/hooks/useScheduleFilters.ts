@@ -81,63 +81,57 @@ export function useScheduleFilters(engineData: EngineData | null): {
     [],
   );
 
-  const setResourceDown = useCallback(
-    (type: 'machine' | 'tool', id: string, days: number[]) => {
-      startScheduleTransition(() => {
-        setFailureEvents((prev) => {
-          const filtered = prev.filter((f) => !(f.resourceType === type && f.resourceId === id));
-          if (days.length === 0) return filtered;
-          const sorted = [...days].sort((a, b) => a - b);
-          const events: FailureEvent[] = [];
-          let start = sorted[0];
-          let end = sorted[0];
-          for (let i = 1; i < sorted.length; i++) {
-            if (sorted[i] === end + 1) {
-              end = sorted[i];
-            } else {
-              events.push({
-                id: `${type}-${id}-${start}-${end}`,
-                resourceType: type,
-                resourceId: id,
-                startDay: start,
-                endDay: end,
-                startShift: null,
-                endShift: null,
-                severity: 'total',
-                capacityFactor: 0,
-              });
-              start = sorted[i];
-              end = sorted[i];
-            }
+  const setResourceDown = useCallback((type: 'machine' | 'tool', id: string, days: number[]) => {
+    startScheduleTransition(() => {
+      setFailureEvents((prev) => {
+        const filtered = prev.filter((f) => !(f.resourceType === type && f.resourceId === id));
+        if (days.length === 0) return filtered;
+        const sorted = [...days].sort((a, b) => a - b);
+        const events: FailureEvent[] = [];
+        let start = sorted[0];
+        let end = sorted[0];
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i] === end + 1) {
+            end = sorted[i];
+          } else {
+            events.push({
+              id: `${type}-${id}-${start}-${end}`,
+              resourceType: type,
+              resourceId: id,
+              startDay: start,
+              endDay: end,
+              startShift: null,
+              endShift: null,
+              severity: 'total',
+              capacityFactor: 0,
+            });
+            start = sorted[i];
+            end = sorted[i];
           }
-          events.push({
-            id: `${type}-${id}-${start}-${end}`,
-            resourceType: type,
-            resourceId: id,
-            startDay: start,
-            endDay: end,
-            startShift: null,
-            endShift: null,
-            severity: 'total',
-            capacityFactor: 0,
-          });
-          return [...filtered, ...events];
+        }
+        events.push({
+          id: `${type}-${id}-${start}-${end}`,
+          resourceType: type,
+          resourceId: id,
+          startDay: start,
+          endDay: end,
+          startShift: null,
+          endShift: null,
+          severity: 'total',
+          capacityFactor: 0,
         });
+        return [...filtered, ...events];
       });
-    },
-    [startScheduleTransition],
-  );
+    });
+  }, []);
 
-  const clearResourceDown = useCallback(
-    (type: 'machine' | 'tool', id: string) => {
-      startScheduleTransition(() => {
-        setFailureEvents((prev) =>
-          prev.filter((f) => !(f.resourceType === type && f.resourceId === id)),
-        );
-      });
-    },
-    [startScheduleTransition],
-  );
+  const clearResourceDown = useCallback((type: 'machine' | 'tool', id: string) => {
+    startScheduleTransition(() => {
+      setFailureEvents((prev) =>
+        prev.filter((f) => !(f.resourceType === type && f.resourceId === id)),
+      );
+    });
+  }, []);
 
   // Pre-compute down days per resource
   const downDaysCache = useMemo(() => {

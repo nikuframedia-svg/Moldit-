@@ -69,10 +69,13 @@ export function useDayProblems(
       for (const v of validation.violations) {
         const touchesDay = v.affectedOps.some((o) => o.dayIdx === selDay);
         if (!touchesDay) continue;
-        const machines = [...new Set(v.affectedOps.filter((o) => o.dayIdx === selDay).map((o) => o.machineId))];
+        const machines = [
+          ...new Set(v.affectedOps.filter((o) => o.dayIdx === selDay).map((o) => o.machineId)),
+        ];
         problems.push({
           id: v.id,
-          severity: v.severity === 'critical' ? 'critical' : v.severity === 'high' ? 'high' : 'medium',
+          severity:
+            v.severity === 'critical' ? 'critical' : v.severity === 'high' ? 'high' : 'medium',
           machineId: machines[0],
           text: violationToSentence(v, dnames, dates),
           consequence: violationConsequence(v),

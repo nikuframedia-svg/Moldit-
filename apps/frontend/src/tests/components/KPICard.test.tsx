@@ -34,12 +34,7 @@ describe('KPICard', () => {
 
   it('renders subtitle with status color', () => {
     render(
-      <KPICard
-        label="OTD-D"
-        value="97%"
-        subtitle="Dentro do objectivo"
-        statusColor="#22c55e"
-      />,
+      <KPICard label="OTD-D" value="97%" subtitle="Dentro do objectivo" statusColor="#22c55e" />,
     );
     const subtitle = screen.getByText('Dentro do objectivo');
     expect(subtitle).toBeInTheDocument();
@@ -47,27 +42,17 @@ describe('KPICard', () => {
   });
 
   it('renders context line when provided', () => {
-    render(
-      <KPICard label="OTD-D" value="97%" contextLine="de 667 entregas, 649 a tempo" />,
-    );
+    render(<KPICard label="OTD-D" value="97%" contextLine="de 667 entregas, 649 a tempo" />);
     expect(screen.getByText('de 667 entregas, 649 a tempo')).toBeInTheDocument();
   });
 
   it('renders trend indicator', () => {
-    render(
-      <KPICard
-        label="Alertas"
-        value="3"
-        trend={{ direction: 'up', label: '2 overflow' }}
-      />,
-    );
+    render(<KPICard label="Alertas" value="3" trend={{ direction: 'up', label: '2 overflow' }} />);
     expect(screen.getByText(/2 overflow/)).toBeInTheDocument();
   });
 
   it('renders sparkline when data provided', () => {
-    render(
-      <KPICard label="Util" value="72%" sparkline={[60, 65, 70, 72]} />,
-    );
+    render(<KPICard label="Util" value="72%" sparkline={[60, 65, 70, 72]} />);
     expect(screen.getByTestId('echarts-sparkline')).toBeInTheDocument();
   });
 
@@ -82,9 +67,7 @@ describe('KPICard', () => {
   });
 
   it('renders status bar when statusColor is set', () => {
-    const { container } = render(
-      <KPICard label="OTD-D" value="97%" statusColor="#22c55e" />,
-    );
+    const { container } = render(<KPICard label="OTD-D" value="97%" statusColor="#22c55e" />);
     const bar = container.querySelector('.kpi-card__status-bar');
     expect(bar).toBeInTheDocument();
     expect(bar).toHaveStyle({ background: '#22c55e' });

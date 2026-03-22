@@ -35,11 +35,21 @@ export function KPISummaryCards({
   const blkN = new Set(blocks.filter((b) => b.type === 'blocked').map((b) => b.opId)).size;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${definitionCounts ? 7 : 6},1fr)`, gap: 8 }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${definitionCounts ? 7 : 6},1fr)`,
+        gap: 8,
+      }}
+    >
       {[
         (() => {
           if (!audit) return { l: 'Cobertura', v: '—', s: '', c: C.ac };
-          const cov = formatCoverage(audit.globalCoveragePct, audit.totalDemand, audit.totalProduced);
+          const cov = formatCoverage(
+            audit.globalCoveragePct,
+            audit.totalDemand,
+            audit.totalProduced,
+          );
           const c = cov.semantic === 'good' ? C.ac : cov.semantic === 'warning' ? C.yl : C.rd;
           return { l: 'Cobertura', v: cov.formatted, s: cov.context, c };
         })(),
@@ -83,9 +93,10 @@ export function KPISummaryCards({
         {
           l: 'Bloqueadas',
           v: blkN,
-          s: blkN > 0
-            ? `${blkN} operação${blkN > 1 ? 'ões' : ''} sem máquina viável — intervenção necessária`
-            : 'Todas as operações com máquina atribuída',
+          s:
+            blkN > 0
+              ? `${blkN} operação${blkN > 1 ? 'ões' : ''} sem máquina viável — intervenção necessária`
+              : 'Todas as operações com máquina atribuída',
           c: blkN > 0 ? C.rd : C.ac,
         },
         ...(definitionCounts
@@ -93,9 +104,10 @@ export function KPISummaryCards({
               {
                 l: 'Atrasados',
                 v: definitionCounts.atrasado ?? 0,
-                s: (definitionCounts.urgente ?? 0) > 0
-                  ? `${definitionCounts.urgente} urgentes`
-                  : 'Nenhuma operação urgente',
+                s:
+                  (definitionCounts.urgente ?? 0) > 0
+                    ? `${definitionCounts.urgente} urgentes`
+                    : 'Nenhuma operação urgente',
                 c: (definitionCounts.atrasado ?? 0) > 0 ? C.rd : C.ac,
               },
             ]

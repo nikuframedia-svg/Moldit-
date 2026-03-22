@@ -83,7 +83,7 @@ export function SchedulingHeader({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {otd != null && (
           <Pill
-            color={otd >= 0.95 ? C.gn : otd >= 0.80 ? C.yl : C.rd}
+            color={otd >= 0.95 ? C.gn : otd >= 0.8 ? C.yl : C.rd}
             active
             title={`On-Time Delivery: ${(otd * 100).toFixed(1)}%`}
           >
@@ -91,25 +91,45 @@ export function SchedulingHeader({
           </Pill>
         )}
         {(lateDeliveriesCount ?? 0) > 0 && (
-          <Pill color={C.rd} active title={`${lateDeliveriesCount} entrega${lateDeliveriesCount! > 1 ? 's' : ''} em atraso`}>
-            <AlertTriangle size={10} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
+          <Pill
+            color={C.rd}
+            active
+            title={`${lateDeliveriesCount} entrega${lateDeliveriesCount! > 1 ? 's' : ''} em atraso`}
+          >
+            <AlertTriangle
+              size={10}
+              strokeWidth={2}
+              style={{ display: 'inline', verticalAlign: 'middle' }}
+            />{' '}
             {lateDeliveriesCount} atraso{lateDeliveriesCount! > 1 ? 's' : ''}
           </Pill>
         )}
         {thirdShiftRecommended && !thirdShiftDefault && (
           <Pill color={C.yl} active>
-            <Moon size={10} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
+            <Moon
+              size={10}
+              strokeWidth={2}
+              style={{ display: 'inline', verticalAlign: 'middle' }}
+            />{' '}
             Noite recomendada
           </Pill>
         )}
         {downC > 0 && (
-          <Pill color={C.rd} active title={`${downC} máquina${downC > 1 ? 's' : ''} parada${downC > 1 ? 's' : ''} — pode afectar entregas`}>
+          <Pill
+            color={C.rd}
+            active
+            title={`${downC} máquina${downC > 1 ? 's' : ''} parada${downC > 1 ? 's' : ''} — pode afectar entregas`}
+          >
             <span style={dot(C.rd, true)} />
             {downC} DOWN
           </Pill>
         )}
         {movesCount > 0 && (
-          <Pill color={C.ac} active title={`${movesCount} operação${movesCount > 1 ? 'ões' : ''} redistribuída${movesCount > 1 ? 's' : ''} para manter entregas`}>
+          <Pill
+            color={C.ac}
+            active
+            title={`${movesCount} operação${movesCount > 1 ? 'ões' : ''} redistribuída${movesCount > 1 ? 's' : ''} para manter entregas`}
+          >
             <Check
               size={10}
               strokeWidth={2}
@@ -119,7 +139,11 @@ export function SchedulingHeader({
           </Pill>
         )}
         {autoMovesCount > 0 && (
-          <Pill color={C.bl} active title={`${autoMovesCount} movimentacao${autoMovesCount > 1 ? 'oes' : ''} automatica${autoMovesCount > 1 ? 's' : ''} pelo motor de optimizacao`}>
+          <Pill
+            color={C.bl}
+            active
+            title={`${autoMovesCount} movimentacao${autoMovesCount > 1 ? 'oes' : ''} automatica${autoMovesCount > 1 ? 's' : ''} pelo motor de optimizacao`}
+          >
             <Zap
               size={10}
               strokeWidth={1.5}
@@ -129,7 +153,11 @@ export function SchedulingHeader({
           </Pill>
         )}
         {blkOps > 0 && (
-          <Pill color={C.rd} active title={`${blkOps} operação${blkOps > 1 ? 'ões' : ''} bloqueada${blkOps > 1 ? 's' : ''} — sem máquina disponível`}>
+          <Pill
+            color={C.rd}
+            active
+            title={`${blkOps} operação${blkOps > 1 ? 'ões' : ''} bloqueada${blkOps > 1 ? 's' : ''} — sem máquina disponível`}
+          >
             {blkOps} bloq
           </Pill>
         )}
@@ -149,7 +177,7 @@ export function SchedulingHeader({
             padding: '3px 8px',
             borderRadius: 4,
             border: `1px solid ${useServer ? C.ac : C.bd}`,
-            background: useServer ? C.ac + '18' : 'transparent',
+            background: useServer ? `${C.ac}18` : 'transparent',
             color: useServer ? C.ac : C.t3,
             cursor: 'pointer',
             fontSize: 12,

@@ -14,7 +14,7 @@ export function ShiftsCapacitySection() {
   const thirdShiftDefault = useSettingsStore((s) => s.thirdShiftDefault);
   const { setShifts, setOEE, setThirdShiftDefault } = useSettingsActions();
 
-  const config = useMemo(() => getEngineConfig(), [shiftXStart, shiftChange, shiftYEnd, oee]);
+  const config = useMemo(() => getEngineConfig(), []);
 
   return (
     <div className="carregar-dados__section" data-testid="section-shifts">
@@ -71,8 +71,8 @@ export function ShiftsCapacitySection() {
             step={1}
             value={Math.round(oee * 100)}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 50 && n <= 90) setOEE(n / 100);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 50 && n <= 90) setOEE(n / 100);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="oee-input"

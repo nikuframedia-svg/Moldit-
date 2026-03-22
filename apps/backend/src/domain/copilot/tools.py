@@ -1,4 +1,4 @@
-"""Copilot function-calling tools — 14 tools for GPT-4o.
+"""Copilot function-calling tools — 18 tools for GPT-4o.
 
 Each tool is a dict compatible with OpenAI's function calling schema.
 Execution logic is in engine.py.
@@ -268,6 +268,99 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {},
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_ctp",
+            "description": "Verificar Capable-to-Promise: se uma encomenda pode ser entregue a tempo, com cenários alternativos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sku": {"type": "string", "description": "Referência/SKU a verificar"},
+                    "quantity": {"type": "integer", "description": "Quantidade da encomenda"},
+                    "target_day": {
+                        "type": "integer",
+                        "description": "Dia alvo de entrega (índice, 0 = hoje)",
+                    },
+                },
+                "required": ["sku", "quantity", "target_day"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "schedule_whatif",
+            "description": "Simular cenário what-if: adicionar/remover procura, máquina em baixo, rush order. Compara baseline vs cenário.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mutations": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "add_demand",
+                                        "remove_demand",
+                                        "machine_down",
+                                        "rush_order",
+                                    ],
+                                    "description": "Tipo de mutação",
+                                },
+                                "target_id": {
+                                    "type": "string",
+                                    "description": "SKU ou máquina afectada",
+                                },
+                                "params": {
+                                    "type": "object",
+                                    "description": "Parâmetros (day_idx, qty para demand; nenhum para machine_down)",
+                                },
+                            },
+                            "required": ["type", "target_id"],
+                        },
+                        "description": "Lista de mutações a aplicar",
+                    },
+                },
+                "required": ["mutations"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "simulate_overtime",
+            "description": "Simular impacto de activar o 3º turno (noite) numa ou todas as máquinas.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "machine_id": {
+                        "type": "string",
+                        "description": "Máquina para 3º turno (todas se omitido)",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "explicar_decisao_id",
+            "description": "Explicar uma decisão específica pelo seu ID, incluindo raciocínio detalhado e contexto.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "decision_id": {
+                        "type": "string",
+                        "description": "ID da decisão (ex: 'OVERFLOW_ROUTE_SKU123_D5')",
+                    },
+                },
+                "required": ["decision_id"],
             },
         },
     },

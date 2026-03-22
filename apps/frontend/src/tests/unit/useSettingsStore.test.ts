@@ -11,8 +11,8 @@ vi.mock('@/hooks/useScheduleData', () => ({
 }));
 
 import { invalidateScheduleCache } from '@/hooks/useScheduleData';
-import { useSettingsStore } from '@/stores/useSettingsStore';
 import { WEIGHT_PROFILES } from '@/stores/settings-types';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 const getState = () => useSettingsStore.getState();
 const actions = () => getState().actions;

@@ -34,7 +34,7 @@ export function UrgencyView({ data }: { data: IntelData }) {
           { label: 'Total SKUs at Risk', value: urgency.length, color: C.yl },
           { label: 'Critical (< 3d)', value: criticalCount, color: C.rd },
           { label: 'Monitor (> 10d)', value: monitorCount, color: C.ac },
-          { label: 'Worst Deficit', value: fmtQty(maxDef) + ' pcs', color: C.rd },
+          { label: 'Worst Deficit', value: `${fmtQty(maxDef)} pcs`, color: C.rd },
         ]}
       />
       {/* Client legend */}

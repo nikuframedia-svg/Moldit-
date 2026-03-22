@@ -10,7 +10,7 @@ export function SuggestionsWidget({ data }: { data: Record<string, unknown> }) {
     <div style={{ marginTop: 8 }}>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 600,
           color: 'var(--text-secondary)',
           marginBottom: 4,
@@ -24,7 +24,7 @@ export function SuggestionsWidget({ data }: { data: Record<string, unknown> }) {
           style={{
             display: 'flex',
             gap: 6,
-            fontSize: 10,
+            fontSize: 12,
             color: 'var(--text-primary)',
             padding: '3px 0',
           }}

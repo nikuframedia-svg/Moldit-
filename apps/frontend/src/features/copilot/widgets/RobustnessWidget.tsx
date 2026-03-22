@@ -17,7 +17,7 @@ export function RobustnessWidget({ data }: { data: Record<string, unknown> }) {
     <div style={{ marginTop: 8 }}>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 600,
           color: 'var(--text-secondary)',
           marginBottom: 6,
@@ -33,7 +33,7 @@ export function RobustnessWidget({ data }: { data: Record<string, unknown> }) {
               padding: '4px 8px',
               borderRadius: 4,
               background: 'var(--bg-raised, rgba(30,34,48,0.65))',
-              fontSize: 10,
+              fontSize: 12,
             }}
           >
             <div style={{ color: 'var(--text-muted)', marginBottom: 1 }}>{k}</div>
@@ -43,11 +43,11 @@ export function RobustnessWidget({ data }: { data: Record<string, unknown> }) {
       </div>
       {vulnerable.length > 0 && (
         <>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>
             Jobs vulneráveis:
           </div>
           {vulnerable.slice(0, 5).map((v, i) => (
-            <div key={i} style={{ fontSize: 10, display: 'flex', gap: 6, paddingLeft: 8 }}>
+            <div key={i} style={{ fontSize: 12, display: 'flex', gap: 6, paddingLeft: 8 }}>
               <span
                 style={{
                   fontFamily: "'JetBrains Mono',monospace",

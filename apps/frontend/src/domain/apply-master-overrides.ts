@@ -5,8 +5,8 @@
  * Pure function — no store dependency.
  */
 
-import type { NikufraData } from './nikufra-types';
 import type { MachineOverride, ToolOverride } from '../stores/useMasterDataStore';
+import type { NikufraData } from './nikufra-types';
 
 export function applyMasterOverrides(
   data: NikufraData,

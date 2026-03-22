@@ -2,35 +2,190 @@
 // Module-level cache: computes once, shared across all consumers
 // Reacts to useDataStore changes (ISOP upload) via dataVersion counter
 // Backend CP-SAT is the ONLY scheduling path — no client-side fallback.
+// schedule-pipeline logic inlined (was sole consumer).
 
 import { useEffect, useMemo, useState } from 'react';
 import type {
-  Block,
-  CoverageAuditResult,
-  DayLoad,
-  DecisionEntry,
-  EngineData,
-  FeasibilityReport,
-  LateDeliveryAnalysis,
-  MoveAction,
-  MRPResult,
-  ScheduleValidationReport,
-  TransparencyReport,
-} from '../lib/engine';
-import type { OptResult } from '../lib/engine';
+  ActionMessagesSummary as BackendActionsSummary,
+  CoverageAuditResult as BackendCoverageResult,
+  DayLoad as BackendDayLoad,
+  LateDeliveryAnalysis as BackendLateDeliveryAnalysis,
+  MRPResult as BackendMRPResult,
+  MRPSkuViewResult as BackendMRPSkuViewResult,
+  ROPSummary as BackendROPSummary,
+  CoverageMatrixSkuResult,
+  QuickValidateResult,
+  ReplanProposal,
+  ScoreResult,
+  ValidationResult,
+  WorkforceForecastResult,
+} from '../domain/api-types';
 import type {
   ActionMessagesSummary,
   MRPSkuViewResult,
   ROPSkuSummary,
   ROPSummary,
 } from '../domain/mrp/mrp-types';
-import type { CacheEntry, DataSourceLike } from '../lib/schedule-pipeline';
-import { runSchedulePipeline } from '../lib/schedule-pipeline';
+import type { FullScheduleResponse } from '../lib/api';
+import { scheduleFullApi } from '../lib/api';
+import type {
+  AdvanceAction,
+  Block,
+  CoverageAuditResult,
+  DayLoad,
+  DecisionEntry,
+  DispatchRule,
+  EngineData,
+  FeasibilityReport,
+  LateDeliveryAnalysis,
+  MoveAction,
+  MRPResult,
+  OptResult,
+  ScheduleValidationReport,
+  TransparencyReport,
+} from '../lib/engine';
+import type { TransformConfigFromSettings } from '../stores/settings-config';
 import { getTransformConfig, settingsHashSelector } from '../stores/settings-config';
 import { useDataStore } from '../stores/useDataStore';
 import { overridesVersionSelector, useMasterDataStore } from '../stores/useMasterDataStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useDataSource } from './useDataSource';
+
+// ── Types (inlined from schedule-pipeline.ts) ──
+
+export interface BackendAnalytics {
+  score: ScoreResult | null;
+  validation: ValidationResult | null;
+  coverage: BackendCoverageResult | null;
+  cap: Record<string, BackendDayLoad[]> | null;
+  mrpFull: BackendMRPResult | null;
+  lateDeliveries: BackendLateDeliveryAnalysis | null;
+  mrpSkuView: BackendMRPSkuViewResult | null;
+  mrpRop: BackendROPSummary | null;
+  mrpRopSku: BackendROPSummary | null;
+  mrpActions: BackendActionsSummary | null;
+  mrpCoverageSku: CoverageMatrixSkuResult | null;
+  mrpCoverageMatrix: Record<string, unknown> | null;
+  quickValidate: QuickValidateResult | null;
+  genDecisions: ReplanProposal[] | null;
+  workforceForecast: WorkforceForecastResult | null;
+}
+
+export interface CacheEntry {
+  nikufraData: Record<string, unknown>;
+  engine: EngineData;
+  blocks: Block[];
+  autoMoves: MoveAction[];
+  autoAdvances: AdvanceAction[];
+  decisions: DecisionEntry[];
+  feasibilityReport: FeasibilityReport | null;
+  transparencyReport: TransparencyReport | null;
+  mrp: MRPResult | null;
+  resolvedDispatchRule: DispatchRule;
+  thirdShiftRecommended: boolean;
+  backendAnalytics: BackendAnalytics;
+}
+
+interface DataSourceLike {
+  getNikufraData?: () => Record<string, unknown> | null;
+  getPlanState?: () => Promise<unknown>;
+}
+
+// ── Pipeline (inlined from schedule-pipeline.ts) ──
+
+async function runSchedulePipeline(
+  ds: DataSourceLike,
+  tcfg: TransformConfigFromSettings,
+): Promise<CacheEntry> {
+  const nikufraData = ds.getNikufraData?.();
+  if (!nikufraData) {
+    throw new Error(
+      'NikufraData não disponível — o backend é obrigatório para scheduling. Carregue um ficheiro ISOP.',
+    );
+  }
+
+  const settings = useSettingsStore.getState();
+
+  const settingsPayload = {
+    dispatchRule: settings.dispatchRule === 'AUTO' ? 'EDD' : settings.dispatchRule,
+    thirdShift: settings.thirdShiftDefault,
+    maxTier: 4,
+    orderBased: true,
+    demandSemantics: tcfg.demandSemantics || 'raw_np',
+  };
+
+  const response: FullScheduleResponse = await scheduleFullApi(
+    { nikufra_data: nikufraData, settings: settingsPayload },
+    30_000,
+  );
+
+  if (!response.blocks || response.blocks.length === 0) {
+    if (response.parse_warnings?.some((w: string) => w.startsWith('Erro'))) {
+      throw new Error(`Pipeline errors: ${response.parse_warnings.join('; ')}`);
+    }
+  }
+
+  const data = (response.engine_data ?? {}) as unknown as EngineData;
+
+  const dispatchRule: DispatchRule =
+    settings.dispatchRule === 'AUTO' ? 'EDD' : (settings.dispatchRule as DispatchRule);
+
+  console.info(
+    `[schedule-pipeline] CP-SAT: ${response.n_blocks} blocks in ${response.solve_time_s}s (${response.solver_used})`,
+  );
+
+  const feas = response.feasibility_report as Record<string, unknown> | null;
+  const remediations = feas?.remediations as Array<{ type: string }> | undefined;
+  const mrp = (response.mrp ?? null) as unknown as MRPResult | null;
+
+  const entry: CacheEntry = {
+    nikufraData,
+    engine: data,
+    blocks: response.blocks as unknown as Block[],
+    autoMoves: (response.auto_moves ?? []) as unknown as MoveAction[],
+    autoAdvances: (response.auto_advances ?? []) as unknown as AdvanceAction[],
+    decisions: (response.decisions ?? []) as unknown as DecisionEntry[],
+    feasibilityReport: (response.feasibility_report ?? null) as unknown as FeasibilityReport | null,
+    transparencyReport: null,
+    mrp,
+    resolvedDispatchRule: dispatchRule,
+    thirdShiftRecommended: remediations?.some((r) => r.type === 'THIRD_SHIFT') ?? false,
+    backendAnalytics: {
+      score: response.score ?? null,
+      validation: response.validation ?? null,
+      coverage: response.coverage ?? null,
+      cap: response.cap ?? null,
+      mrpFull: response.mrp ?? null,
+      lateDeliveries: response.late_deliveries ?? null,
+      mrpSkuView: response.mrp_sku_view ?? null,
+      mrpRop: response.mrp_rop ?? null,
+      mrpRopSku: response.mrp_rop_sku ?? null,
+      mrpActions: response.mrp_actions ?? null,
+      mrpCoverageSku: response.mrp_coverage_sku ?? null,
+      mrpCoverageMatrix: response.mrp_coverage_matrix ?? null,
+      quickValidate: response.quick_validate ?? null,
+      genDecisions: response.gen_decisions ?? null,
+      workforceForecast: response.workforce_forecast ?? null,
+    },
+  };
+
+  return applyPreStart(entry, data);
+}
+
+function applyPreStart(entry: CacheEntry, data: EngineData): CacheEntry {
+  const preN = data._preStartDays ?? 0;
+  if (preN > 0) {
+    for (const b of entry.blocks) {
+      if (b.dayIdx < preN) {
+        b.preStart = true;
+        b.preStartReason = `Produção antecipada ${preN - b.dayIdx} dia(s) antes do ISOP`;
+      }
+    }
+  }
+  return entry;
+}
+
+// ── Public interface ──
 
 export interface ScheduleData {
   /** Raw nikufra_data for backend API calls (optimize, what-if, replan) */
@@ -53,9 +208,9 @@ export interface ScheduleData {
   mrpRop: ROPSummary | null;
   mrpRopSku: ROPSkuSummary | null;
   mrpActions: ActionMessagesSummary | null;
-  genDecisions: Record<string, unknown>[] | null;
-  quickValidate: Record<string, unknown> | null;
-  workforceForecast: Record<string, unknown> | null;
+  genDecisions: ReplanProposal[] | null;
+  quickValidate: QuickValidateResult | null;
+  workforceForecast: WorkforceForecastResult | null;
   riskGrid: Record<string, unknown> | null;
   loading: boolean;
   error: string | null;
@@ -182,49 +337,31 @@ export function useScheduleData(): ScheduleData {
   // ── Use backend analytics directly — no local computation fallback ──
   const ba = cached?.backendAnalytics;
 
-  const cap = useMemo(
-    () => (ba?.cap as Record<string, DayLoad[]>) ?? {},
-    [ba],
-  );
+  const cap = useMemo(() => (ba?.cap as Record<string, DayLoad[]>) ?? {}, []);
 
-  const metrics = useMemo(
-    () => (ba?.score as unknown as OptResult) ?? null,
-    [ba],
-  );
+  const metrics = useMemo(() => (ba?.score as unknown as OptResult) ?? null, []);
 
   const validation = useMemo(
     () => (ba?.validation as unknown as ScheduleValidationReport) ?? null,
-    [ba],
+    [],
   );
 
-  const coverageAudit = useMemo(
-    () => (ba?.coverage as unknown as CoverageAuditResult) ?? null,
-    [ba],
-  );
+  const coverageAudit = useMemo(() => (ba?.coverage as unknown as CoverageAuditResult) ?? null, []);
 
   const lateDeliveries = useMemo(
     () => (ba?.lateDeliveries as unknown as LateDeliveryAnalysis) ?? null,
-    [ba],
+    [],
   );
 
-  const mrpSkuView = useMemo(
-    () => (ba?.mrpSkuView as unknown as MRPSkuViewResult) ?? null,
-    [ba],
-  );
+  const mrpSkuView = useMemo(() => (ba?.mrpSkuView as unknown as MRPSkuViewResult) ?? null, []);
 
-  const mrpRop = useMemo(
-    () => (ba?.mrpRop as unknown as ROPSummary) ?? null,
-    [ba],
-  );
+  const mrpRop = useMemo(() => (ba?.mrpRop as unknown as ROPSummary) ?? null, []);
 
-  const mrpRopSku = useMemo(
-    () => (ba?.mrpRopSku as unknown as ROPSkuSummary) ?? null,
-    [ba],
-  );
+  const mrpRopSku = useMemo(() => (ba?.mrpRopSku as unknown as ROPSkuSummary) ?? null, []);
 
   const mrpActions = useMemo(
     () => (ba?.mrpActions as unknown as ActionMessagesSummary) ?? null,
-    [ba],
+    [],
   );
 
   return {
@@ -250,7 +387,7 @@ export function useScheduleData(): ScheduleData {
     genDecisions: ba?.genDecisions ?? null,
     quickValidate: ba?.quickValidate ?? null,
     workforceForecast: ba?.workforceForecast ?? null,
-    riskGrid: null, // TODO: add to backend pipeline analytics
+    riskGrid: null,
     loading,
     error,
   };
@@ -263,7 +400,6 @@ export function getCachedNikufraData(): Record<string, unknown> | null {
 
 // Allow external code to invalidate cache when replan happens
 export function invalidateScheduleCache(): void {
-  // Dispatch event so useScheduleData re-renders
   window.dispatchEvent(new Event('schedule-invalidate'));
   cached = null;
   cachePromise = null;

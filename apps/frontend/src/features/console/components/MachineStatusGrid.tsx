@@ -67,7 +67,12 @@ function deriveMachineStatuses(
   });
 }
 
-export function MachineStatusGrid({ engine, blocks, machineLoads, clientMap }: MachineStatusGridProps) {
+export function MachineStatusGrid({
+  engine,
+  blocks,
+  machineLoads,
+  clientMap,
+}: MachineStatusGridProps) {
   const statuses = useMemo(
     () => deriveMachineStatuses(engine, blocks, machineLoads),
     [engine, blocks, machineLoads],

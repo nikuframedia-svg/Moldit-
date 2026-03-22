@@ -68,8 +68,8 @@ export function PlanningRulesSection() {
             max={10}
             value={bucketWindowDays}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 2 && n <= 10) setBucketWindowDays(n);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 2 && n <= 10) setBucketWindowDays(n);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="bucket-window"
@@ -84,8 +84,8 @@ export function PlanningRulesSection() {
             max={7}
             value={maxEddGapDays}
             onChange={(e) => {
-              const n = parseInt(e.target.value);
-              if (!isNaN(n) && n >= 2 && n <= 7) setMaxEddGapDays(n);
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n) && n >= 2 && n <= 7) setMaxEddGapDays(n);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="edd-gap"
@@ -102,7 +102,7 @@ export function PlanningRulesSection() {
             value={defaultSetupHours}
             onChange={(e) => {
               const n = parseFloat(e.target.value);
-              if (!isNaN(n) && n >= 0.25 && n <= 3.0) setDefaultSetupHours(n);
+              if (!Number.isNaN(n) && n >= 0.25 && n <= 3.0) setDefaultSetupHours(n);
             }}
             className="carregar-dados__mo-field-input"
             data-testid="default-setup"

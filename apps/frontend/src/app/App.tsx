@@ -4,8 +4,8 @@ import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/Common/ErrorBoundary';
 import { SkeletonCard } from '@/components/Common/SkeletonLoader';
-import { CommandPalette } from '@/components/ui/CommandPalette';
 import { ToastContainer } from '@/components/Toast/Toast';
+import { CommandPalette } from '@/components/ui/CommandPalette';
 import { useTheme } from '@/stores/useUIStore';
 import { getIndustrialTheme } from '@/theme/industrial-theme';
 import { AppLayout } from './Layout';
@@ -52,8 +52,16 @@ const IntelligencePage = lazy(() =>
 );
 
 /* ── Risk ── */
-const RiskPage = lazy(() =>
-  import('@/pages/Risk/Risk').then((m) => ({ default: m.Risk })),
+const RiskPage = lazy(() => import('@/pages/Risk/Risk').then((m) => ({ default: m.Risk })));
+
+/* ── Audit ── */
+const AuditPage = lazy(() =>
+  import('@/features/audit/AuditPage').then((m) => ({ default: m.AuditPage })),
+);
+
+/* ── Learning ── */
+const LearningPage = lazy(() =>
+  import('@/features/learning/LearningPage').then((m) => ({ default: m.LearningPage })),
 );
 
 /* ── Settings ── */
@@ -138,6 +146,12 @@ export function App() {
 
                 {/* Risk */}
                 <Route path="/risk" element={<RiskPage />} />
+
+                {/* Audit */}
+                <Route path="/audit" element={<AuditPage />} />
+
+                {/* Learning */}
+                <Route path="/learning" element={<LearningPage />} />
 
                 {/* Settings */}
                 <Route path="/settings" element={<SettingsPage />} />

@@ -30,7 +30,7 @@ export function heatColor(pct: number): string {
 }
 
 export function fmtPct(n: number): string {
-  return n.toFixed(0) + '%';
+  return `${n.toFixed(0)}%`;
 }
 export function fmtMin(n: number): string {
   return n < 60 ? `${n.toFixed(0)}m` : `${(n / 60).toFixed(1)}h`;

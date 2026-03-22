@@ -73,7 +73,7 @@ export function DecisionsPanel({
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {moves.length > 0 && (
-            <Card style={{ padding: 12, background: C.acS, borderColor: C.ac + '22' }}>
+            <Card style={{ padding: 12, background: C.acS, borderColor: `${C.ac}22` }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: C.ac, marginBottom: 4 }}>
                 Aplicadas ({moves.length})
               </div>
@@ -118,7 +118,13 @@ export function DecisionsPanel({
                       {mv.toM}
                     </span>
                     <span style={{ flex: 1, fontSize: 12, color: C.t3 }}>{op?.nm}</span>
-                    <Pill color={C.rd} active onClick={() => undoMove(mv.opId)} size="sm" aria-label={`Desfazer movimentação de ${op?.t ?? mv.opId}`}>
+                    <Pill
+                      color={C.rd}
+                      active
+                      onClick={() => undoMove(mv.opId)}
+                      size="sm"
+                      aria-label={`Desfazer movimentação de ${op?.t ?? mv.opId}`}
+                    >
                       <Undo2 size={9} strokeWidth={1.5} />
                     </Pill>
                   </div>

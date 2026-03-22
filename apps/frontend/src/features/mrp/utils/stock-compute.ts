@@ -2,7 +2,13 @@
  * stock-compute.ts — Pure computation for stock dashboard.
  */
 
-import type { Block, EngineData, MRPResult, MRPSkuViewRecord, MRPSkuViewResult } from '@/lib/engine';
+import type {
+  Block,
+  EngineData,
+  MRPResult,
+  MRPSkuViewRecord,
+  MRPSkuViewResult,
+} from '@/lib/engine';
 import { C } from '@/lib/engine';
 
 export type StockRisk = 'stockout' | 'critical' | 'warning' | 'ok';

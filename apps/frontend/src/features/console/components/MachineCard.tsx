@@ -49,7 +49,14 @@ function formatElapsed(ms: number): string {
   return `${h}h ${m}min`;
 }
 
-export const MachineCard = memo(function MachineCard({ status, downtime, onAndonPress, onRecovery, clientMap, blocksAtRisk = 0 }: MachineCardProps) {
+export const MachineCard = memo(function MachineCard({
+  status,
+  downtime,
+  onAndonPress,
+  onRecovery,
+  clientMap,
+  blocksAtRisk = 0,
+}: MachineCardProps) {
   const { machineId, state, currentBlock, nextBlock, utilization } = status;
 
   // Live elapsed timer when machine is down
@@ -111,7 +118,10 @@ export const MachineCard = memo(function MachineCard({ status, downtime, onAndon
             </span>
           )}
           {blocksAtRisk > 0 && (
-            <span className="msg__down-consequence" style={{ fontSize: 12, color: 'var(--semantic-red)', marginTop: 4, display: 'block' }}>
+            <span
+              className="msg__down-consequence"
+              style={{ fontSize: 12, color: 'var(--semantic-red)', marginTop: 4, display: 'block' }}
+            >
               Afecta {blocksAtRisk} encomenda{blocksAtRisk > 1 ? 's' : ''} esta semana
             </span>
           )}

@@ -2,8 +2,9 @@ import { ChevronDown, ChevronRight, Link2 } from 'lucide-react';
 import type { MRPSkuViewRecord } from '@/domain/mrp/mrp-types';
 import { C } from '@/lib/engine';
 import { useUIStore } from '@/stores/useUIStore';
-import { gridDensityVars } from '@/utils/gridDensity';
 import { fmtQty, mono, projColor } from '../utils/mrp-helpers';
+import { SKURowDetail } from './SKURowDetail';
+import { SKUTableFilters } from './SKUTableFilters';
 
 type Filter = 'all' | 'stockout' | 'backlog';
 
@@ -38,44 +39,19 @@ export function SKUTableTab({
   expanded,
   toggleExpand,
 }: SKUTableTabProps) {
-  const stockoutCount = allRecords.filter((r) => r.stockoutDay !== null).length;
-  const backlogCount = allRecords.filter((r) => r.backlog > 0).length;
-
   return (
     <>
-      <div className="mrp__filters">
-        <select
-          className="mrp__filter-select"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value as Filter)}
-        >
-          <option value="all">Todos ({allRecords.length})</option>
-          <option value="stockout">Com Stockout ({stockoutCount})</option>
-          <option value="backlog">Com Backlog ({backlogCount})</option>
-        </select>
-        <select
-          className="mrp__filter-select"
-          value={machineFilter}
-          onChange={(e) => setMachineFilter(e.target.value)}
-        >
-          <option value="all">Todas máquinas</option>
-          {machines.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.id} ({m.area})
-            </option>
-          ))}
-        </select>
-        <input
-          className="mrp__filter-input"
-          type="text"
-          placeholder="Procurar SKU/produto/tool..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <span style={{ fontSize: 12, color: C.t3, marginLeft: 'auto' }}>
-          {records.length} de {allRecords.length} SKUs
-        </span>
-      </div>
+      <SKUTableFilters
+        allRecords={allRecords}
+        filteredCount={records.length}
+        filter={filter}
+        setFilter={setFilter}
+        machineFilter={machineFilter}
+        setMachineFilter={setMachineFilter}
+        machines={machines}
+        search={search}
+        setSearch={setSearch}
+      />
       <div className="mrp__card">
         <table className="mrp__table">
           <thead>
@@ -233,91 +209,7 @@ function SKURow({
           </span>
         </td>
       </tr>
-      {isExpanded && (
-        <tr className="mrp__detail-row">
-          <td colSpan={9 + numDays}>
-            <div
-              className="mrp__detail-grid"
-              style={
-                {
-                  gridTemplateColumns: `120px repeat(${numDays}, 1fr)`,
-                  '--n-days': numDays,
-                  ...gridDensityVars(numDays),
-                } as React.CSSProperties
-              }
-            >
-              <div className="mrp__detail-label">Gross Req.</div>
-              {r.buckets.map((b, i) => (
-                <div
-                  key={i}
-                  className="mrp__detail-val"
-                  style={{ color: b.grossRequirement > 0 ? C.t2 : C.t4 }}
-                >
-                  {b.grossRequirement > 0 ? fmtQty(b.grossRequirement) : '-'}
-                </div>
-              ))}
-              <div className="mrp__detail-label">Sched. Receipts</div>
-              {r.buckets.map((_, i) => (
-                <div key={i} className="mrp__detail-val" style={{ color: C.t4 }}>
-                  -
-                </div>
-              ))}
-              <div className="mrp__detail-label">Proj. Available</div>
-              {r.buckets.map((b, i) => (
-                <div
-                  key={i}
-                  className="mrp__detail-val"
-                  style={{ color: projColor(b.projectedAvailable), fontWeight: 600 }}
-                >
-                  {fmtQty(b.projectedAvailable)}
-                </div>
-              ))}
-              <div className="mrp__detail-label">Net Req.</div>
-              {r.buckets.map((b, i) => (
-                <div
-                  key={i}
-                  className="mrp__detail-val"
-                  style={{ color: b.netRequirement > 0 ? C.rd : C.t4 }}
-                >
-                  {b.netRequirement > 0 ? fmtQty(b.netRequirement) : '-'}
-                </div>
-              ))}
-              <div className="mrp__detail-label">POR (Receipt)</div>
-              {r.buckets.map((b, i) => (
-                <div
-                  key={i}
-                  className="mrp__detail-val"
-                  style={{ color: b.plannedOrderReceipt > 0 ? C.ac : C.t4 }}
-                >
-                  {b.plannedOrderReceipt > 0 ? fmtQty(b.plannedOrderReceipt) : '-'}
-                </div>
-              ))}
-              <div className="mrp__detail-label">POR (Release)</div>
-              {r.buckets.map((b, i) => (
-                <div
-                  key={i}
-                  className="mrp__detail-val"
-                  style={{ color: b.plannedOrderRelease > 0 ? C.pp : C.t4 }}
-                >
-                  {b.plannedOrderRelease > 0 ? fmtQty(b.plannedOrderRelease) : '-'}
-                </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 8, fontSize: 12, color: C.t3, display: 'flex', gap: 16 }}>
-              <span>Rate: {r.ratePerHour} p/h</span>
-              <span>Setup: {r.setupHours}h</span>
-              <span>Lote: {fmtQty(r.lotEconomicQty)}</span>
-              {r.customerName && <span>Cliente: {r.customerName}</span>}
-              {r.isTwin && <span style={{ color: C.ac }}>Twin: {r.twin}</span>}
-              {!r.altMachine ? (
-                <span style={{ color: C.rd }}>Sem alternativa</span>
-              ) : (
-                <span>Alt: {r.altMachine}</span>
-              )}
-            </div>
-          </td>
-        </tr>
-      )}
+      {isExpanded && <SKURowDetail record={r} numDays={numDays} />}
     </>
   );
 }

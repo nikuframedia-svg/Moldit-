@@ -20,7 +20,10 @@ export interface ProposedMove {
   isFrozen: boolean;
 }
 
-interface UndoEntry { description: string; timestamp: number }
+interface UndoEntry {
+  description: string;
+  timestamp: number;
+}
 const MAX_UNDO = 20;
 const RANGE = S1 - S0;
 const DRAG_THRESHOLD = 5;

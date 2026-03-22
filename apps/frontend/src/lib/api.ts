@@ -6,7 +6,68 @@
  */
 
 import { config } from '../config';
+import type {
+  ActionMessagesSummary,
+  CoverageAuditResult,
+  CoverageMatrixSkuResult,
+  DayLoad,
+  DecisionEntry,
+  FeasibilityReport,
+  LateDeliveryAnalysis,
+  MRPResult,
+  MRPSkuViewResult,
+  QuickValidateResult,
+  ReplanProposal,
+  ROPSummary,
+  ScheduleBlock,
+  ScoreResult,
+  ValidationResult,
+  WorkforceForecastResult,
+} from '../domain/api-types';
 import { fetchWithTimeout } from './fetchWithTimeout';
+
+export type {
+  ActionImpact,
+  ActionMessage,
+  ActionMessagesSummary,
+  AffectedOp,
+  CausingBlock,
+  CoverageAuditResult,
+  CoverageAuditRow,
+  CoverageMatrixSkuEntry,
+  CoverageMatrixSkuResult,
+  CoverageSkuCell,
+  DayLoad,
+  DecisionEntry,
+  FeasibilityReport,
+  InfeasibilityEntry,
+  LateDeliveryAnalysis,
+  LateDeliveryEntry,
+  MRPDayBucket,
+  MRPRecord,
+  MRPResult,
+  MRPSkuRecord,
+  MRPSkuSummary,
+  MRPSkuViewRecord,
+  MRPSkuViewResult,
+  MRPSummary,
+  QuickValidateResult,
+  RCCPEntry,
+  ReplanProposal,
+  ROPRecord,
+  ROPSummary,
+  ScheduleBlock,
+  ScheduleViolation,
+  ScoreResult,
+  StockProjectionPoint,
+  TwinOutput,
+  ValidationResult,
+  ValidationSummary,
+  WorkforceDemandEntry,
+  WorkforceForecastResult,
+  WorkforceForecastWarning,
+  WorkforceSuggestion,
+} from '../domain/api-types';
 
 // ── Response types matching backend FullScheduleResponse ──
 
@@ -22,10 +83,10 @@ export interface PipelineKPIs {
 }
 
 export interface FullScheduleResponse {
-  blocks: Record<string, unknown>[];
+  blocks: ScheduleBlock[];
   kpis: PipelineKPIs;
-  decisions: Record<string, unknown>[];
-  feasibility_report: Record<string, unknown> | null;
+  decisions: DecisionEntry[];
+  feasibility_report: FeasibilityReport | null;
   auto_moves: Record<string, unknown>[];
   auto_advances: Record<string, unknown>[];
   solve_time_s: number;
@@ -35,24 +96,23 @@ export interface FullScheduleResponse {
   parse_meta: Record<string, unknown> | null;
   parse_warnings: string[];
   nikufra_data: Record<string, unknown> | null;
-  // Engine data (camelCase, matches EngineData interface)
   engine_data: Record<string, unknown> | null;
-  // Analytics
-  score: Record<string, unknown> | null;
-  validation: Record<string, unknown> | null;
-  coverage: Record<string, unknown> | null;
-  cap: Record<string, unknown[]> | null;
-  mrp: Record<string, unknown> | null;
-  late_deliveries: Record<string, unknown> | null;
-  mrp_sku_view: Record<string, unknown> | null;
-  mrp_rop: Record<string, unknown> | null;
-  mrp_rop_sku: Record<string, unknown> | null;
-  mrp_actions: Record<string, unknown> | null;
-  mrp_coverage_sku: Record<string, unknown> | null;
+  score: ScoreResult | null;
+  validation: ValidationResult | null;
+  coverage: CoverageAuditResult | null;
+  cap: Record<string, DayLoad[]> | null;
+  mrp: MRPResult | null;
+  late_deliveries: LateDeliveryAnalysis | null;
+  mrp_sku_view: MRPSkuViewResult | null;
+  mrp_rop: ROPSummary | null;
+  mrp_rop_sku: ROPSummary | null;
+  mrp_actions: ActionMessagesSummary | null;
+  mrp_coverage_sku: CoverageMatrixSkuResult | null;
   mrp_coverage_matrix: Record<string, unknown> | null;
-  quick_validate: Record<string, unknown> | null;
-  gen_decisions: Record<string, unknown>[] | null;
-  workforce_forecast: Record<string, unknown> | null;
+  quick_validate: QuickValidateResult | null;
+  gen_decisions: ReplanProposal[] | null;
+  workforce_forecast: WorkforceForecastResult | null;
+  journal_summary: Record<string, unknown> | null;
 }
 
 // ── Schedule Full ────────────────────────────────────────────
@@ -225,6 +285,61 @@ export async function scheduleOptimizeApi(
   if (!res.ok) {
     const text = await res.text().catch(() => 'unknown');
     throw new Error(`Optimize HTTP ${res.status}: ${text}`);
+  }
+  return await res.json();
+}
+
+// ── CTP ──────────────────────────────────────────────────────
+
+export interface CTPApiScenario {
+  id: string;
+  label: string;
+  machine: string;
+  feasible: boolean;
+  earliest_feasible_day: number | null;
+  date_label: string | null;
+  required_min: number;
+  available_min_on_day: number;
+  capacity_slack: number;
+  confidence: 'high' | 'medium' | 'low';
+  reason: string;
+  is_alt: boolean;
+  capacity_timeline: Array<{
+    day_index: number;
+    existing_load: number;
+    new_order_load: number;
+    capacity: number;
+  }>;
+}
+
+export interface CTPApiResponse {
+  scenarios: CTPApiScenario[];
+  solve_time_s: number;
+}
+
+/** POST /v1/schedule/ctp — capable-to-promise analysis. */
+export async function scheduleCTPApi(
+  request: {
+    nikufra_data: Record<string, unknown>;
+    sku: string;
+    quantity: number;
+    target_day: number;
+    settings?: Record<string, unknown>;
+  },
+  timeoutMs = 30_000,
+): Promise<CTPApiResponse> {
+  const res = await fetchWithTimeout(
+    `${config.apiBaseURL}/v1/schedule/ctp`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    },
+    timeoutMs,
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => 'unknown');
+    throw new Error(`CTP HTTP ${res.status}: ${text}`);
   }
   return await res.json();
 }

@@ -146,7 +146,7 @@ export function ValidationPanel({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      applyMove(v.action!.opId, v.action!.toM);
+                      applyMove(v.action?.opId, v.action?.toM);
                     }}
                     style={{
                       marginTop: 2,

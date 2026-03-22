@@ -1,7 +1,7 @@
 import { memo } from 'react';
+import { blockKey } from '../../../../domain/configurable-logic-eval';
 import type { Block, DayLoad, EMachine, EngineData, ETool } from '../../../../lib/engine';
 import { C, DAY_CAP, S0, S1, T1 } from '../../../../lib/engine';
-import { blockKey } from '../../../../domain/configurable-logic-eval';
 import { dot, toolColor } from '../atoms';
 import { GanttBlock } from './GanttBlock';
 
@@ -50,11 +50,7 @@ export const GanttMachineRow = memo(function GanttMachineRow({
   const total = mC ? mC.prod + mC.setup : 0;
   const dayCap = thirdShift ? DAY_CAP + 420 : DAY_CAP;
   const u = total / dayCap;
-  const stateText = isDown
-    ? 'Parada'
-    : mB.length === 0
-      ? 'Inactiva'
-      : 'A produzir';
+  const stateText = isDown ? 'Parada' : mB.length === 0 ? 'Inactiva' : 'A produzir';
   const stateColor = isDown ? C.rd : mB.length === 0 ? C.t4 : C.ac;
   const avgPH = (() => {
     const pHs = [...new Set(mB.map((bl) => bl.toolId))]
@@ -99,9 +95,7 @@ export const GanttMachineRow = memo(function GanttMachineRow({
             {mc.id}
           </span>
         </div>
-        <div style={{ fontSize: 12, color: stateColor, fontWeight: 600 }}>
-          {stateText}
-        </div>
+        <div style={{ fontSize: 12, color: stateColor, fontWeight: 600 }}>{stateText}</div>
         <div style={{ fontSize: 12, color: C.t3 }}>
           {mB.length} lote{mB.length !== 1 ? 's' : ''}
         </div>

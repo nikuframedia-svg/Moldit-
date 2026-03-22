@@ -42,7 +42,12 @@ export function Risk() {
   const { riskGrid: backendRiskGrid } = useScheduleData();
   const grid = useMemo(() => {
     if (!engine || !backendRiskGrid) return null;
-    return backendRiskGrid as { rows: RiskRow[]; dates: string[]; dnames: string[]; summary: { criticalCount: number; highCount: number; mediumCount: number } };
+    return backendRiskGrid as {
+      rows: RiskRow[];
+      dates: string[];
+      dnames: string[];
+      summary: { criticalCount: number; highCount: number; mediumCount: number };
+    };
   }, [engine, backendRiskGrid]);
 
   const filteredRows = useMemo(() => {

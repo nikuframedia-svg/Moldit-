@@ -179,7 +179,7 @@ export function parseISOPFile(
     if (
       colMap.tpSetup >= 0 &&
       typeof row[colMap.tpSetup] === 'string' &&
-      isNaN(Number(String(row[colMap.tpSetup]).replace(',', '.')))
+      Number.isNaN(Number(String(row[colMap.tpSetup]).replace(',', '.')))
     ) {
       warnings.push(
         `Linha ${ri + 1}: SKU "${item_sku}" setup inválido ("${row[colMap.tpSetup]}") — interpretado como 0.`,
@@ -190,7 +190,7 @@ export function parseISOPFile(
     const daily_quantities: (number | null)[] = dateColIndices.map((ci) => {
       const raw = row[ci];
       if (raw == null || (typeof raw === 'string' && raw.trim() === '')) return null;
-      if (typeof raw === 'string' && isNaN(Number(raw.replace(',', '.')))) {
+      if (typeof raw === 'string' && Number.isNaN(Number(raw.replace(',', '.')))) {
         invalidCellsThisRow++;
         return null;
       }

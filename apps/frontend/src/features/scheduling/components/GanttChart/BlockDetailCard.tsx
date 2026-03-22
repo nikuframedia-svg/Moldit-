@@ -28,8 +28,7 @@ export function BlockDetailCard({
 }) {
   const col = toolColor(tools, b.toolId);
   const dur = Math.round(b.endMin - b.startMin);
-  const setupDur =
-    b.setupS != null && b.setupE != null ? Math.round(b.setupE - b.setupS) : null;
+  const setupDur = b.setupS != null && b.setupE != null ? Math.round(b.setupE - b.setupS) : null;
 
   return (
     <div
@@ -107,16 +106,9 @@ export function BlockDetailCard({
         <KV k="Início" v={fmtT(b.startMin)} />
         <KV k="Fim" v={fmtT(b.endMin)} />
         {setupDur != null && <KV k="Setup" v={`${setupDur} min`} />}
-        <KV
-          k="Turno"
-          v={b.shift === 'Z' ? 'Noite' : b.shift === 'X' ? 'Manhã' : 'Tarde'}
-        />
+        <KV k="Turno" v={b.shift === 'Z' ? 'Noite' : b.shift === 'X' ? 'Manhã' : 'Tarde'} />
         {b.eddDay != null && (
-          <KV
-            k="Deadline"
-            v={`Dia ${b.eddDay}`}
-            color={b.eddDay <= b.dayIdx ? C.rd : undefined}
-          />
+          <KV k="Deadline" v={`Dia ${b.eddDay}`} color={b.eddDay <= b.dayIdx ? C.rd : undefined} />
         )}
       </div>
 
@@ -155,9 +147,7 @@ export function BlockDetailCard({
           {b.outputs.map((o, i) => (
             <div key={i} style={{ fontSize: 12, color: C.t2 }}>
               {o.sku} —{' '}
-              <span style={{ color: C.t1, fontWeight: 600 }}>
-                {o.qty.toLocaleString()} pcs
-              </span>
+              <span style={{ color: C.t1, fontWeight: 600 }}>{o.qty.toLocaleString()} pcs</span>
             </div>
           ))}
         </div>

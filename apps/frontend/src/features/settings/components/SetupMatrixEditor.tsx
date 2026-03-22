@@ -138,7 +138,6 @@ export function SetupMatrixEditor({ tools }: SetupMatrixEditorProps) {
                             if (e.key === 'Enter') commitEdit();
                             if (e.key === 'Escape') setEditing(null);
                           }}
-                          autoFocus
                           style={{
                             width: 40,
                             textAlign: 'center',
@@ -159,7 +158,13 @@ export function SetupMatrixEditor({ tools }: SetupMatrixEditorProps) {
       </div>
 
       <div
-        style={{ marginTop: 12, display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-muted)' }}
+        style={{
+          marginTop: 12,
+          display: 'flex',
+          gap: 16,
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
       >
         <span>
           <span

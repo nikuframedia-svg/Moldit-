@@ -22,7 +22,7 @@ export function AlertsWidget({ data }: { data: Record<string, unknown> }) {
 
   if (info) {
     return (
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, fontStyle: 'italic' }}>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8, fontStyle: 'italic' }}>
         {info}
       </div>
     );
@@ -34,7 +34,7 @@ export function AlertsWidget({ data }: { data: Record<string, unknown> }) {
     <div style={{ marginTop: 8 }}>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 600,
           color: 'var(--text-secondary)',
           marginBottom: 4,
@@ -49,7 +49,7 @@ export function AlertsWidget({ data }: { data: Record<string, unknown> }) {
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            fontSize: 10,
+            fontSize: 12,
             padding: '2px 0',
           }}
         >
@@ -71,13 +71,20 @@ export function AlertsWidget({ data }: { data: Record<string, unknown> }) {
           >
             {a.sku}
           </span>
-          <span style={{ color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span
+            style={{
+              color: 'var(--text-muted)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {a.message}
           </span>
         </div>
       ))}
       {alerts.length > 8 && (
-        <div style={{ fontSize: 10, color: 'var(--text-ghost)', marginTop: 2 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-ghost)', marginTop: 2 }}>
           +{alerts.length - 8} mais
         </div>
       )}

@@ -10,7 +10,14 @@ export interface TimelineHeaderProps {
   thirdShift?: boolean;
 }
 
-export const TimelineHeader = memo(function TimelineHeader({ hours, ppm, selDay, dnames, dates, thirdShift }: TimelineHeaderProps) {
+export const TimelineHeader = memo(function TimelineHeader({
+  hours,
+  ppm,
+  selDay,
+  dnames,
+  dates,
+  thirdShift,
+}: TimelineHeaderProps) {
   return (
     <div
       style={{

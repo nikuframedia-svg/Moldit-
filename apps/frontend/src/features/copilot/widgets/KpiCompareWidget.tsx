@@ -18,9 +18,7 @@ export function KpiCompareWidget({ data }: { data: Record<string, unknown> }) {
   return (
     <div style={{ marginTop: 8 }}>
       {message && (
-        <div style={{ fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>
-          {message}
-        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 6 }}>{message}</div>
       )}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {entries.map(([label, val, prevVal]) => {
@@ -41,12 +39,12 @@ export function KpiCompareWidget({ data }: { data: Record<string, unknown> }) {
                 minWidth: 60,
               }}
             >
-              <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{label}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{label}</div>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
                 {typeof val === 'number' ? val.toLocaleString('pt-PT') : val}
               </div>
               {prevVal != null && delta !== 0 && (
-                <div style={{ fontSize: 9, color: deltaColor }}>
+                <div style={{ fontSize: 12, color: deltaColor }}>
                   {delta > 0 ? '+' : ''}
                   {delta.toLocaleString('pt-PT')}
                 </div>
@@ -56,7 +54,7 @@ export function KpiCompareWidget({ data }: { data: Record<string, unknown> }) {
         })}
       </div>
       {solveTime > 0 && (
-        <div style={{ fontSize: 9, color: 'var(--text-ghost)', marginTop: 4 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-ghost)', marginTop: 4 }}>
           Calculado em {solveTime.toFixed(1)}s
         </div>
       )}

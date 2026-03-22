@@ -55,7 +55,7 @@ export function HeatmapView({ data }: { data: IntelData }) {
                   x={LW + di * CW + CW / 2}
                   y={25}
                   textAnchor="middle"
-                  style={{ fill: C.t4, fontSize: 7.5 }}
+                  style={{ fill: C.t4, fontSize: 12 }}
                 >
                   {dayLetter}
                 </text>

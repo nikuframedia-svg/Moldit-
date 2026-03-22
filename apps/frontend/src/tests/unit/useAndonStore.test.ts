@@ -4,8 +4,8 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useAndonStore } from '@/stores/useAndonStore';
 import type { ActiveDowntime } from '@/stores/useAndonStore';
+import { useAndonStore } from '@/stores/useAndonStore';
 
 const getState = () => useAndonStore.getState();
 const actions = () => getState().actions;
@@ -51,9 +51,9 @@ describe('useAndonStore', () => {
     actions().registerDowntime(dt);
 
     const downtimes = getState().downtimes;
-    expect(downtimes['PRM019']).toBeDefined();
-    expect(downtimes['PRM019'].category).toBe('avaria_mecanica');
-    expect(downtimes['PRM019'].estimatedMin).toBe(30);
+    expect(downtimes.PRM019).toBeDefined();
+    expect(downtimes.PRM019.category).toBe('avaria_mecanica');
+    expect(downtimes.PRM019.estimatedMin).toBe(30);
   });
 
   it('registerDowntime overwrites existing downtime for same machine', () => {
@@ -67,8 +67,8 @@ describe('useAndonStore', () => {
     };
     actions().registerDowntime(dt2);
 
-    expect(getState().downtimes['PRM019'].category).toBe('falta_material');
-    expect(getState().downtimes['PRM019'].estimatedMin).toBeNull();
+    expect(getState().downtimes.PRM019.category).toBe('falta_material');
+    expect(getState().downtimes.PRM019.estimatedMin).toBeNull();
   });
 
   // ── Clear downtime ──
@@ -80,8 +80,8 @@ describe('useAndonStore', () => {
     actions().clearDowntime('PRM019');
 
     const downtimes = getState().downtimes;
-    expect(downtimes['PRM019']).toBeUndefined();
-    expect(downtimes['PRM031']).toBeDefined();
+    expect(downtimes.PRM019).toBeUndefined();
+    expect(downtimes.PRM031).toBeDefined();
   });
 
   it('clearDowntime is a no-op for non-existing machine', () => {
@@ -101,10 +101,10 @@ describe('useAndonStore', () => {
     actions().closeDrawer();
 
     expect(getState().drawerMachineId).toBeNull();
-    expect(getState().downtimes['PRM042']).toBeDefined();
+    expect(getState().downtimes.PRM042).toBeDefined();
 
     // Recover
     actions().clearDowntime('PRM042');
-    expect(getState().downtimes['PRM042']).toBeUndefined();
+    expect(getState().downtimes.PRM042).toBeUndefined();
   });
 });

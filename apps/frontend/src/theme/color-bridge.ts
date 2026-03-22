@@ -22,41 +22,41 @@ function resolveVar(name: string, fallback: string): string {
 // Fallbacks match index.css :root values
 const VAR_MAP: Record<string, [cssVar: string, fallback: string]> = {
   // Backgrounds
-  bg:  ['--bg-void',           '#06080D'],
-  s1:  ['--bg-surface-solid',  '#0E1016'],
-  s2:  ['--bg-base',           '#0E1016'],
-  s3:  ['--bg-raised',         'rgba(30,34,48,0.65)'],
+  bg: ['--bg-void', '#06080D'],
+  s1: ['--bg-surface-solid', '#0E1016'],
+  s2: ['--bg-base', '#0E1016'],
+  s3: ['--bg-raised', 'rgba(30,34,48,0.65)'],
   // Borders
-  bd:  ['--border-default',    'rgba(255,255,255,0.06)'],
-  bh:  ['--border-hover',      'rgba(129,140,248,0.30)'],
+  bd: ['--border-default', 'rgba(255,255,255,0.06)'],
+  bh: ['--border-hover', 'rgba(129,140,248,0.30)'],
   // Text — 4 levels
-  t1:  ['--text-primary',      '#F0F0F2'],
-  t2:  ['--text-secondary',    '#8E919A'],
-  t3:  ['--text-muted',        '#505362'],
-  t4:  ['--text-ghost',        '#2A2D3A'],
+  t1: ['--text-primary', '#F0F0F2'],
+  t2: ['--text-secondary', '#8E919A'],
+  t3: ['--text-muted', '#505362'],
+  t4: ['--text-ghost', '#2A2D3A'],
   // Accent (teal → indigo)
-  ac:  ['--accent',            '#818CF8'],
-  acS: ['--accent-bg',         'rgba(129,140,248,0.12)'],
-  acM: ['--accent-border',     'rgba(129,140,248,0.25)'],
+  ac: ['--accent', '#818CF8'],
+  acS: ['--accent-bg', 'rgba(129,140,248,0.12)'],
+  acM: ['--accent-border', 'rgba(129,140,248,0.25)'],
   // Red semantic
-  rd:  ['--semantic-red',      '#F87171'],
-  rdS: ['--semantic-red-bg',   'rgba(248,113,113,0.12)'],
-  rdM: ['',                    'rgba(248,113,113,0.25)'],
+  rd: ['--semantic-red', '#F87171'],
+  rdS: ['--semantic-red-bg', 'rgba(248,113,113,0.12)'],
+  rdM: ['', 'rgba(248,113,113,0.25)'],
   // Amber/Yellow
-  yl:  ['--semantic-amber',    '#FBBF24'],
+  yl: ['--semantic-amber', '#FBBF24'],
   ylS: ['--semantic-amber-bg', 'rgba(251,191,36,0.10)'],
   // Blue
-  bl:  ['--semantic-blue',     '#60A5FA'],
-  blS: ['--semantic-blue-bg',  'rgba(96,165,250,0.12)'],
+  bl: ['--semantic-blue', '#60A5FA'],
+  blS: ['--semantic-blue-bg', 'rgba(96,165,250,0.12)'],
   // Purple → accent
-  pp:  ['--accent',            '#818CF8'],
-  ppS: ['--accent-bg',         'rgba(129,140,248,0.12)'],
+  pp: ['--accent', '#818CF8'],
+  ppS: ['--accent-bg', 'rgba(129,140,248,0.12)'],
   // Cyan
-  cy:  ['--semantic-cyan',     '#22D3EE'],
+  cy: ['--semantic-cyan', '#22D3EE'],
   // White
-  w:   ['--text-primary',      '#F0F0F2'],
+  w: ['--text-primary', '#F0F0F2'],
   // Extra: green (not in engine C, but useful)
-  gn:  ['--semantic-green',    '#34D399'],
+  gn: ['--semantic-green', '#34D399'],
 };
 
 let _cache: Record<string, string> | null = null;
@@ -75,15 +75,12 @@ function resolve(): Record<string, string> {
  * Proxy resolves CSS vars on first property access.
  * Supports C.ac + '18' hex alpha appending (returns resolved hex strings).
  */
-export const C: typeof EngineC & { gn: string } = new Proxy(
-  EngineC as Record<string, string>,
-  {
-    get(target: Record<string, string>, key: string) {
-      const resolved = resolve();
-      return key in resolved ? resolved[key] : target[key];
-    },
+export const C: typeof EngineC & { gn: string } = new Proxy(EngineC as Record<string, string>, {
+  get(target: Record<string, string>, key: string) {
+    const resolved = resolve();
+    return key in resolved ? resolved[key] : target[key];
   },
-) as typeof EngineC & { gn: string };
+}) as typeof EngineC & { gn: string };
 
 /** TC unchanged — tool palette colors are category-based, not theme-dependent. */
 export const TC = EngineTC;

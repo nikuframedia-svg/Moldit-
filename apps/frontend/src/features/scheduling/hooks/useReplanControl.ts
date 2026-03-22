@@ -5,8 +5,17 @@
  */
 
 import { useMemo, useState } from 'react';
-import type { AutoReplanResult, Block, EngineData, EOp, MoveAction, ObjectiveProfile, QuickValidateResult, ReplanProposal } from '../../../lib/engine';
 import { useScheduleData } from '../../../hooks/useScheduleData';
+import type {
+  AutoReplanResult,
+  Block,
+  EngineData,
+  EOp,
+  MoveAction,
+  ObjectiveProfile,
+  QuickValidateResult,
+  ReplanProposal,
+} from '../../../lib/engine';
 import type { AutoReplanActions, AutoReplanState } from './useAutoReplan';
 import { useAutoReplan } from './useAutoReplan';
 import type { FailureActions, FailureState } from './useFailureManagement';
@@ -77,7 +86,16 @@ export function useReplanControl(
   }, [blocks]);
 
   // Sub-hooks
-  const ar = useAutoReplan(data, allOps, mSt, tSt, applyMove, replanTimelines, setAppliedReplan, onReplanComplete);
+  const ar = useAutoReplan(
+    data,
+    allOps,
+    mSt,
+    tSt,
+    applyMove,
+    replanTimelines,
+    setAppliedReplan,
+    onReplanComplete,
+  );
   const fm = useFailureManagement(
     data,
     blocks,

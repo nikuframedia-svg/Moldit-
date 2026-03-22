@@ -7,8 +7,6 @@
  */
 
 import { useMemo } from 'react';
-import type { RuleAction } from '../stores/settings-types';
-import { useSettingsStore } from '../stores/useSettingsStore';
 import {
   blockKey,
   buildOpVars,
@@ -17,6 +15,8 @@ import {
   evaluateFormula,
   evaluateRule,
 } from '../domain/configurable-logic-eval';
+import type { RuleAction } from '../stores/settings-types';
+import { useSettingsStore } from '../stores/useSettingsStore';
 import { useScheduleData } from './useScheduleData';
 
 export interface ClassificationResults {
