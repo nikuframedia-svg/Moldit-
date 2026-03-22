@@ -297,10 +297,10 @@ class CpsatSolver:
         """Add objective function to the model.
 
         Objective structure (tardiness/weighted_tardiness modes):
-          Minimize(1000 × Σ(tardiness) + 1 × Σ(earliness) + changeover)
+          Minimize(10000 × Σ(tardiness) + 500 × Σ(excess_earliness) + changeover)
 
-        Earliness = max(0, due_date - end_var) penalises producing too early (JIT).
-        Weight 1000:1 ensures tardiness always dominates — JIT never causes delays.
+        JIT earliness model: 2-day free buffer (2040 min), then 500/min penalty.
+        Weight 10000:500 ensures tardiness always dominates — JIT never causes delays.
         Changeover is a tiebreaker (+1 per tool change arc in circuit mode).
         """
         objective = request.config.objective
@@ -314,16 +314,23 @@ class CpsatSolver:
                 changeover_penalty = sum(arc_lits)
                 has_changeover = True
 
-        # JIT earliness penalty: push production closer to deadline
+        # JIT earliness penalty: 2-day free buffer, then 500/min excess
+        # DAY_CAP ≈ 1020 min → 2-day buffer = 2040 min
+        JIT_FREE_BUFFER = 2040  # 2 days of production capacity
+        JIT_EXCESS_WEIGHT = 500  # penalty per minute beyond buffer
         earliness_vars = []
         for job in request.jobs:
             last_op = job.operations[-1]
             _, end_var, _, _, _, _, _ = op_vars[last_op.id]
-            early = model.NewIntVar(0, horizon, f"early_{job.id}")
-            model.Add(early >= job.due_date_min - end_var)
-            model.Add(early >= 0)
-            earliness_vars.append(early)
-        earliness_term = sum(earliness_vars) if earliness_vars else 0
+            raw_early = model.NewIntVar(0, horizon, f"raw_early_{job.id}")
+            model.Add(raw_early >= job.due_date_min - end_var)
+            model.Add(raw_early >= 0)
+            # Only penalize earliness beyond the free buffer
+            excess_early = model.NewIntVar(0, horizon, f"excess_early_{job.id}")
+            model.Add(excess_early >= raw_early - JIT_FREE_BUFFER)
+            model.Add(excess_early >= 0)
+            earliness_vars.append(excess_early)
+        earliness_term = JIT_EXCESS_WEIGHT * sum(earliness_vars) if earliness_vars else 0
 
         if objective == "makespan":
             makespan_var = model.NewIntVar(0, horizon, "makespan")
@@ -343,7 +350,7 @@ class CpsatSolver:
                 model.Add(tardy >= end_var - job.due_date_min)
                 model.Add(tardy >= 0)
                 tardiness_vars.append(tardy)
-            obj = 1000 * sum(tardiness_vars) + earliness_term
+            obj = 10000 * sum(tardiness_vars) + earliness_term
             if has_changeover:
                 obj = obj + changeover_penalty
             model.Minimize(obj)
@@ -360,7 +367,7 @@ class CpsatSolver:
                 weighted_tardy = model.NewIntVar(0, horizon * scaled_weight, f"wtardy_{job.id}")
                 model.Add(weighted_tardy == tardy * scaled_weight)
                 weighted_tardy_terms.append(weighted_tardy)
-            obj = 1000 * sum(weighted_tardy_terms) + earliness_term
+            obj = 10000 * sum(weighted_tardy_terms) + earliness_term
             if has_changeover:
                 obj = obj + changeover_penalty
             model.Minimize(obj)
