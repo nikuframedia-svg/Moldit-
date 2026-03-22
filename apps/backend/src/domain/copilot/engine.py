@@ -650,7 +650,7 @@ def _exec_check_ctp(args: dict) -> str:
         return _dumps({"error": "Sem dados ISOP carregados. Carrega o ISOP primeiro."})
 
     try:
-        from ...api.v1.schedule import _nikufra_to_plan_state
+        from ..nikufra.utils import nikufra_to_plan_state as _nikufra_to_plan_state
         from ..scheduling.mrp.ctp import CTPInput, compute_ctp
         from ..scheduling.mrp.mrp_ctp_sku import CTPSkuInput, compute_ctp_sku
         from ..scheduling.mrp.mrp_engine import compute_mrp

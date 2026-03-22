@@ -187,44 +187,7 @@ def _compute_kpis(blocks: list[Block], n_ops: int) -> PipelineKPIs:
     )
 
 
-def _nikufra_to_plan_state(nikufra_data: dict[str, Any]) -> dict[str, Any]:
-    """Convert parsed NikufraData into the dict format transform_plan_state expects."""
-    operations = nikufra_data.get("operations", [])
-    tools = nikufra_data.get("tools", [])
-
-    tool_lookup: dict[str, dict[str, Any]] = {}
-    for t in tools:
-        tool_lookup[t["id"]] = t
-
-    enriched_ops: list[dict[str, Any]] = []
-    for op in operations:
-        tool_info = tool_lookup.get(op.get("t", ""), {})
-        enriched: dict[str, Any] = {
-            "id": op.get("id", ""),
-            "m": op.get("m", ""),
-            "t": op.get("t", ""),
-            "sku": op.get("sku", ""),
-            "nm": op.get("nm", ""),
-            "pH": op.get("pH", 100),
-            "atr": op.get("atr", 0),
-            "d": op.get("d", []),
-            "op": op.get("op", 1),
-            "sH": op.get("s", tool_info.get("s", 0.75)),
-            "alt": tool_info.get("alt", "-"),
-            "eco": tool_info.get("lt", 0),
-            "twin": op.get("twin"),
-            "cl": op.get("cl"),
-            "clNm": op.get("clNm"),
-            "pa": op.get("pa"),
-            "ltDays": op.get("ltDays"),
-        }
-        enriched_ops.append(enriched)
-
-    return {
-        "operations": enriched_ops,
-        "dates": nikufra_data.get("dates", []),
-        "dnames": nikufra_data.get("days_label", []),
-    }
+from ...domain.nikufra.utils import nikufra_to_plan_state as _nikufra_to_plan_state
 
 
 def _populate_copilot_isop(nikufra_data: dict[str, Any]) -> None:
