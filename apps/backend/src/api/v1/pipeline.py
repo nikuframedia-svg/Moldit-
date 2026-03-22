@@ -48,9 +48,48 @@ def _get_solver() -> SolverRouter:
     return SolverRouter()
 
 
-# ── In-memory cache (PERF-01) ─────────────────────────────────
-_schedule_cache: dict[str, dict[str, Any]] = {}
+# ── In-memory cache with TTL + LRU eviction (PERF-01) ────────
 _CACHE_MAX_SIZE = 5
+_CACHE_TTL_S = 300  # 5 minutes
+
+
+class _CacheEntry:
+    __slots__ = ("data", "ts")
+
+    def __init__(self, data: dict[str, Any]):
+        self.data = data
+        self.ts = time.monotonic()
+
+    def is_expired(self) -> bool:
+        return (time.monotonic() - self.ts) > _CACHE_TTL_S
+
+
+_schedule_cache: dict[str, _CacheEntry] = {}
+
+
+def _cache_get(key: str) -> dict[str, Any] | None:
+    entry = _schedule_cache.get(key)
+    if entry is None:
+        return None
+    if entry.is_expired():
+        del _schedule_cache[key]
+        return None
+    # Move to end for LRU
+    _schedule_cache.pop(key)
+    _schedule_cache[key] = entry
+    return entry.data
+
+
+def _cache_set(key: str, data: dict[str, Any]) -> None:
+    # Evict expired entries first
+    expired = [k for k, v in _schedule_cache.items() if v.is_expired()]
+    for k in expired:
+        del _schedule_cache[k]
+    # Evict oldest if at capacity
+    while len(_schedule_cache) >= _CACHE_MAX_SIZE:
+        oldest = next(iter(_schedule_cache))
+        del _schedule_cache[oldest]
+    _schedule_cache[key] = _CacheEntry(data)
 
 
 def _cache_key(nikufra_data: dict, settings: dict) -> str:
@@ -683,9 +722,10 @@ async def schedule_full(request: PipelineScheduleRequest) -> FullScheduleRespons
 
     # Cache check
     ck = _cache_key(nikufra_data, settings_dict)
-    if ck in _schedule_cache:
+    cached = _cache_get(ck)
+    if cached is not None:
         logger.info("schedule.full.cache_hit", key=ck)
-        return FullScheduleResponse(**_schedule_cache[ck])
+        return FullScheduleResponse(**cached)
 
     # ── Guardian: Journal + Input Validation ──
     journal = Journal()
@@ -824,9 +864,6 @@ async def schedule_full(request: PipelineScheduleRequest) -> FullScheduleRespons
         workforce_forecast=analytics.get("workforce_forecast"),
         journal_summary=journal.summary(),
     )
-    if len(_schedule_cache) >= _CACHE_MAX_SIZE:
-        oldest = next(iter(_schedule_cache))
-        del _schedule_cache[oldest]
-    _schedule_cache[ck] = response_dict
+    _cache_set(ck, response_dict)
 
     return FullScheduleResponse(**response_dict)
