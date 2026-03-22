@@ -19,7 +19,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
     """Validate X-API-Key header against configured api_keys."""
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Dev mode: no keys configured → skip auth
+        # Production without API keys → block all non-public requests
+        if not settings.api_keys and settings.environment == "production":
+            path = request.url.path
+            if not any(path.endswith(p) or f"{p}/" in path for p in _PUBLIC_PATHS):
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        "code": "ERR_NO_AUTH_CONFIGURED",
+                        "message": "Production requires API keys to be configured",
+                    },
+                )
+            return await call_next(request)
+
+        # Dev/staging mode: no keys configured → skip auth
         if not settings.api_keys:
             return await call_next(request)
 
