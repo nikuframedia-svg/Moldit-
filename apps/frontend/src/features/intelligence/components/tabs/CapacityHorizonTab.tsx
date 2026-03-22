@@ -141,7 +141,7 @@ export function HorizonView({ data }: { data: IntelData }) {
                   x={x + (colW - 2) / 2}
                   y={PAD.t + maxH + 24}
                   textAnchor="middle"
-                  style={{ fill: C.t4, fontSize: 6 }}
+                  style={{ fill: C.t4, fontSize: 12 }}
                 >
                   {bar.dayName}
                 </text>
