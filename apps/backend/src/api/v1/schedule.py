@@ -28,7 +28,10 @@ logger = get_logger(__name__)
 
 schedule_router = APIRouter(prefix="/schedule", tags=["schedule"])
 
-_solver = SolverRouter()
+
+def _get_solver() -> SolverRouter:
+    """Create a fresh SolverRouter per request for thread safety."""
+    return SolverRouter()
 
 
 # ── Shared helpers ─────────────────────────────────────────────
@@ -107,7 +110,7 @@ def _solve_and_analyze(
             if hasattr(solver_request.config, k):
                 setattr(solver_request.config, k, v)
 
-    solver_result = _solver.solve(solver_request)
+    solver_result = _get_solver().solve(solver_request)
     blocks = solver_result_to_blocks(solver_result, engine_data)
     feasibility = build_feasibility_report(solver_result, len(engine_data.ops))
     decisions = build_decisions(solver_result)

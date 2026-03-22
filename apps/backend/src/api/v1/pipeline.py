@@ -41,8 +41,12 @@ from ...domain.solver.router_logic import SolverRouter
 
 logger = get_logger(__name__)
 
-# ── Shared solver instance ────────────────────────────────────
-_solver_router = SolverRouter()
+
+# ── Per-request solver factory (thread safety) ───────────────
+def _get_solver() -> SolverRouter:
+    """Create a fresh SolverRouter per request for thread safety."""
+    return SolverRouter()
+
 
 # ── In-memory cache (PERF-01) ─────────────────────────────────
 _schedule_cache: dict[str, dict[str, Any]] = {}
@@ -220,7 +224,7 @@ def _populate_copilot_isop(nikufra_data: dict[str, Any]) -> None:
 def _run_cpsat(engine_data: Any, settings_dict: dict) -> dict[str, Any]:
     """Run CP-SAT solver on engine data. Returns blocks, decisions, feasibility, solve_time."""
     solver_request = engine_data_to_solver_request(engine_data, settings_dict)
-    solver_result = _solver_router.solve(solver_request)
+    solver_result = _get_solver().solve(solver_request)
     blocks = solver_result_to_blocks(solver_result, engine_data)
     feasibility = build_feasibility_report(solver_result, len(engine_data.ops))
     decisions = build_decisions(solver_result)
