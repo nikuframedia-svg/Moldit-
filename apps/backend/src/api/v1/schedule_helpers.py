@@ -16,16 +16,9 @@ from ...domain.scheduling.analysis.late_delivery_analysis import analyze_late_de
 from ...domain.scheduling.analysis.score_schedule import score_schedule
 from ...domain.scheduling.analysis.validate_schedule import validate_schedule
 from ...domain.scheduling.transform import transform_plan_state
-from ...domain.solver.bridge import engine_data_to_solver_request, solver_result_to_blocks
-from ...domain.solver.post_solve import build_decisions, build_feasibility_report
-from ...domain.solver.router_logic import SolverRouter
+from ...domain.solver.scheduling_service import SchedulingService
 
 logger = get_logger(__name__)
-
-
-def _get_solver() -> SolverRouter:
-    """Create a fresh SolverRouter per request for thread safety."""
-    return SolverRouter()
 
 
 # ── Serialization helper ─────────────────────────────────────
@@ -62,17 +55,16 @@ def _solve_and_analyze(
         order_based=order_based,
     )
 
-    # Build solver request with optional config overrides
-    solver_request = engine_data_to_solver_request(engine_data, settings_dict)
-    if solver_config_overrides:
-        for k, v in solver_config_overrides.items():
-            if hasattr(solver_request.config, k):
-                setattr(solver_request.config, k, v)
-
-    solver_result = _get_solver().solve(solver_request)
-    blocks = solver_result_to_blocks(solver_result, engine_data)
-    feasibility = build_feasibility_report(solver_result, len(engine_data.ops))
-    decisions = build_decisions(solver_result)
+    # Delegate to unified service
+    service = SchedulingService()
+    output = service.schedule(
+        engine_data,
+        settings_dict,
+        solver_config_overrides=solver_config_overrides,
+    )
+    blocks = output.blocks
+    feasibility = output.feasibility
+    decisions = output.decisions
 
     # Core analytics
     analytics: dict[str, Any] = {}
@@ -130,8 +122,8 @@ def _solve_and_analyze(
         "blocks": [_to_dict(b) for b in blocks],
         "decisions": [_to_dict(d) for d in decisions],
         "feasibility_report": _to_dict(feasibility),
-        "solve_time_s": solver_result.solve_time_s,
-        "solver_used": solver_result.solver_used,
+        "solve_time_s": output.solver_result.solve_time_s,
+        "solver_used": output.solver_result.solver_used,
         "n_blocks": len(blocks),
         "n_ops": len(engine_data.ops),
         **analytics,

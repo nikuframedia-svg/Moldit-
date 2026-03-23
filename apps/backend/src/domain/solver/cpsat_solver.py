@@ -79,6 +79,16 @@ class CpsatSolver:
 
         use_circuit = request.config.use_circuit
 
+        # Flexible Job Shop: detect jobs with _P/_A alternatives (from bridge)
+        def _is_flexible_job(job):
+            if len(job.operations) != 2:
+                return False
+            return job.operations[0].id.endswith("_P") and job.operations[1].id.endswith("_A")
+
+        has_flexible = any(_is_flexible_job(j) for j in request.jobs)
+        if has_flexible:
+            use_circuit = False
+
         # Build twin set for quick lookup
         twin_op_ids = set()
         for pair in request.twin_pairs:
@@ -98,6 +108,14 @@ class CpsatSolver:
         # Track per-machine non-twin ops for circuit building
         machine_jobs: dict[str, list[dict]] = defaultdict(list)
         prod_durations: dict[str, int] = {}
+
+        # Flexible Job Shop: track presence booleans and op IDs
+        op_presence: dict[str, cp_model.IntVar] = {}
+        flexible_op_ids: set[str] = set()
+        for job in request.jobs:
+            if _is_flexible_job(job):
+                for fop in job.operations:
+                    flexible_op_ids.add(fop.id)
 
         for job, op in all_ops:
             suffix = f"_{op.id}"
@@ -137,10 +155,23 @@ class CpsatSolver:
                     op_full_intervals[op.id] = full_iv
             else:
                 # Legacy mode: fixed setup per op
+                is_flexible = op.id in flexible_op_ids
                 if is_twin:
                     setup_iv = None
                     prod_iv = None
                     full_iv = None
+                elif is_flexible:
+                    # Flexible Job Shop: optional interval (presence controlled)
+                    presence = model.NewBoolVar(f"pres_{op.id}")
+                    op_presence[op.id] = presence
+                    total_duration = op.duration_min + op.setup_min
+                    setup_iv = None
+                    prod_iv = None
+                    full_iv = model.NewOptionalIntervalVar(
+                        start_var, total_duration, end_var, presence, f"interval{suffix}"
+                    )
+                    machine_intervals[op.machine_id].append(full_iv)
+                    op_full_intervals[op.id] = full_iv
                 elif op.setup_min > 0:
                     total_duration = op.duration_min + op.setup_min
                     setup_end = model.NewIntVar(0, horizon, f"setup_end{suffix}")
@@ -179,8 +210,27 @@ class CpsatSolver:
             machine_intervals[machine_id].append(merged_iv)
             op_full_intervals[pair.op_id_a] = merged_iv
 
+        # 3b. Flexible Job Shop: AddExactlyOne + job-level end vars
+        job_end_vars: dict[str, cp_model.IntVar] = {}
+        for job in request.jobs:
+            if _is_flexible_job(job):
+                op_p, op_a = job.operations
+                pres_p = op_presence[op_p.id]
+                pres_a = op_presence[op_a.id]
+                model.AddExactlyOne([pres_p, pres_a])
+
+                # Job-level end var linked to chosen operation
+                _, end_p, _, _, _, _, _ = op_vars[op_p.id]
+                _, end_a, _, _, _, _, _ = op_vars[op_a.id]
+                job_end = model.NewIntVar(0, horizon, f"je_{job.id}")
+                model.Add(job_end == end_p).OnlyEnforceIf(pres_p)
+                model.Add(job_end == end_a).OnlyEnforceIf(pres_a)
+                job_end_vars[job.id] = job_end
+
         # 4. Precedence constraints (within each job)
         for job in request.jobs:
+            if _is_flexible_job(job):
+                continue  # flexible: alternatives, not sequential
             for i in range(len(job.operations) - 1):
                 op_curr = job.operations[i]
                 op_next = job.operations[i + 1]
@@ -236,15 +286,17 @@ class CpsatSolver:
             apply_calco_timeline(model, op_calco_map, op_full_intervals)
 
         # 6b. Day capacity + shift boundary constraints
-        self._add_day_shift_constraints(model, op_vars, twin_op_ids, horizon)
+        # Skip twins AND flexible ops (optional intervals handle their own constraints)
+        skip_day_constraints = twin_op_ids | flexible_op_ids
+        self._add_day_shift_constraints(model, op_vars, skip_day_constraints, horizon)
 
         # 7. Objective (with changeover penalty from circuit arcs)
-        self._add_objective(model, request, op_vars, horizon, all_setup_arcs)
+        self._add_objective(model, request, op_vars, horizon, all_setup_arcs, job_end_vars)
 
         # 7b. Warm-start with EDD heuristic
         if request.config.warm_start:
             heuristic_schedule = pick_best_heuristic(request)
-            add_edd_hints(model, heuristic_schedule, op_vars)
+            add_edd_hints(model, heuristic_schedule, op_vars, op_presence)
 
         # 8. Solve
         solver = cp_model.CpSolver()
@@ -267,7 +319,9 @@ class CpsatSolver:
 
         # 10. Extract solution
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            result = self._extract_solution(solver, op_vars, request, solve_time, status_str, n_ops)
+            result = self._extract_solution(
+                solver, op_vars, request, solve_time, status_str, n_ops, op_presence
+            )
             if constraints.operator_pool:
                 schedule_dicts = [
                     {
@@ -293,17 +347,26 @@ class CpsatSolver:
                 n_ops=n_ops,
             )
 
-    def _add_objective(self, model, request, op_vars, horizon, setup_arcs=None):
+    def _add_objective(self, model, request, op_vars, horizon, setup_arcs=None, job_end_vars=None):
         """Add objective function to the model.
 
         Objective structure (tardiness/weighted_tardiness modes):
-          Minimize(10000 × Σ(tardiness) + 500 × Σ(excess_earliness) + changeover)
+          Minimize(10000 × Σ(tardiness) + 500 × Σ(earliness) + changeover)
 
-        JIT earliness model: 2-day free buffer (2040 min), then 500/min penalty.
+        JIT: penalize ALL earliness at 500/min — produce as late as possible.
         Weight 10000:500 ensures tardiness always dominates — JIT never causes delays.
         Changeover is a tiebreaker (+1 per tool change arc in circuit mode).
         """
         objective = request.config.objective
+        job_end_vars = job_end_vars or {}
+
+        def _get_job_end_var(job):
+            """Get end var for a job — uses job_end_vars for flexible, op_vars for single."""
+            if job.id in job_end_vars:
+                return job_end_vars[job.id]
+            last_op = job.operations[-1]
+            _, end_var, _, _, _, _, _ = op_vars[last_op.id]
+            return end_var
 
         # Changeover penalty: sum of active arcs that represent tool changes
         has_changeover = False
@@ -314,23 +377,18 @@ class CpsatSolver:
                 changeover_penalty = sum(arc_lits)
                 has_changeover = True
 
-        # JIT earliness penalty: 2-day free buffer, then 500/min excess
-        # DAY_CAP ≈ 1020 min → 2-day buffer = 2040 min
-        JIT_FREE_BUFFER = 2040  # 2 days of production capacity
-        JIT_EXCESS_WEIGHT = 500  # penalty per minute beyond buffer
+        # JIT earliness penalty: produce as late as possible
+        # 500/min for every minute of earliness. Weight 10000:500 ensures
+        # tardiness always dominates — JIT never causes delays.
+        JIT_WEIGHT = 500
         earliness_vars = []
         for job in request.jobs:
-            last_op = job.operations[-1]
-            _, end_var, _, _, _, _, _ = op_vars[last_op.id]
-            raw_early = model.NewIntVar(0, horizon, f"raw_early_{job.id}")
-            model.Add(raw_early >= job.due_date_min - end_var)
-            model.Add(raw_early >= 0)
-            # Only penalize earliness beyond the free buffer
-            excess_early = model.NewIntVar(0, horizon, f"excess_early_{job.id}")
-            model.Add(excess_early >= raw_early - JIT_FREE_BUFFER)
-            model.Add(excess_early >= 0)
-            earliness_vars.append(excess_early)
-        earliness_term = JIT_EXCESS_WEIGHT * sum(earliness_vars) if earliness_vars else 0
+            end_var = _get_job_end_var(job)
+            early = model.NewIntVar(0, horizon, f"early_{job.id}")
+            model.Add(early >= job.due_date_min - end_var)
+            model.Add(early >= 0)
+            earliness_vars.append(early)
+        earliness_term = JIT_WEIGHT * sum(earliness_vars) if earliness_vars else 0
 
         if objective == "makespan":
             makespan_var = model.NewIntVar(0, horizon, "makespan")
@@ -344,8 +402,7 @@ class CpsatSolver:
         elif objective == "tardiness":
             tardiness_vars = []
             for job in request.jobs:
-                last_op = job.operations[-1]
-                _, end_var, _, _, _, _, _ = op_vars[last_op.id]
+                end_var = _get_job_end_var(job)
                 tardy = model.NewIntVar(0, horizon, f"tardy_{job.id}")
                 model.Add(tardy >= end_var - job.due_date_min)
                 model.Add(tardy >= 0)
@@ -358,8 +415,7 @@ class CpsatSolver:
         else:  # weighted_tardiness
             weighted_tardy_terms = []
             for job in request.jobs:
-                last_op = job.operations[-1]
-                _, end_var, _, _, _, _, _ = op_vars[last_op.id]
+                end_var = _get_job_end_var(job)
                 tardy = model.NewIntVar(0, horizon, f"tardy_{job.id}")
                 model.Add(tardy >= end_var - job.due_date_min)
                 model.Add(tardy >= 0)
@@ -386,6 +442,8 @@ class CpsatSolver:
         n_days = horizon // DAY_CAP
 
         for op_id, (start_var, end_var, _, _, _, job, op) in op_vars.items():
+            if op_id in twin_op_ids:
+                continue  # twins use merged interval, not day constraints
             suffix = f"_{op_id}"
 
             # Max possible size (production + setup)
@@ -417,12 +475,13 @@ class CpsatSolver:
             # The NoOverlap/Circuit constraint still prevents machine conflicts.
 
     def _extract_solution(
-        self, solver, op_vars, request, solve_time, status_str, n_ops
+        self, solver, op_vars, request, solve_time, status_str, n_ops, op_presence=None
     ) -> SolverResult:
         """Extract solution from solved model."""
         schedule = []
         job_due_dates = {j.id: j.due_date_min for j in request.jobs}
         job_weights = {j.id: j.weight for j in request.jobs}
+        op_presence = op_presence or {}
 
         op_to_job = {}
         for job in request.jobs:
@@ -439,6 +498,10 @@ class CpsatSolver:
         weighted_tardiness = 0.0
 
         for op_id, (start_var, end_var, _, _, _, job, op) in op_vars.items():
+            # Skip non-present flexible ops
+            if op_id in op_presence and not solver.Value(op_presence[op_id]):
+                continue
+
             start_val = solver.Value(start_var)
             end_val = solver.Value(end_var)
             job_id = op_to_job[op_id]
@@ -446,15 +509,16 @@ class CpsatSolver:
 
             makespan = max(makespan, end_val)
 
+            # For flexible jobs, the present op is the "last" (and only) op
             is_last_op = op_id == job.operations[-1].id
+            if op_id in op_presence:
+                is_last_op = True
             tardiness = max(0, end_val - due_date) if is_last_op else 0
 
             if is_last_op:
                 total_tardiness += tardiness
                 weighted_tardiness += job_weights[job_id] * tardiness
 
-            # In circuit mode, actual setup is determined by sequence.
-            # Report setup_min from the original op spec (for reference).
             DAY_CAP_LOCAL = 1020
             start_in_day = start_val % DAY_CAP_LOCAL
             op_shift = "X" if start_in_day < 510 else "Y"

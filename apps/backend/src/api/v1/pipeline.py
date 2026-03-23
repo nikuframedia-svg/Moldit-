@@ -30,6 +30,7 @@ from .pipeline_helpers import (
     populate_copilot_state,
     run_analytics,
     run_cpsat,
+    run_greedy,
 )
 
 logger = get_logger(__name__)
@@ -76,8 +77,11 @@ async def schedule_from_data(request: PipelineScheduleRequest) -> PipelineRespon
             parse_warnings=[f"Erro na transformação: {e}"],
         )
 
+    solver_pref = settings_dict.get("solver", "greedy")
+    run_solver = run_greedy if solver_pref == "greedy" else run_cpsat
+
     try:
-        cpsat_result = run_cpsat(engine_data, settings_dict)
+        solve_result = run_solver(engine_data, settings_dict)
     except Exception as e:
         logger.error("pipeline.schedule.error", error=str(e))
         return PipelineResponse(
@@ -86,10 +90,10 @@ async def schedule_from_data(request: PipelineScheduleRequest) -> PipelineRespon
         )
 
     total_elapsed = time.perf_counter() - t0
-    blocks = cpsat_result["blocks"]
-    decisions = cpsat_result["decisions"]
-    feasibility = cpsat_result["feasibility_report"]
-    solver_used = cpsat_result["solver_used"]
+    blocks = solve_result["blocks"]
+    decisions = solve_result["decisions"]
+    feasibility = solve_result["feasibility_report"]
+    solver_used = solve_result["solver_used"]
     kpis = compute_kpis(blocks, len(engine_data.ops))
 
     populate_copilot_state(
@@ -192,11 +196,13 @@ async def run_pipeline(
         f"in {transform_elapsed:.3f}s."
     )
 
-    # CP-SAT Solve
+    # Solve (greedy default, CP-SAT fallback)
     t_schedule = time.perf_counter()
+    solver_pref = settings_dict.get("solver", "greedy")
+    run_solver = run_greedy if solver_pref == "greedy" else run_cpsat
 
     try:
-        cpsat_result = run_cpsat(engine_data, settings_dict)
+        solve_result = run_solver(engine_data, settings_dict)
     except Exception as e:
         logger.error("pipeline.schedule.error", error=str(e))
         return PipelineResponse(
@@ -208,14 +214,14 @@ async def run_pipeline(
     schedule_elapsed = time.perf_counter() - t_schedule
     total_elapsed = time.perf_counter() - t0
 
-    blocks = cpsat_result["blocks"]
-    decisions = cpsat_result["decisions"]
-    feasibility = cpsat_result["feasibility_report"]
-    solver_used = cpsat_result["solver_used"]
+    blocks = solve_result["blocks"]
+    decisions = solve_result["decisions"]
+    feasibility = solve_result["feasibility_report"]
+    solver_used = solve_result["solver_used"]
     kpis = compute_kpis(blocks, len(engine_data.ops))
 
     warnings.append(
-        f"CP-SAT: {len(blocks)} blocks in {schedule_elapsed:.3f}s ({cpsat_result['status']}). "
+        f"{solver_used}: {len(blocks)} blocks in {schedule_elapsed:.3f}s ({solve_result['status']}). "
         f"Total pipeline: {total_elapsed:.3f}s."
     )
 
@@ -319,10 +325,12 @@ async def schedule_full(request: PipelineScheduleRequest) -> FullScheduleRespons
     journal.info(
         JournalStep.TRANSFORM, f"Transformed {len(engine_data.ops)} ops, {engine_data.n_days} days"
     )
-    journal.step(JournalStep.SOLVE, "Running CP-SAT solver")
+    solver_pref = settings_dict.get("solver", "greedy")
+    run_solver = run_greedy if solver_pref == "greedy" else run_cpsat
+    journal.step(JournalStep.SOLVE, f"Running {solver_pref} solver")
 
     try:
-        cpsat_result = run_cpsat(engine_data, settings_dict)
+        solve_result = run_solver(engine_data, settings_dict)
     except Exception as e:
         logger.error("schedule.full.schedule.error", error=str(e))
         journal.error(JournalStep.SOLVE, f"Solver failed: {e}")
@@ -332,15 +340,15 @@ async def schedule_full(request: PipelineScheduleRequest) -> FullScheduleRespons
             journal_summary=journal.summary(),
         )
 
-    blocks = cpsat_result["blocks"]
-    decisions = cpsat_result["decisions"]
-    feasibility = cpsat_result["feasibility_report"]
-    solver_used = cpsat_result["solver_used"]
+    blocks = solve_result["blocks"]
+    decisions = solve_result["decisions"]
+    feasibility = solve_result["feasibility_report"]
+    solver_used = solve_result["solver_used"]
 
     journal.info(
         JournalStep.SOLVE,
-        f"CP-SAT: {len(blocks)} blocks ({solver_used})",
-        metadata={"solve_time_s": cpsat_result.get("solve_time_s", 0)},
+        f"{solver_used}: {len(blocks)} blocks",
+        metadata={"solve_time_s": solve_result.get("solve_time_s", 0)},
     )
 
     # ── Guardian: Output Validation ──

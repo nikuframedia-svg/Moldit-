@@ -7,8 +7,8 @@ from __future__ import annotations
 import random
 import time
 
-from .cpsat_solver import CpsatSolver
 from .perturbation import perturb_request
+from .router_logic import SolverRouter
 from .schemas import SolverRequest
 
 
@@ -38,7 +38,7 @@ def monte_carlo_otd(
     """
     start_time = time.monotonic()
     rng = random.Random(seed)
-    solver = CpsatSolver()
+    solver = SolverRouter()
 
     # Build job metadata
     job_due = {j.id: j.due_date_min for j in request.jobs}

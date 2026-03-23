@@ -29,9 +29,7 @@ from ...domain.scheduling.mrp.mrp_engine import compute_mrp
 from ...domain.scheduling.mrp.mrp_rop import compute_coverage_matrix, compute_rop, compute_rop_sku
 from ...domain.scheduling.mrp.mrp_sku_view import compute_mrp_sku_view
 from ...domain.scheduling.types import Block, DecisionEntry, FeasibilityReport
-from ...domain.solver.bridge import engine_data_to_solver_request, solver_result_to_blocks
-from ...domain.solver.post_solve import build_decisions, build_feasibility_report
-from ...domain.solver.router_logic import SolverRouter
+from ...domain.solver.scheduling_service import SchedulingService
 
 logger = get_logger(__name__)
 
@@ -90,14 +88,6 @@ class FullScheduleResponse(PipelineResponse):
     gen_decisions: list | None = None
     workforce_forecast: dict | None = None
     journal_summary: dict | None = None
-
-
-# ── Per-request solver factory (thread safety) ───────────────
-
-
-def _get_solver() -> SolverRouter:
-    """Create a fresh SolverRouter per request for thread safety."""
-    return SolverRouter()
 
 
 # ── In-memory cache with TTL + LRU eviction (PERF-01) ────────
@@ -251,19 +241,39 @@ def populate_copilot_state(
 
 def run_cpsat(engine_data: Any, settings_dict: dict) -> dict[str, Any]:
     """Run CP-SAT solver on engine data. Returns blocks, decisions, feasibility, solve_time."""
-    solver_request = engine_data_to_solver_request(engine_data, settings_dict)
-    solver_result = _get_solver().solve(solver_request)
-    blocks = solver_result_to_blocks(solver_result, engine_data)
-    feasibility = build_feasibility_report(solver_result, len(engine_data.ops))
-    decisions = build_decisions(solver_result)
+    service = SchedulingService()
+    output = service.schedule(engine_data, settings_dict)
 
     return {
-        "blocks": blocks,
-        "decisions": decisions,
-        "feasibility_report": feasibility,
-        "solver_used": solver_result.solver_used,
-        "solve_time_s": solver_result.solve_time_s,
-        "status": solver_result.status,
+        "blocks": output.blocks,
+        "decisions": output.decisions,
+        "feasibility_report": output.feasibility,
+        "solver_used": output.solver_result.solver_used,
+        "solve_time_s": output.solver_result.solve_time_s,
+        "status": output.solver_result.status,
+    }
+
+
+# ── Greedy scheduler runner ─────────────────────────────────
+
+
+def run_greedy(engine_data: Any, settings_dict: dict) -> dict[str, Any]:
+    """Run greedy scheduler (ATCS + tiers). Returns same dict shape as run_cpsat."""
+    from ...domain.scheduler import schedule_all
+
+    t0 = time.perf_counter()
+    result = schedule_all(engine_data, settings_dict)
+    elapsed = time.perf_counter() - t0
+
+    return {
+        "blocks": result.blocks,
+        "decisions": result.decisions,
+        "feasibility_report": result.feasibility,
+        "solver_used": "greedy",
+        "solve_time_s": round(elapsed, 3),
+        "status": "feasible"
+        if result.feasibility and result.feasibility.deadline_feasible
+        else "timeout",
     }
 
 

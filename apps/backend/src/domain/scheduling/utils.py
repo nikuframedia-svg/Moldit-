@@ -108,6 +108,99 @@ def infer_workdays_from_labels(dnames: list[str], n_days: int) -> list[bool]:
     return [True] * n_days
 
 
+# ── Portuguese public holidays ──
+
+_PT_HOLIDAYS_FIXED = frozenset(
+    {(1, 1), (4, 25), (5, 1), (6, 10), (8, 15), (10, 5), (11, 1), (12, 1), (12, 8), (12, 25)}
+)
+
+
+def _compute_easter(year: int) -> tuple[int, int]:
+    """Anonymous Gregorian Easter algorithm → (month, day)."""
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    ll = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * ll) // 451
+    month = (h + ll - 7 * m + 114) // 31
+    day = ((h + ll - 7 * m + 114) % 31) + 1
+    return month, day
+
+
+def mark_holidays(workdays: list[bool], dates: list[str]) -> list[bool]:
+    """Mark Portuguese public holidays as non-working days.
+
+    dates are in "DD/MM" format. Year is inferred from the range.
+    """
+    if not dates:
+        return workdays
+
+    # Infer year: parse first date, assume current/next year
+    # Dates span ~80 days, so at most 2 years
+    first_parts = dates[0].split("/")
+    last_parts = dates[-1].split("/")
+    if len(first_parts) != 2 or len(last_parts) != 2:
+        return workdays
+
+    try:
+        first_month = int(first_parts[1])
+        last_month = int(last_parts[1])
+    except ValueError:
+        return workdays
+
+    # Guess year: if months go from high to low, it spans year boundary
+    import datetime
+
+    now = datetime.date.today()
+    year = now.year
+    # If first month > 6 and dates seem future, use current year
+    # Otherwise use next year if dates seem to be in the future
+    if first_month >= now.month:
+        year = now.year
+    else:
+        year = now.year + 1
+
+    # Build set of holiday (month, day) for this year range
+    holidays: set[tuple[int, int]] = set(_PT_HOLIDAYS_FIXED)
+
+    # Easter-dependent holidays for relevant years
+    for y in (year, year + 1):
+        em, ed = _compute_easter(y)
+        # Good Friday = Easter - 2 days
+        import datetime as dt
+
+        easter = dt.date(y, em, ed)
+        good_friday = easter - dt.timedelta(days=2)
+        holidays.add((good_friday.month, good_friday.day))
+        # Corpus Christi = Easter + 60 days
+        corpus = easter + dt.timedelta(days=60)
+        holidays.add((corpus.month, corpus.day))
+
+    result = list(workdays)
+    for i, date_str in enumerate(dates):
+        if i >= len(result):
+            break
+        parts = date_str.split("/")
+        if len(parts) != 2:
+            continue
+        try:
+            day = int(parts[0])
+            month = int(parts[1])
+        except ValueError:
+            continue
+        if (month, day) in holidays:
+            result[i] = False
+
+    return result
+
+
 def pad_mo_array(
     arr: list[int],
     target_len: int,

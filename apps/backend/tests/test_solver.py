@@ -1052,7 +1052,7 @@ class TestSolverRouter:
         request = _make_request(jobs, machines, time_limit=60)
 
         result = self.router.solve(request)
-        assert result.solver_used == "cpsat"
+        assert result.solver_used == "hybrid"  # >50 ops → hybrid solver
         assert result.n_ops == 210
 
     def test_router_empty(self):

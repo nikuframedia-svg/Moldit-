@@ -10,13 +10,13 @@ import math
 from typing import Any
 
 from ..scheduling.constants import DAY_CAP, DEFAULT_OEE
-from ..scheduling.types import Block, EngineData, EOp, ETool, TwinOutput
+from ..scheduling.master_data import TOOL_ALT_MACHINE, TOOL_SETUP_HOURS
+from ..scheduling.types import Block, EngineData, ETool, TwinOutput
 from .schemas import (
     ConstraintConfigInput,
     JobInput,
     MachineInput,
     OperationInput,
-    ScheduledOp,
     SolverConfig,
     SolverRequest,
     SolverResult,
@@ -55,27 +55,55 @@ def engine_data_to_solver_request(
     # Track op_id → list of (day_idx, job_id) for twin matching
     op_day_jobs: dict[str, list[tuple[int, str]]] = {}
 
+    # Build set of twin op IDs — these stay pinned to primary machine
+    twin_op_ids: set[str] = set()
+    for tg in engine_data.twin_groups:
+        twin_op_ids.add(tg.op_id1)
+        twin_op_ids.add(tg.op_id2)
+
     for op in engine_data.ops:
         tool = engine_data.tool_map.get(op.t)
         if tool is None:
             continue
 
         pH = tool.pH or op.pH or 100
-        setup_min = max(1, round(tool.sH * 60))
+        # Setup: prefer ISOP value, fallback to master data
+        if tool.sH and tool.sH > 0:
+            setup_min = max(1, round(tool.sH * 60))
+        else:
+            master_setup = TOOL_SETUP_HOURS.get(op.t, 0.75)
+            setup_min = max(1, round(master_setup * 60))
         operators = tool.op or 1
         calco_code = tool.calco
         eco_lot = tool.lt or 0
 
+        # Alt machine: master data first, then ISOP tool.alt
+        is_twin = op.id in twin_op_ids
+        alt_machine = TOOL_ALT_MACHINE.get(op.t)
+        if not alt_machine:
+            alt_machine = tool.alt if (tool.alt and tool.alt != "-") else None
+        # Twins stay pinned; same machine = no point
+        if is_twin or (alt_machine and alt_machine == op.m):
+            alt_machine = None
+
         day_jobs: list[tuple[int, str]] = []
 
-        for day_idx, qty in enumerate(op.d):
-            if qty <= 0:
-                continue
+        # Collect demand days
+        demand_days = [(di, q) for di, q in enumerate(op.d) if q > 0]
 
-            # Apply eco lot rounding (only inflate, never deflate)
-            effective_qty = qty
+        # Eco lot surplus carry-forward: produce once, surplus covers future days
+        surplus = 0
+        for day_idx, qty in demand_days:
+            if surplus >= qty:
+                surplus -= qty
+                continue  # covered by previous eco lot surplus
+
+            deficit = qty - surplus
             if eco_lot > 0:
-                effective_qty = math.ceil(qty / eco_lot) * eco_lot
+                effective_qty = math.ceil(deficit / eco_lot) * eco_lot
+            else:
+                effective_qty = deficit
+            surplus = effective_qty - deficit
 
             # Duration from quantity, pH, OEE
             duration_min = max(1, math.ceil((effective_qty / (pH * oee)) * 60))
@@ -91,23 +119,39 @@ def engine_data_to_solver_request(
             due_date_min = (wk_rank + 1) * DAY_CAP
 
             job_id = f"{op.id}_d{day_idx}"
+            weight = 2.0 if (op.atr or 0) > 0 else 1.0
+
+            # Build operations: primary + optional alt (Flexible Job Shop)
+            op_primary = OperationInput(
+                id=f"{job_id}_P" if alt_machine else job_id,
+                machine_id=op.m,
+                tool_id=op.t,
+                duration_min=duration_min,
+                setup_min=setup_min,
+                operators=operators,
+                calco_code=calco_code,
+            )
+            if alt_machine:
+                op_alt = OperationInput(
+                    id=f"{job_id}_A",
+                    machine_id=alt_machine,
+                    tool_id=op.t,
+                    duration_min=duration_min,
+                    setup_min=setup_min,
+                    operators=operators,
+                    calco_code=calco_code,
+                )
+                op_list = [op_primary, op_alt]
+            else:
+                op_list = [op_primary]
+
             jobs.append(
                 JobInput(
                     id=job_id,
                     sku=op.sku,
                     due_date_min=due_date_min,
-                    weight=1.0,
-                    operations=[
-                        OperationInput(
-                            id=job_id,
-                            machine_id=op.m,
-                            tool_id=op.t,
-                            duration_min=duration_min,
-                            setup_min=setup_min,
-                            operators=operators,
-                            calco_code=calco_code,
-                        )
-                    ],
+                    weight=weight,
+                    operations=op_list,
                 )
             )
             day_jobs.append((day_idx, job_id))
@@ -279,9 +323,7 @@ def solver_result_to_blocks(
             partner_op_id, partner_day = _parse_job_id(sop.twin_partner_op_id)
             partner_eop = op_lookup.get(partner_op_id)
             if partner_eop:
-                partner_qty = (
-                    partner_eop.d[partner_day] if partner_day < len(partner_eop.d) else 0
-                )
+                partner_qty = partner_eop.d[partner_day] if partner_day < len(partner_eop.d) else 0
                 outputs = [
                     TwinOutput(op_id=orig_op_id, sku=eop.sku, qty=qty),
                     TwinOutput(op_id=partner_op_id, sku=partner_eop.sku, qty=partner_qty),
@@ -330,14 +372,21 @@ def solver_result_to_blocks(
 
 
 def _parse_job_id(job_id: str) -> tuple[str, int]:
-    """Parse job_id format '{op_id}_d{day_idx}' → (op_id, day_idx)."""
-    parts = job_id.rsplit("_d", 1)
+    """Parse job_id format '{op_id}_d{day_idx}[_P|_A]' → (op_id, day_idx).
+
+    Handles flexible job shop suffixes: _P (primary) and _A (alt).
+    """
+    # Strip flexible job shop suffix
+    base = job_id
+    if base.endswith("_P") or base.endswith("_A"):
+        base = base[:-2]
+    parts = base.rsplit("_d", 1)
     if len(parts) == 2:
         try:
             return parts[0], int(parts[1])
         except ValueError:
             pass
-    return job_id, 0
+    return base, 0
 
 
 def _has_alt(tool: ETool | None) -> bool:

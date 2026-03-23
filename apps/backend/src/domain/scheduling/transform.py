@@ -17,7 +17,7 @@ from .types import (
     TwinGroup,
     TwinValidationReport,
 )
-from .utils import infer_workdays_from_labels
+from .utils import infer_workdays_from_labels, mark_holidays
 
 # ── NP → Demand conversion ──
 
@@ -292,6 +292,59 @@ def _add_anomaly(
     by_code[code] = by_code.get(code, 0) + 1
 
 
+# ── Multi-client merge ──
+
+
+def _merge_multi_client_ops(operations: list[dict[str, Any]], n_days: int) -> list[dict[str, Any]]:
+    """Merge ISOP rows with same (SKU, machine, tool) but different clients.
+
+    The factory stamps a part ONCE regardless of how many clients ordered it.
+    Multiple ISOP rows for the same SKU+machine+tool should be merged:
+    - Demand: sum day-by-day
+    - Stock / twin / pH / op / setup: keep from first row
+    - Clients: accumulate into comma-separated string
+    """
+    merged: dict[tuple[str, str, str], dict[str, Any]] = {}
+    order: list[tuple[str, str, str]] = []
+
+    for op in operations:
+        sku = op.get("sku", "")
+        m = op.get("m", "")
+        t = op.get("t", "")
+        key = (sku, m, t)
+
+        if key not in merged:
+            # First occurrence — clone the dict
+            merged[key] = dict(op)
+            # Ensure demand list is a fresh copy padded to n_days
+            d = list(op.get("d", []))
+            while len(d) < n_days:
+                d.append(None)
+            merged[key]["d"] = d
+            order.append(key)
+        else:
+            # Subsequent occurrence — merge demand day-by-day
+            existing = merged[key]
+            new_d = op.get("d", [])
+            ex_d = existing["d"]
+            for i in range(min(len(new_d), n_days)):
+                v = new_d[i]
+                if v is not None:
+                    if ex_d[i] is None:
+                        ex_d[i] = v
+                    else:
+                        ex_d[i] = ex_d[i] + v
+            # Accumulate client codes
+            new_cl = op.get("cl") or op.get("customer_code") or ""
+            old_cl = existing.get("cl") or ""
+            if new_cl and new_cl not in old_cl:
+                existing["cl"] = f"{old_cl},{new_cl}" if old_cl else new_cl
+            # Keep max atraso
+            existing["atr"] = max(existing.get("atr", 0), op.get("atr", 0))
+
+    return [merged[k] for k in order]
+
+
 # ── Main transform ──
 
 
@@ -305,10 +358,13 @@ def transform_plan_state(
 
     Port of transformPlanState() from TS.
     """
-    operations = plan_state.get("operations", [])
+    raw_operations = plan_state.get("operations", [])
     dates = plan_state.get("dates", [])
     dnames = plan_state.get("dnames", [])
     n_days = len(dates)
+
+    # Merge multi-client rows: same (SKU, machine, tool) → single op
+    operations = _merge_multi_client_ops(raw_operations, n_days)
 
     # Build machines
     machine_ids: set[str] = set()
@@ -386,8 +442,9 @@ def transform_plan_state(
 
     # Workdays
     workdays = infer_workdays_from_labels(dnames, n_days)
+    workdays = mark_holidays(workdays, dates)
 
-    # Twin validation
+    # Twin validation (use merged ops for pH/op lookup)
     twin_report = validate_twin_references([_op_to_dict(op, operations) for op in ops])
 
     # Focus IDs
