@@ -1,0 +1,29 @@
+[project]
+name = "pp1-backend"
+version = "0.1.0"
+description = "PP1 ProdPlan ONE — APS backend"
+requires-python = ">=3.12"
+dependencies = [
+    "openpyxl>=3.1.0",
+    "pyyaml>=6.0",
+    "fastapi>=0.115.0",
+    "pydantic>=2.0",
+    "uvicorn>=0.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["../tests"]
+pythonpath = ["."]

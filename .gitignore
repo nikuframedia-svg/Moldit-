@@ -1,30 +1,17 @@
-# Dependencies
-node_modules/
-
-# Environment
-.env
-.env.local
-
-# Turborepo
-.turbo/
-
-# Build outputs
-dist/
-
-# Python
 __pycache__/
 *.pyc
 *.pyo
-.pytest_cache/
-venv/
 .venv/
-
-# Claude
-.claude/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
+.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+node_modules/
+data/*.db
+data/copilot_state.json
+=1.0
+apps/
+frontend/dist/
