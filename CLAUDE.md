@@ -84,6 +84,6 @@ MAX_RUN_DAYS=5 | MAX_EDD_GAP=10 | LST_SAFETY_BUFFER=2
 EDD_SWAP_TOLERANCE=5
 
 ## ═══ RESULTADOS VALIDADOS ═══
-ISOP 27/02: OTD=100%, OTD-D=100%, 0 tardy, earliness=5.4d, 121 setups
-ISOP 17/03: OTD=100%, OTD-D=100%, 0 tardy, earliness=5.2d, 135 setups
-43 testes passam. Pipeline determinístico. <500ms para ~60 ops.
+ISOP 27/02: OTD=100%, OTD-D=100%, 0 tardy, earliness=5.6d, 125 setups
+ISOP 17/03: OTD=100%, OTD-D=100%, 0 tardy, earliness=5.9d, 136 setups
+346 testes passam. Pipeline determinístico. <500ms para ~60 ops.

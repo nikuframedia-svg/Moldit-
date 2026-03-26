@@ -40,7 +40,8 @@ def create_tool_runs(
         group_lots.sort(key=lambda x: x.edd)  # Fix 1: always EDD sorted
         gap = getattr(params, 'max_edd_gap', config.max_edd_gap if config else max_edd_gap)
         max_run = getattr(params, 'max_run_days', config.max_run_days if config else MAX_RUN_DAYS)
-        sub_runs = _split_by_edd_gap(group_lots, gap, max_run, day_cap=day_cap)
+        span = getattr(params, 'max_edd_span', config.max_edd_span if config else 20)
+        sub_runs = _split_by_edd_gap(group_lots, gap, max_run, day_cap=day_cap, max_span=span)
 
         for idx, sub_lots in enumerate(sub_runs):
             setup = sub_lots[0].setup_min
@@ -79,9 +80,15 @@ def create_tool_runs(
 
 def _split_by_edd_gap(
     lots: list[Lot], max_gap: int, max_run_days: int = MAX_RUN_DAYS,
-    day_cap: int = DAY_CAP,
+    day_cap: int = DAY_CAP, max_span: int = 20,
 ) -> list[list[Lot]]:
-    """Split sorted lots by EDD gap and max cumulative production time."""
+    """Split sorted lots by EDD gap, span, and max cumulative production time.
+
+    Splits on three criteria:
+      1. EDD gap > max_gap between consecutive lots
+      2. EDD span > max_span from first lot in group to current lot
+      3. Cumulative production time > max_run_days * day_cap
+    """
     if not lots:
         return []
     if len(lots) <= 1:
@@ -93,10 +100,12 @@ def _split_by_edd_gap(
 
     for lot in lots[1:]:
         prev_edd = sub_runs[-1][-1].edd
+        first_edd = sub_runs[-1][0].edd
         gap = lot.edd - prev_edd
+        span = lot.edd - first_edd
         duration_split = cum_prod + lot.prod_min > max_prod
 
-        if gap > max_gap or duration_split:
+        if gap > max_gap or duration_split or span > max_span:
             sub_runs.append([lot])
             cum_prod = lot.prod_min
         else:

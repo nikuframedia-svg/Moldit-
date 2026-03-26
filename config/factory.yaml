@@ -181,6 +181,7 @@ scheduler:
     enabled: true
     buffer_pct: 0.05
     threshold: 95.0
+    earliness_target: 5.5
 
 # ─── SCORING ───
 scoring:

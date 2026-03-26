@@ -118,6 +118,7 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> FactoryConfig:
             config.jit_enabled = jit.get("enabled", config.jit_enabled)
             config.jit_buffer_pct = jit.get("buffer_pct", config.jit_buffer_pct)
             config.jit_threshold = jit.get("threshold", config.jit_threshold)
+            config.jit_earliness_target = jit.get("earliness_target", config.jit_earliness_target)
 
     # Scoring
     scoring = raw.get("scoring", {})
@@ -189,6 +190,7 @@ def save_config(config: FactoryConfig, path: str = DEFAULT_CONFIG_PATH) -> None:
                 "enabled": config.jit_enabled,
                 "buffer_pct": config.jit_buffer_pct,
                 "threshold": config.jit_threshold,
+                "earliness_target": config.jit_earliness_target,
             },
         },
         "scoring": {

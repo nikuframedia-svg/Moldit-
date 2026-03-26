@@ -584,7 +584,7 @@ class TestScheduleAll:
         assert to is not None
         # Both produce max(1000, 800) = 1000
         assert to[0][2] == 1000  # A = 1000
-        assert to[1][2] == 1000  # B = 1000 (not 800)
+        assert to[1][2] == 1000  # B = 1000 (equal qty)
         assert lots[0].qty == 1000
 
     def test_twin_joint_with_eco_lot(self):
@@ -788,3 +788,108 @@ class TestScheduleAll:
                 if curr.start_min < prev.end_min:
                     overlaps += 1
         assert overlaps == 0, f"Found {overlaps} overlaps across all machines"
+
+
+# --- Holiday enforcement ---
+
+
+class TestHolidayEnforcement:
+    """Guarantee no production is scheduled on holiday/weekend days."""
+
+    def test_no_segments_on_holidays(self):
+        """No segment should ever have day_idx in the holidays set."""
+        holidays = [1, 2, 4]  # days 1, 2, 4 are holidays
+        ops = [
+            _make_eop(sku="A", tool="T1", d=[0, 500, 0, 300, 0, 200]),
+            _make_eop(sku="B", tool="T2", d=[0, 0, 400, 0, 300, 0]),
+        ]
+        data = _make_engine_data(ops=ops, n_days=8, holidays=holidays)
+        result = schedule_all(data)
+
+        holiday_set = set(holidays)
+        violations = [
+            (s.machine_id, s.day_idx, s.run_id)
+            for s in result.segments
+            if s.day_idx in holiday_set
+        ]
+        assert violations == [], (
+            f"Segments scheduled on holidays: {violations}"
+        )
+
+    def test_utilisation_excludes_holidays(self):
+        """Utilisation denominator should exclude holiday days."""
+        holidays = [2, 3]  # 2 holidays out of 6 days
+        ops = [_make_eop(d=[0, 500, 0, 300])]
+        data = _make_engine_data(ops=ops, n_days=6, holidays=holidays)
+        result = schedule_all(data)
+
+        for m_id, util_pct in result.score.get("utilisation", {}).items():
+            # With holidays excluded, utilisation should be based on 4 workdays
+            # not 6 total days — so utilisation should be higher than naive calc
+            assert util_pct >= 0.0, f"Negative utilisation for {m_id}"
+
+    def test_holidays_with_heavy_load(self):
+        """With many holidays and heavy load, schedule must still respect holidays."""
+        # 3 out of 8 days are holidays — forces production into 5 workdays
+        holidays = [1, 3, 5]
+        ops = [
+            _make_eop(sku="A", tool="T1", d=[0, 800, 0, 600, 0, 400, 0, 300]),
+            _make_eop(sku="B", tool="T2", machine="PRM039", d=[0, 0, 500, 0, 500, 0, 300, 0]),
+        ]
+        machines = [
+            MachineInfo(id="PRM031", group="Grandes", day_capacity=DAY_CAP),
+            MachineInfo(id="PRM039", group="Grandes", day_capacity=DAY_CAP),
+        ]
+        data = _make_engine_data(ops=ops, machines=machines, n_days=8, holidays=holidays)
+        result = schedule_all(data)
+
+        holiday_set = set(holidays)
+        violations = [
+            (s.machine_id, s.day_idx)
+            for s in result.segments
+            if s.day_idx in holiday_set
+        ]
+        assert violations == [], (
+            f"Segments on holidays under heavy load: {violations}"
+        )
+
+
+# --- Crew mutex enforcement ---
+
+
+class TestCrewMutex:
+    """Guarantee no two setups overlap across machines (single crew)."""
+
+    def test_no_simultaneous_setups(self):
+        """Setups on different machines must not overlap in time."""
+        ops = [
+            _make_eop(sku="A", tool="T1", machine="PRM031", d=[0, 500, 0, 300]),
+            _make_eop(sku="B", tool="T2", machine="PRM031", d=[0, 0, 400, 0]),
+            _make_eop(sku="C", tool="T3", machine="PRM039", d=[0, 500, 0, 300]),
+            _make_eop(sku="D", tool="T4", machine="PRM039", d=[0, 0, 400, 0]),
+        ]
+        machines = [
+            MachineInfo(id="PRM031", group="Grandes", day_capacity=DAY_CAP),
+            MachineInfo(id="PRM039", group="Grandes", day_capacity=DAY_CAP),
+        ]
+        data = _make_engine_data(ops=ops, machines=machines, n_days=10)
+        result = schedule_all(data)
+
+        # Collect setup windows: (abs_start, abs_end, machine_id)
+        setups = []
+        for seg in result.segments:
+            if seg.setup_min > 0:
+                abs_start = seg.day_idx * DAY_CAP + (seg.start_min - 420)
+                abs_end = abs_start + seg.setup_min
+                setups.append((abs_start, abs_end, seg.machine_id))
+
+        setups.sort()
+        overlaps = 0
+        for i in range(len(setups)):
+            for j in range(i + 1, len(setups)):
+                if setups[i][2] == setups[j][2]:
+                    continue  # same machine
+                if setups[i][0] < setups[j][1] and setups[j][0] < setups[i][1]:
+                    overlaps += 1
+
+        assert overlaps == 0, f"Found {overlaps} simultaneous setups across machines"

@@ -169,20 +169,20 @@ def _fix_day_overlaps(segments: list[Segment], config: FactoryConfig | None = No
                 # If overflows day, move to next workday
                 if new_end > shift_b_end:
                     new_day = _next_workday(curr.day_idx + 1, hols)
-                    # EDD guard: never cause tardy
+                    # EDD guard: never cause tardy by moving to next day
                     if new_day > curr.edd:
-                        # Cap segment within remaining day time instead
                         if prev.end_min < shift_b_end:
                             curr.start_min = prev.end_min
                             curr.end_min = shift_b_end
                         else:
-                            # No space left — collapse (zero visual footprint)
+                            # No space left — keep zero-duration placeholder to preserve EDD
                             curr.start_min = shift_b_end
                             curr.end_min = shift_b_end
                         continue
+                    # Safe to move to next workday
                     curr.day_idx = new_day
                     curr.start_min = shift_a_start
-                    curr.end_min = shift_a_start + duration
+                    curr.end_min = min(shift_a_start + duration, shift_b_end)
                     curr.is_continuation = True
                     curr.shift = "A"
                     # Re-sort needed since we moved a segment to a later day
@@ -218,7 +218,7 @@ def _fix_day_overlaps(segments: list[Segment], config: FactoryConfig | None = No
                             continue
                         curr.day_idx = new_day
                         curr.start_min = shift_a_start
-                        curr.end_min = shift_a_start + duration
+                        curr.end_min = min(shift_a_start + duration, shift_b_end)
                         curr.is_continuation = True
                         curr.shift = "A"
                         cascaded = True
@@ -228,6 +228,173 @@ def _fix_day_overlaps(segments: list[Segment], config: FactoryConfig | None = No
                         curr.end_min = new_end
             if not cascaded:
                 break
+
+    return segments
+
+
+def _sanitize_segments(
+    segments: list[Segment],
+    config: FactoryConfig | None = None,
+    holidays: set[int] | None = None,
+) -> list[Segment]:
+    """Final safety net: enforce shift bounds without causing tardiness.
+
+    1. Remove truly inverted segments (start > end)
+    2. Clamp start_min >= shift_a_start
+    3. Cap end_min at shift_b_end (never move to next day — that could cause tardy)
+    """
+    shift_a_start = config.shift_a_start if config else 420
+    shift_b_end = config.shift_b_end if config else 1440
+
+    result: list[Segment] = []
+    for seg in segments:
+        # Remove truly inverted segments (start > end)
+        if seg.start_min > seg.end_min:
+            continue
+
+        # Clamp start to shift_a_start
+        if seg.start_min < shift_a_start:
+            seg.start_min = shift_a_start
+
+        # Cap end_min at shift_b_end (safe: preserves day_idx = no tardy risk)
+        if seg.end_min > shift_b_end:
+            seg.end_min = shift_b_end
+
+        # Keep segment (including zero-duration EDD placeholders)
+        result.append(seg)
+
+    removed = len(segments) - len(result)
+    if removed > 0:
+        logger.info("Sanitize: removed %d degenerate segments", removed)
+
+    return result
+
+
+def _serialize_crew_setups(
+    segments: list[Segment],
+    config: FactoryConfig | None = None,
+    holidays: set[int] | None = None,
+    crew_priority: list[str] | None = None,
+) -> list[Segment]:
+    """Serialize setups across machines: single crew can only do one setup at a time.
+
+    JIT/VNS dispatch each machine independently (no shared crew) for gate independence.
+    This post-processing step delays ONLY the overlapping setup segment (not all
+    subsequent segments). Intra-machine cascading is handled by _fix_day_overlaps.
+    """
+    day_cap = config.day_capacity_min if config else DAY_CAP
+    shift_a_start = config.shift_a_start if config else 420
+    shift_b_end = config.shift_b_end if config else 1440
+    hols = holidays or set()
+
+    # Build priority lookup (lower index = higher priority = not delayed)
+    prio_map: dict[str, int] = {}
+    if crew_priority:
+        prio_map = {m: i for i, m in enumerate(crew_priority)}
+
+    # Collect setups with absolute time
+    setup_entries: list[tuple[float, float, int]] = []  # (abs_start, duration, seg_index)
+    for idx, seg in enumerate(segments):
+        if seg.setup_min > 0 and seg.day_idx >= 0:
+            abs_start = seg.day_idx * day_cap + (seg.start_min - shift_a_start)
+            setup_entries.append((abs_start, seg.setup_min, idx))
+
+    if not setup_entries:
+        return segments
+
+    # Sort by time, break ties by priority (higher priority machines first)
+    setup_entries.sort(key=lambda e: (e[0], prio_map.get(segments[e[2]].machine_id, 99)))
+
+    # Walk through setups in chronological order, enforcing crew serialization.
+    # Bidirectional: try pulling the blocker back before pushing current forward.
+    # Only delay the INDIVIDUAL setup segment — _fix_day_overlaps cascades per-machine.
+    crew_free_at = 0.0
+    prev_crew_end = 0.0      # crew_free_at BEFORE the current blocker
+    blocker_seg_idx = -1     # seg index of the setup that set crew_free_at
+    blocker_abs_start = 0.0  # abs_start of the blocker
+    shifted = 0
+
+    for abs_start, duration, seg_idx in setup_entries:
+        seg = segments[seg_idx]
+        if abs_start < crew_free_at - 0.01:
+            delay_needed = crew_free_at - abs_start
+
+            # ── Try pulling the blocker back ──
+            pulled = False
+            if blocker_seg_idx >= 0:
+                pull_back_available = blocker_abs_start - prev_crew_end
+                if pull_back_available >= delay_needed:
+                    # Full pull-back: move blocker earlier, current fits without delay
+                    bseg = segments[blocker_seg_idx]
+                    pull = int(delay_needed + 0.5)
+                    new_bstart = bseg.start_min - pull
+                    if new_bstart >= shift_a_start:
+                        bseg.end_min -= pull
+                        bseg.start_min = new_bstart
+                        # Update crew_free_at based on pulled-back blocker
+                        new_blocker_abs = blocker_abs_start - pull
+                        blocker_abs_start = new_blocker_abs
+                        crew_free_at = new_blocker_abs + segments[blocker_seg_idx].setup_min
+                        pulled = True
+                elif pull_back_available > 1.0:
+                    # Partial pull-back: pull blocker as far as possible
+                    bseg = segments[blocker_seg_idx]
+                    pull = int(pull_back_available)
+                    new_bstart = bseg.start_min - pull
+                    if new_bstart >= shift_a_start:
+                        bseg.end_min -= pull
+                        bseg.start_min = new_bstart
+                        new_blocker_abs = blocker_abs_start - pull
+                        blocker_abs_start = new_blocker_abs
+                        crew_free_at = new_blocker_abs + segments[blocker_seg_idx].setup_min
+                        # Remaining delay handled by push-forward below
+
+            if pulled:
+                # Current setup fits now
+                crew_free_at = abs_start + duration
+                blocker_seg_idx = seg_idx
+                blocker_abs_start = abs_start
+                shifted += 1
+            else:
+                new_abs_start = crew_free_at
+                delay = int(new_abs_start - abs_start + 0.5)
+                if delay >= 1:
+                    new_start = seg.start_min + delay
+                    new_end = seg.end_min + delay
+
+                    if new_end > shift_b_end:
+                        # Overflow: move entire segment to next workday
+                        seg_duration = seg.end_min - seg.start_min
+                        new_day = seg.day_idx + 1
+                        while new_day in hols:
+                            new_day += 1
+                        seg.day_idx = new_day
+                        seg.start_min = shift_a_start
+                        seg.end_min = shift_a_start + seg_duration
+                        # DON'T jump crew_free_at to next day — crew is free
+                        # for remaining entries on the current day.
+                    else:
+                        seg.start_min = new_start
+                        seg.end_min = new_end
+                        crew_free_at = new_abs_start + duration
+                        prev_crew_end = blocker_abs_start + segments[blocker_seg_idx].setup_min if blocker_seg_idx >= 0 else 0.0
+                        blocker_seg_idx = seg_idx
+                        blocker_abs_start = new_abs_start
+
+                    shifted += 1
+                else:
+                    crew_free_at = abs_start + duration
+                    prev_crew_end = blocker_abs_start + segments[blocker_seg_idx].setup_min if blocker_seg_idx >= 0 else 0.0
+                    blocker_seg_idx = seg_idx
+                    blocker_abs_start = abs_start
+        else:
+            prev_crew_end = crew_free_at
+            crew_free_at = abs_start + duration
+            blocker_seg_idx = seg_idx
+            blocker_abs_start = abs_start
+
+    if shifted > 0:
+        logger.info("Crew serialization: shifted %d setup segments", shifted)
 
     return segments
 
@@ -345,6 +512,31 @@ def schedule_all(data: EngineData, params=None, audit: bool = False, config: Fac
     # Fix any overlapping segments (from buffer unshift or dispatch edge cases)
     global_holidays = set(getattr(data, "holidays", []))
     final_segments = _fix_day_overlaps(final_segments, config, holidays=global_holidays)
+
+    # Crew mutex: serialize setups across machines (single setup operator)
+    # Iterate: serialize → fix overlaps → sanitize → re-serialize (each step can create new issues)
+    import copy
+    pre_crew_score = compute_score(final_segments, final_lots, data, config=config)
+    crew_segments = copy.deepcopy(final_segments)
+    for _crew_pass in range(20):  # max 20 passes for convergence
+        crew_segments = _serialize_crew_setups(crew_segments, config, holidays=global_holidays)
+        crew_segments = _fix_day_overlaps(crew_segments, config, holidays=global_holidays)
+        crew_segments = _sanitize_segments(crew_segments, config, holidays=global_holidays)
+    crew_score = compute_score(crew_segments, final_lots, data, config=config)
+    if crew_score["tardy_count"] <= pre_crew_score["tardy_count"]:
+        final_segments = crew_segments
+        logger.info("Crew serialization applied: no tardy regression")
+    else:
+        logger.warning(
+            "Crew serialization skipped: tardy %d > %d",
+            crew_score["tardy_count"], pre_crew_score["tardy_count"],
+        )
+        warnings.append(
+            f"Crew serialization skipped: would cause {crew_score['tardy_count']} tardies"
+        )
+
+    # Final sanitize: enforce shift bounds
+    final_segments = _sanitize_segments(final_segments, config, holidays=global_holidays)
 
     # Phase 5: Final scoring
     journal.phase_start("scoring")

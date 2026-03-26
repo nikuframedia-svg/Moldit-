@@ -33,18 +33,23 @@ def _is_better(new: dict, old: dict, config: FactoryConfig) -> bool:
         return False
     if new["otd_d"] < old["otd_d"]:
         return False
-    earliness_target = config.jit_earliness_target if config else 6.0
-    if new["earliness_avg_days"] > earliness_target:
+    earliness_ceiling = max(
+        old["earliness_avg_days"],
+        config.jit_earliness_target if config else 5.5,
+    )
+    if new["earliness_avg_days"] > earliness_ceiling:
         return False
 
     # Fewer tardy is always better
     if new["tardy_count"] < old["tardy_count"]:
         return True
 
-    # SOFT — prefer fewer setups, then less earliness
-    if new["setups"] < old["setups"]:
-        return True
-    if new["setups"] == old["setups"] and new["earliness_avg_days"] < old["earliness_avg_days"]:
+    # SOFT — weighted composite: tradeoff setups vs earliness
+    w_setups = config.weight_setups if config else 0.30
+    w_earliness = config.weight_earliness if config else 0.40
+    old_cost = old["setups"] * w_setups + old["earliness_avg_days"] * w_earliness
+    new_cost = new["setups"] * w_setups + new["earliness_avg_days"] * w_earliness
+    if new_cost < old_cost - 0.01:  # small epsilon to avoid float noise
         return True
     return False
 
@@ -60,7 +65,10 @@ def _dispatch_and_score(
     engine_data: EngineData,
     config: FactoryConfig,
 ) -> tuple[list[Segment], list[Lot], dict]:
-    """Re-dispatch all machines and compute score."""
+    """Re-dispatch all machines and compute score.
+
+    Per-machine dispatch for gate independence; crew serialized in post-processing.
+    """
     all_segs: list[Segment] = []
     all_lots: list[Lot] = []
     for m_id, m_runs in machine_runs.items():
@@ -188,6 +196,43 @@ def _generate_n3_moves(machine_runs: dict[str, list[ToolRun]], config: FactoryCo
                 yield ("cross_machine", m_id, idx, alt)
 
 
+def _generate_n4_split_moves(machine_runs: dict[str, list[ToolRun]], config: FactoryConfig):
+    """N4: Split high-earliness multi-lot runs into two runs.
+
+    For runs where lot EDD span > threshold, split at the midpoint.
+    Cost: +1 setup. Benefit: later lots get their own gate closer to their EDD.
+    """
+    split_threshold = 15  # only split runs with EDD span > 15 days
+
+    for m_id, runs in machine_runs.items():
+        for idx, run in enumerate(runs):
+            if len(run.lots) < 2:
+                continue
+            # Lots are EDD-sorted within each run
+            span = run.lots[-1].edd - run.lots[0].edd
+            if span <= split_threshold:
+                continue
+            mid_edd = (run.lots[0].edd + run.lots[-1].edd) // 2
+            yield ("split", m_id, idx, mid_edd)
+
+
+def _make_split_run(original: ToolRun, lots: list[Lot], suffix: str) -> ToolRun:
+    """Create a new ToolRun from a subset of lots (for N4 split)."""
+    setup = lots[0].setup_min
+    total_prod = sum(lot.prod_min for lot in lots)
+    return ToolRun(
+        id=f"{original.id}_{suffix}",
+        tool_id=original.tool_id,
+        machine_id=original.machine_id,
+        alt_machine_id=original.alt_machine_id,
+        lots=lots,
+        setup_min=setup,
+        total_prod_min=total_prod,
+        total_min=setup + total_prod,
+        edd=lots[0].edd,
+    )
+
+
 def _apply_move(
     move: tuple,
     machine_runs: dict[str, list[ToolRun]],
@@ -223,6 +268,18 @@ def _apply_move(
                 break
         dst_runs.insert(insert_pos, run)
         return new_runs, {src_m, dst_m}
+
+    elif move_type == "split":
+        _, m_id, idx, mid_edd = move
+        original = new_runs[m_id][idx]
+        early_lots = [l for l in original.lots if l.edd <= mid_edd]
+        late_lots = [l for l in original.lots if l.edd > mid_edd]
+        if not early_lots or not late_lots:
+            return machine_runs, set()  # degenerate split, skip
+        early_run = _make_split_run(original, early_lots, "e")
+        late_run = _make_split_run(original, late_lots, "l")
+        new_runs[m_id][idx:idx + 1] = [early_run, late_run]
+        return new_runs, {m_id}
 
     return machine_runs, set()
 

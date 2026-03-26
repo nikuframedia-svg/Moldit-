@@ -78,7 +78,8 @@ def compute_score(
             if s.machine_id == m.id
         )
         day_cap = config.day_capacity_min if config else DAY_CAP
-        total_available = engine_data.n_days * day_cap
+        n_holidays = len(set(getattr(engine_data, "holidays", []) or []))
+        total_available = (engine_data.n_days - n_holidays) * day_cap
         util[m.id] = round(used / total_available * 100, 1) if total_available > 0 else 0.0
 
     return {

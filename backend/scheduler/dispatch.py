@@ -136,30 +136,29 @@ def sequence_per_machine(
     for machine_id, runs in machine_runs.items():
         runs.sort(key=lambda r: r.edd)             # 1. EDD baseline
 
-        if not has_holidays:
-            # Campaign grouping only when no weekends/holidays reduce capacity
-            before = [r.id for r in runs]
-            runs = _campaign_sequence(runs, params=params, config=config)
-            after_campaign = [r.id for r in runs]
-            if audit_logger and before != after_campaign:
-                moves = sum(1 for a, b in zip(before, after_campaign) if a != b)
-                audit_logger.log_sequence(machine_id, "sequence_campaign", moves)
+        # Campaign grouping: cluster same-tool runs to reduce setups
+        before = [r.id for r in runs]
+        runs = _campaign_sequence(runs, params=params, config=config)
+        after_campaign = [r.id for r in runs]
+        if audit_logger and before != after_campaign:
+            moves = sum(1 for a, b in zip(before, after_campaign) if a != b)
+            audit_logger.log_sequence(machine_id, "sequence_campaign", moves)
 
-            interleave = getattr(params, 'interleave_enabled', config.interleave_enabled if config else True)
-            if interleave:
-                before = [r.id for r in runs]
-                runs = _interleave_urgent(runs)
-                after_interleave = [r.id for r in runs]
-                if audit_logger and before != after_interleave:
-                    moves = sum(1 for a, b in zip(before, after_interleave) if a != b)
-                    audit_logger.log_sequence(machine_id, "sequence_interleave", moves)
-
+        interleave = getattr(params, 'interleave_enabled', config.interleave_enabled if config else True)
+        if interleave:
             before = [r.id for r in runs]
-            runs = _two_opt(runs, params=params, config=config)
-            after_2opt = [r.id for r in runs]
-            if audit_logger and before != after_2opt:
-                moves = sum(1 for a, b in zip(before, after_2opt) if a != b)
-                audit_logger.log_sequence(machine_id, "sequence_2opt", moves)
+            runs = _interleave_urgent(runs)
+            after_interleave = [r.id for r in runs]
+            if audit_logger and before != after_interleave:
+                moves = sum(1 for a, b in zip(before, after_interleave) if a != b)
+                audit_logger.log_sequence(machine_id, "sequence_interleave", moves)
+
+        before = [r.id for r in runs]
+        runs = _two_opt(runs, params=params, config=config)
+        after_2opt = [r.id for r in runs]
+        if audit_logger and before != after_2opt:
+            moves = sum(1 for a, b in zip(before, after_2opt) if a != b)
+            audit_logger.log_sequence(machine_id, "sequence_2opt", moves)
 
         machine_runs[machine_id] = runs
     return machine_runs
@@ -436,12 +435,12 @@ def _allocate_run(
             day_remaining = shift_b_end - min_in_day
 
             if day_remaining < 1:
-                start_abs = (day + 1) * day_cap
+                start_abs = _snap_to_shift(float((day + 1) * day_cap), holidays, day_cap=day_cap)
                 continue
 
             # If setup doesn't fit in remaining day, push to next day
             if seg_setup >= day_remaining:
-                start_abs = (day + 1) * day_cap
+                start_abs = _snap_to_shift(float((day + 1) * day_cap), holidays, day_cap=day_cap)
                 continue
 
             # Production time available AFTER setup

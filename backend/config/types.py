@@ -109,6 +109,7 @@ class FactoryConfig:
     # Scheduler tunables (base values — SchedulerParams can override)
     max_run_days: int = 5
     max_edd_gap: int = 10
+    max_edd_span: int = 30
     edd_swap_tolerance: int = 5
     lst_safety_buffer: int = 2
     campaign_window: int = 15
@@ -118,12 +119,12 @@ class FactoryConfig:
     jit_buffer_pct: float = 0.05
     jit_threshold: float = 95.0
     jit_max_retries: int = 15
-    jit_earliness_target: float = 6.0
+    jit_earliness_target: float = 5.5
     auto_buffer: bool = True
 
     # VNS post-processing
     vns_enabled: bool = True
-    vns_max_iter: int = 50
+    vns_max_iter: int = 150
 
     # Scoring weights
     weight_earliness: float = 0.40

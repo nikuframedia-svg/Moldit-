@@ -212,7 +212,7 @@ def jit_dispatch(
     # Phase 1: Assign machines (same load balancing)
     jit_machine_runs = assign_machines(runs, engine_data, audit_logger=audit_logger, params=params, config=config)
 
-    # Phase 2: EDD sort per machine
+    # Phase 2: EDD sort per machine (strict — required for backward stacking)
     for m_id in jit_machine_runs:
         jit_machine_runs[m_id].sort(key=lambda r: r.edd)
 
@@ -234,9 +234,9 @@ def jit_dispatch(
                 mg = float(_max_gate(r, holiday_set, day_cap=day_cap) * day_cap)
                 audit_logger.log_gate(run_id, gate_abs, mg, r.edd, "gate_jit")
 
-    # Phase 4: Dispatch each machine independently.
-    # Per-machine dispatch avoids crew serialization that causes tardiness with gates.
-    # Campaign continuation (same tool → skip setup) still works within each machine.
+    # Phase 4: Dispatch each machine independently with gates.
+    # Per-machine dispatch avoids crew serialization blocking gated runs.
+    # Crew mutex is enforced in post-processing (_serialize_crew_setups).
     jit_segs: list[Segment] = []
     jit_lots: list[Lot] = []
     jit_warns: list[str] = []
@@ -281,7 +281,7 @@ def jit_dispatch(
         if not adjusted:
             break
 
-        # Re-dispatch with adjusted gates (per-machine)
+        # Re-dispatch with adjusted gates (per-machine, crew serialized in post-processing)
         jit_segs = []
         jit_lots = []
         jit_warns = []
