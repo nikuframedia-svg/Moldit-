@@ -56,7 +56,6 @@ def assign_machines(
     runs: list[ToolRun],
     engine_data: EngineData,
     audit_logger: object | None = None,
-    params: object | None = None,
     config: FactoryConfig | None = None,
 ) -> dict[str, list[ToolRun]]:
     """Assign runs to machines. Load-balance runs with alt machines."""
@@ -83,7 +82,7 @@ def assign_machines(
     # machines in the first few days.
     has_alt.sort(key=lambda r: -r.total_min)
     for run in has_alt:
-        edd_thresh = getattr(params, 'edd_assign_threshold', 5)
+        edd_thresh = config.edd_assign_threshold if config else 5
         if run.edd <= edd_thresh:
             # EDD-aware: compare load from runs with edd <= run.edd
             primary_early = _early_load(machine_runs, run.machine_id, run.edd)
@@ -125,7 +124,6 @@ def assign_machines(
 def sequence_per_machine(
     machine_runs: dict[str, list[ToolRun]],
     audit_logger: object | None = None,
-    params: object | None = None,
     config: FactoryConfig | None = None,
     holidays: set[int] | None = None,
 ) -> dict[str, list[ToolRun]]:
@@ -138,13 +136,13 @@ def sequence_per_machine(
 
         # Campaign grouping: cluster same-tool runs to reduce setups
         before = [r.id for r in runs]
-        runs = _campaign_sequence(runs, params=params, config=config)
+        runs = _campaign_sequence(runs, config=config)
         after_campaign = [r.id for r in runs]
         if audit_logger and before != after_campaign:
             moves = sum(1 for a, b in zip(before, after_campaign) if a != b)
             audit_logger.log_sequence(machine_id, "sequence_campaign", moves)
 
-        interleave = getattr(params, 'interleave_enabled', config.interleave_enabled if config else True)
+        interleave = config.interleave_enabled if config else True
         if interleave:
             before = [r.id for r in runs]
             runs = _interleave_urgent(runs)
@@ -154,7 +152,7 @@ def sequence_per_machine(
                 audit_logger.log_sequence(machine_id, "sequence_interleave", moves)
 
         before = [r.id for r in runs]
-        runs = _two_opt(runs, params=params, config=config)
+        runs = _two_opt(runs, config=config)
         after_2opt = [r.id for r in runs]
         if audit_logger and before != after_2opt:
             moves = sum(1 for a, b in zip(before, after_2opt) if a != b)
@@ -164,7 +162,7 @@ def sequence_per_machine(
     return machine_runs
 
 
-def _campaign_sequence(runs: list[ToolRun], params=None, config: FactoryConfig | None = None) -> list[ToolRun]:
+def _campaign_sequence(runs: list[ToolRun], config: FactoryConfig | None = None) -> list[ToolRun]:
     """Nearest-neighbor: prefer same tool within EDD tolerance.
 
     Reduces setups by grouping runs of the same tool.
@@ -173,7 +171,7 @@ def _campaign_sequence(runs: list[ToolRun], params=None, config: FactoryConfig |
         return runs
 
     edd_tol = config.edd_swap_tolerance if config else EDD_SWAP_TOLERANCE
-    window = getattr(params, 'campaign_window', (config.campaign_window if config else edd_tol + 10))
+    window = config.campaign_window if config else edd_tol + 10
     result = [runs[0]]
     remaining = list(runs[1:])
 
@@ -250,9 +248,9 @@ def _interleave_urgent(runs: list[ToolRun]) -> list[ToolRun]:
     return result
 
 
-def _two_opt(runs: list[ToolRun], params=None, config: FactoryConfig | None = None) -> list[ToolRun]:
+def _two_opt(runs: list[ToolRun], config: FactoryConfig | None = None) -> list[ToolRun]:
     """Local 2-opt: swap adjacent runs to reduce setups within EDD tolerance."""
-    tolerance = getattr(params, 'edd_swap_tolerance', config.edd_swap_tolerance if config else EDD_SWAP_TOLERANCE)
+    tolerance = config.edd_swap_tolerance if config else EDD_SWAP_TOLERANCE
     improved = True
     while improved:
         improved = False

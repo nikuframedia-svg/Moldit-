@@ -136,7 +136,6 @@ def _backward_stack_gates(
     machine_runs: dict[str, list[ToolRun]],
     holiday_set: set[int],
     n_days: int,
-    params=None,
     config: FactoryConfig | None = None,
 ) -> dict[str, float]:
     """Compute per-run gates via backward stacking per machine.
@@ -164,7 +163,7 @@ def _backward_stack_gates(
 
             # Buffer: overhead pct of work time + setup absorbs shift-boundary overhead.
             # Holiday density increases overhead (more partial-day waste at boundaries).
-            pct = getattr(params, 'backward_buffer_pct', config.jit_buffer_pct if config else 0.05)
+            pct = config.jit_buffer_pct if config else 0.05
             holiday_density = len(holiday_set) / max(n_days, 1)
             adjusted_pct = pct + holiday_density * 0.05
             buffer = run.total_min * adjusted_pct + run.setup_min
@@ -191,7 +190,6 @@ def jit_dispatch(
     baseline_lots: list[Lot],
     baseline_score: dict,
     audit_logger: object | None = None,
-    params: object | None = None,
     config: FactoryConfig | None = None,
 ) -> tuple[list[Segment], list[Lot], list[str], dict[str, list[ToolRun]] | None, dict[str, float] | None]:
     """JIT v3: backward scheduling with EDD-strict ordering + per-machine dispatch.
@@ -210,14 +208,14 @@ def jit_dispatch(
     holiday_set = set(getattr(engine_data, "holidays", []))
 
     # Phase 1: Assign machines (same load balancing)
-    jit_machine_runs = assign_machines(runs, engine_data, audit_logger=audit_logger, params=params, config=config)
+    jit_machine_runs = assign_machines(runs, engine_data, audit_logger=audit_logger, config=config)
 
     # Phase 2: EDD sort per machine (strict — required for backward stacking)
     for m_id in jit_machine_runs:
         jit_machine_runs[m_id].sort(key=lambda r: r.edd)
 
     # Phase 3: Backward-stack gates (on EDD-sorted order for correct cascading)
-    current_gate = _backward_stack_gates(jit_machine_runs, holiday_set, engine_data.n_days, params=params, config=config)
+    current_gate = _backward_stack_gates(jit_machine_runs, holiday_set, engine_data.n_days, config=config)
 
     gated_count = sum(1 for g in current_gate.values() if g > 0)
     logger.info(

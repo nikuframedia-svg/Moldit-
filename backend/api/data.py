@@ -218,6 +218,21 @@ async def get_risk():
     return asdict(state.risk_result)
 
 
+@router.get("/stress")
+async def get_stress():
+    _require_data()
+    from backend.scheduler.stress import (
+        compute_stress_map, stress_summary, stress_recommendations,
+    )
+    smap = state.stress_map or compute_stress_map(
+        state.segments, state.lots, state.engine_data.n_days,
+        n_holidays=len(getattr(state.engine_data, 'holidays', []) or []),
+    )
+    summary = stress_summary(smap)
+    recs = stress_recommendations(smap, state.lots, state.segments)
+    return {"summary": summary, "recommendations": recs}
+
+
 @router.get("/late")
 async def get_late_deliveries():
     _require_data()

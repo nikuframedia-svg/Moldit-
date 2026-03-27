@@ -32,14 +32,45 @@ def exec_recalcular_plano(args: dict) -> str:
 
     from backend.cpo import optimize
 
+    modo = args.get("modo", "quick")
+    old_segments = list(state.segments)
     old_score = dict(state.score) if state.score else {}
-    result = optimize(state.engine_data, mode="quick", audit=True, config=state.config)
+
+    # Smart mode: use Bayesian optimization (Optuna) if available
+    if modo == "smart":
+        try:
+            from backend.learning import smart_schedule
+            result = smart_schedule(
+                state.engine_data, learn=True, config=state.config, audit=True,
+            )
+        except ImportError:
+            result = optimize(state.engine_data, mode="normal", audit=True, config=state.config)
+    else:
+        result = optimize(state.engine_data, mode=modo, audit=True, config=state.config)
+
     state.update_schedule(result)
+
+    # Compute lot-level diff
+    alteracoes = None
+    if old_segments:
+        try:
+            from backend.audit.diff import compute_diff
+            diff = compute_diff(old_segments, result.segments, old_score, result.score)
+            alteracoes = {
+                "lots_movidos": len(diff.moved),
+                "lots_retimed": len(diff.retimed),
+                "lots_added": len(diff.added),
+                "lots_removed": len(diff.removed),
+            }
+        except Exception:
+            pass
 
     return _dumps({
         "status": "ok",
+        "modo": modo,
         "score": result.score,
         "score_anterior": old_score,
+        "alteracoes": alteracoes,
         "time_ms": result.time_ms,
         "warnings": result.warnings[:10],
     })
@@ -262,3 +293,56 @@ def exec_check_ctp(args: dict) -> str:
         "slack_min": result.slack_min,
         "razao": result.reason,
     })
+
+
+# ─── 9. simular_avaria ─────────────────────────────────────────────────
+
+def exec_simular_avaria(args: dict) -> str:
+    if (err := _guard()):
+        return err
+
+    from backend.simulator.breakdown import simulate_breakdown
+
+    machine_id = args.get("maquina", "")
+    start_day = args.get("dia_inicio", 0)
+    duration = args.get("duracao_dias", 1)
+
+    report = simulate_breakdown(
+        state.engine_data, state.score,
+        machine_id=machine_id,
+        start_day=start_day,
+        end_day=start_day + duration - 1,
+        config=state.config,
+    )
+
+    return _dumps({
+        "impacto": report.impact_level,
+        "resumo": report.summary_pt,
+        "operacoes_afectadas": report.affected_ops[:10],
+        "delta": {
+            "otd": f"{report.delta.otd_before:.1f}% → {report.delta.otd_after:.1f}%",
+            "tardy": f"{report.delta.tardy_before} → {report.delta.tardy_after}",
+            "setups": f"{report.delta.setups_before} → {report.delta.setups_after}",
+        },
+        "time_ms": report.time_ms,
+    })
+
+
+# ─── 10. monte_carlo ───────────────────────────────────────────────────
+
+def exec_monte_carlo(args: dict) -> str:
+    if (err := _guard()):
+        return err
+
+    try:
+        from backend.risk.monte_carlo import monte_carlo_risk
+        from backend.cpo import optimize
+
+        def schedule_fn(data):
+            return optimize(data, mode="quick", config=state.config)
+
+        n = min(args.get("amostras", 200), 500)
+        mc = monte_carlo_risk(state.engine_data, schedule_fn, n_samples=n)
+        return _dumps(mc)
+    except ImportError:
+        return _dumps({"erro": "scipy/numpy não instalados. Monte Carlo indisponível."})

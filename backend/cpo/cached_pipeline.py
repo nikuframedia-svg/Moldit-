@@ -14,8 +14,6 @@ from __future__ import annotations
 import copy
 import logging
 from collections import defaultdict
-from dataclasses import dataclass
-
 from backend.config.types import FactoryConfig
 from backend.scheduler.constants import DAY_CAP
 from backend.scheduler.dispatch import (
@@ -33,19 +31,6 @@ from backend.types import EngineData
 from backend.cpo.chromosome import Chromosome
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class _ParamsProxy:
-    """Lightweight params object to inject chromosome genes into existing functions."""
-    max_edd_gap: int = 10
-    max_edd_span: int = 30
-    campaign_window: int = 15
-    edd_swap_tolerance: int = 5
-    interleave_enabled: bool = True
-    jit_threshold: float = 95.0
-    jit_buffer_pct: float = 0.05
-    edd_assign_threshold: int = 5
 
 
 class CachedPipeline:
@@ -71,8 +56,10 @@ class CachedPipeline:
         key = (edd_gap, max_edd_span)
         if key not in self._runs_cache:
             lots = copy.deepcopy(self._get_lots())
-            params = _ParamsProxy(max_edd_gap=edd_gap, max_edd_span=max_edd_span)
-            self._runs_cache[key] = create_tool_runs(lots, params=params, config=self.config)
+            cfg = copy.copy(self.config)
+            cfg.max_edd_gap = edd_gap
+            cfg.max_edd_span = max_edd_span
+            self._runs_cache[key] = create_tool_runs(lots, config=cfg)
         return self._runs_cache[key]
 
     def evaluate(self, chrom: Chromosome) -> ScheduleResult:
@@ -116,10 +103,11 @@ class CachedPipeline:
         jit_machine_runs = None
         jit_gates = None
         if self.config.jit_enabled and baseline_score["otd"] >= self.config.jit_threshold:
-            params = _ParamsProxy(jit_buffer_pct=chrom.buffer_pct)
+            jit_cfg = copy.copy(self.config)
+            jit_cfg.jit_buffer_pct = chrom.buffer_pct
             jit_segs, jit_lots, jit_warnings, jit_machine_runs, jit_gates = jit_dispatch(
                 runs, data, segments, lots, baseline_score,
-                params=params, config=self.config,
+                config=jit_cfg,
             )
             segments = jit_segs
             lots = jit_lots
@@ -133,8 +121,9 @@ class CachedPipeline:
                 jit_machine_runs, jit_gates, data, self.config,
                 segments, lots, jit_score,
             )
-            if (vns_score["setups"] < jit_score["setups"]
-                    or vns_score["earliness_avg_days"] < jit_score["earliness_avg_days"]):
+            if (vns_score["tardy_count"] <= jit_score["tardy_count"]
+                    and (vns_score["setups"] < jit_score["setups"]
+                         or vns_score["earliness_avg_days"] < jit_score["earliness_avg_days"])):
                 segments = vns_segs
                 lots = vns_lots
             warnings.extend(vns_warnings)
@@ -149,6 +138,7 @@ class CachedPipeline:
         # Post-processing
         from backend.scheduler.scheduler import (
             _fix_day_overlaps,
+            _serialize_crew_safe,
             _serialize_crew_setups,
             _sanitize_segments,
         )
@@ -159,7 +149,7 @@ class CachedPipeline:
         pre_crew_score = compute_score(segments, lots, data, config=self.config)
         crew_segments = copy.deepcopy(segments)
         prev_hash = None
-        for _ in range(5):  # max 5 passes (convergence typically in 2-3)
+        for _ in range(10):  # max 10 passes (convergence typically in 2-3)
             crew_segments = _serialize_crew_setups(crew_segments, self.config, holidays=global_holidays, crew_priority=chrom.crew_priority)
             crew_segments = _fix_day_overlaps(crew_segments, self.config, holidays=global_holidays)
             crew_segments = _sanitize_segments(crew_segments, self.config, holidays=global_holidays)
@@ -172,6 +162,23 @@ class CachedPipeline:
         crew_score = compute_score(crew_segments, lots, data, config=self.config)
         if crew_score["tardy_count"] <= pre_crew_score["tardy_count"]:
             segments = crew_segments
+        else:
+            # EDD-safe fallback: per-overlap resolution
+            safe_segments = copy.deepcopy(segments)
+            prev_hash_s = None
+            for _ in range(10):
+                safe_segments = _serialize_crew_safe(safe_segments, self.config, holidays=global_holidays, crew_priority=chrom.crew_priority)
+                safe_segments = _fix_day_overlaps(safe_segments, self.config, holidays=global_holidays)
+                safe_segments = _sanitize_segments(safe_segments, self.config, holidays=global_holidays)
+                curr_hash_s = hash(tuple(
+                    (s.lot_id, s.day_idx, s.start_min, s.end_min) for s in safe_segments
+                ))
+                if curr_hash_s == prev_hash_s:
+                    break
+                prev_hash_s = curr_hash_s
+            safe_score = compute_score(safe_segments, lots, data, config=self.config)
+            if safe_score["tardy_count"] <= pre_crew_score["tardy_count"]:
+                segments = safe_segments
 
         segments = _sanitize_segments(segments, self.config, holidays=global_holidays)
 
@@ -205,13 +212,16 @@ class CachedPipeline:
                 weighted_setup_cost += seg.setup_min * min(util, 1.0)
         score["weighted_setup_cost"] = weighted_setup_cost
 
+        from backend.scheduler.operators import compute_operator_alerts
+        op_alerts = compute_operator_alerts(segments, self.data, config=self.config)
+
         result = ScheduleResult(
             segments=segments,
             lots=lots,
             score=score,
             time_ms=0.0,
             warnings=warnings,
-            operator_alerts=[],
+            operator_alerts=op_alerts,
         )
 
         self._fitness_cache[h] = (score, result)
@@ -255,6 +265,7 @@ class CachedPipeline:
                 machine_runs[m_id] = [run for _, run in paired]
 
         # Then apply campaign sequencing with G6 window
-        params = _ParamsProxy(campaign_window=chrom.campaign_window)
-        machine_runs = sequence_per_machine(machine_runs, params=params, config=self.config)
+        seq_cfg = copy.copy(self.config)
+        seq_cfg.campaign_window = chrom.campaign_window
+        machine_runs = sequence_per_machine(machine_runs, config=seq_cfg)
         return machine_runs

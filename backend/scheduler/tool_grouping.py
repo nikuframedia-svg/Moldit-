@@ -23,7 +23,6 @@ def create_tool_runs(
     lots: list[Lot],
     max_edd_gap: int = MAX_EDD_GAP,
     audit_logger: object | None = None,
-    params: object | None = None,
     config: FactoryConfig | None = None,
 ) -> list[ToolRun]:
     """Group lots by (tool_id, machine_id) into ToolRuns, with splitting."""
@@ -38,9 +37,9 @@ def create_tool_runs(
     runs: list[ToolRun] = []
     for (tool, machine), group_lots in groups.items():
         group_lots.sort(key=lambda x: x.edd)  # Fix 1: always EDD sorted
-        gap = getattr(params, 'max_edd_gap', config.max_edd_gap if config else max_edd_gap)
-        max_run = getattr(params, 'max_run_days', config.max_run_days if config else MAX_RUN_DAYS)
-        span = getattr(params, 'max_edd_span', config.max_edd_span if config else 20)
+        gap = config.max_edd_gap if config else max_edd_gap
+        max_run = config.max_run_days if config else MAX_RUN_DAYS
+        span = config.max_edd_span if config else 20
         sub_runs = _split_by_edd_gap(group_lots, gap, max_run, day_cap=day_cap, max_span=span)
 
         for idx, sub_lots in enumerate(sub_runs):

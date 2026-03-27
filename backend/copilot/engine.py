@@ -12,9 +12,11 @@ from backend.copilot.executors_action import (
     exec_adicionar_regra,
     exec_alterar_config,
     exec_check_ctp,
+    exec_monte_carlo,
     exec_mover_referencia,
     exec_recalcular_plano,
     exec_remover_regra,
+    exec_simular_avaria,
     exec_simular_cenario,
     exec_simular_overtime,
 )
@@ -31,6 +33,7 @@ from backend.copilot.executors_master import (
     exec_remover_twin,
 )
 from backend.copilot.executors_query import (
+    exec_e_se,
     exec_explicar_decisao,
     exec_explicar_logica,
     exec_explicar_referencia,
@@ -41,6 +44,7 @@ from backend.copilot.executors_query import (
     exec_ver_historico,
     exec_ver_producao_dia,
     exec_ver_score,
+    exec_ver_stress,
 )
 from backend.copilot.executors_viz import (
     exec_visualizar_atrasos,
@@ -72,7 +76,9 @@ EXECUTORS: dict[str, callable] = {
     "explicar_logica": exec_explicar_logica,
     "ver_encomendas": exec_ver_encomendas,
     "ver_historico": exec_ver_historico,
-    # Action (8)
+    "ver_stress": exec_ver_stress,
+    "e_se": exec_e_se,
+    # Action (10)
     "recalcular_plano": exec_recalcular_plano,
     "mover_referencia": exec_mover_referencia,
     "adicionar_regra": exec_adicionar_regra,
@@ -81,6 +87,8 @@ EXECUTORS: dict[str, callable] = {
     "simular_cenario": exec_simular_cenario,
     "simular_overtime": exec_simular_overtime,
     "check_ctp": exec_check_ctp,
+    "simular_avaria": exec_simular_avaria,
+    "monte_carlo": exec_monte_carlo,
     # Master Data (10)
     "adicionar_maquina": exec_adicionar_maquina,
     "editar_maquina": exec_editar_maquina,

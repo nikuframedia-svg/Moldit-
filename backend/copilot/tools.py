@@ -80,13 +80,36 @@ QUERY_TOOLS = [
             "limite": {"type": "integer", "description": "Número máximo de resultados (default 20)."},
         },
     }),
+    _fn("ver_stress", "Ver mapa de stress/fragilidade e recomendações.", {
+        "properties": {},
+    }),
+    _fn("e_se", "Cenário counterfactual: 'E se a ferramenta X fosse para a máquina Y?'", {
+        "properties": {
+            "tipo": {
+                "type": "string",
+                "enum": ["force_machine", "remove_jit"],
+                "description": "Tipo de pergunta counterfactual.",
+            },
+            "params": {
+                "type": "object",
+                "description": "Parâmetros (ex: {\"tool_id\": \"BFP079\", \"machine_id\": \"PRM039\"}).",
+            },
+        },
+        "required": ["tipo", "params"],
+    }),
 ]
 
-# ─── ACTION TOOLS (8) ────────────────────────────────────────────────────
+# ─── ACTION TOOLS (10) ───────────────────────────────────────────────────
 
 ACTION_TOOLS = [
     _fn("recalcular_plano", "Recalcular o plano de produção com os dados actuais.", {
-        "properties": {},
+        "properties": {
+            "modo": {
+                "type": "string",
+                "enum": ["quick", "normal", "smart"],
+                "description": "Modo: quick (rápido), normal (GA), smart (Bayesian + aprendizagem). Default: quick.",
+            },
+        },
     }),
     _fn("mover_referencia", "Mover uma referência/SKU para outra máquina.", {
         "properties": {
@@ -162,6 +185,19 @@ ACTION_TOOLS = [
             "dia_deadline": {"type": "integer", "description": "Dia limite (índice)."},
         },
         "required": ["sku", "quantidade", "dia_deadline"],
+    }),
+    _fn("simular_avaria", "Simular avaria/paragem de uma máquina e ver o impacto.", {
+        "properties": {
+            "maquina": {"type": "string", "description": "ID da máquina (ex: PRM019)."},
+            "dia_inicio": {"type": "integer", "description": "Primeiro dia da avaria (índice)."},
+            "duracao_dias": {"type": "integer", "description": "Duração em dias (default 1)."},
+        },
+        "required": ["maquina", "dia_inicio"],
+    }),
+    _fn("monte_carlo", "Simulação Monte Carlo de risco (~200 cenários aleatórios).", {
+        "properties": {
+            "amostras": {"type": "integer", "description": "Número de simulações (default 200, max 500)."},
+        },
     }),
 ]
 

@@ -328,7 +328,15 @@ def _serialize_crew_setups(
                     bseg = segments[blocker_seg_idx]
                     pull = int(delay_needed + 0.5)
                     new_bstart = bseg.start_min - pull
-                    if new_bstart >= shift_a_start:
+                    # Check intra-machine feasibility: predecessor must end before new_bstart
+                    pred_end = shift_a_start
+                    for other in segments:
+                        if (other.machine_id == bseg.machine_id
+                                and other.day_idx == bseg.day_idx
+                                and other.end_min <= bseg.start_min
+                                and other.end_min > pred_end):
+                            pred_end = other.end_min
+                    if new_bstart >= shift_a_start and new_bstart >= pred_end:
                         bseg.end_min -= pull
                         bseg.start_min = new_bstart
                         # Update crew_free_at based on pulled-back blocker
@@ -341,7 +349,19 @@ def _serialize_crew_setups(
                     bseg = segments[blocker_seg_idx]
                     pull = int(pull_back_available)
                     new_bstart = bseg.start_min - pull
-                    if new_bstart >= shift_a_start:
+                    # Check intra-machine feasibility
+                    pred_end = shift_a_start
+                    for other in segments:
+                        if (other.machine_id == bseg.machine_id
+                                and other.day_idx == bseg.day_idx
+                                and other.end_min <= bseg.start_min
+                                and other.end_min > pred_end):
+                            pred_end = other.end_min
+                    # Limit pull to available intra-machine space
+                    if new_bstart < pred_end:
+                        pull = max(0, bseg.start_min - pred_end)
+                        new_bstart = bseg.start_min - pull
+                    if pull >= 1 and new_bstart >= shift_a_start:
                         bseg.end_min -= pull
                         bseg.start_min = new_bstart
                         new_blocker_abs = blocker_abs_start - pull
@@ -399,7 +419,105 @@ def _serialize_crew_setups(
     return segments
 
 
-def schedule_all(data: EngineData, params=None, audit: bool = False, config: FactoryConfig | None = None, crew_priority: list[str] | None = None) -> ScheduleResult:
+def _serialize_crew_safe(
+    segments: list[Segment],
+    config: FactoryConfig | None = None,
+    holidays: set[int] | None = None,
+    crew_priority: list[str] | None = None,
+) -> list[Segment]:
+    """EDD-safe per-overlap crew serialization.
+
+    Like _serialize_crew_setups but checks EDD before each fix:
+    - Only delays a setup if the new day_idx <= seg.edd
+    - Tries BOTH orderings (A-then-B vs B-then-A) for each overlap
+    - Skips unfixable overlaps (logs warning)
+
+    Used as fallback when standard serialization causes tardy.
+    """
+    day_cap = config.day_capacity_min if config else DAY_CAP
+    shift_a_start = config.shift_a_start if config else 420
+    shift_b_end = config.shift_b_end if config else 1440
+    hols = holidays or set()
+
+    prio_map: dict[str, int] = {}
+    if crew_priority:
+        prio_map = {m: i for i, m in enumerate(crew_priority)}
+
+    # Collect setup intervals
+    setup_entries: list[tuple[float, float, int]] = []
+    for idx, seg in enumerate(segments):
+        if seg.setup_min > 0 and seg.day_idx >= 0:
+            abs_start = seg.day_idx * day_cap + (seg.start_min - shift_a_start)
+            setup_entries.append((abs_start, seg.setup_min, idx))
+
+    if not setup_entries:
+        return segments
+
+    setup_entries.sort(key=lambda e: (e[0], prio_map.get(segments[e[2]].machine_id, 99)))
+
+    crew_free_at = 0.0
+    crew_machine = ""
+    fixed = 0
+    skipped = 0
+
+    for abs_start, duration, seg_idx in setup_entries:
+        seg = segments[seg_idx]
+
+        if abs_start < crew_free_at - 0.01 and seg.machine_id != crew_machine:
+            delay = int(crew_free_at - abs_start + 0.5)
+
+            if delay < 1:
+                crew_free_at = abs_start + duration
+                crew_machine = seg.machine_id
+                continue
+
+            # Try push-forward with EDD check
+            new_start = seg.start_min + delay
+            new_end = seg.end_min + delay
+
+            if new_end <= shift_b_end:
+                # Same day — safe if day_idx <= edd
+                if seg.day_idx <= seg.edd:
+                    seg.start_min = new_start
+                    seg.end_min = new_end
+                    crew_free_at = (seg.day_idx * day_cap + (new_start - shift_a_start)) + duration
+                    crew_machine = seg.machine_id
+                    fixed += 1
+                    continue
+
+            # Try next workday with EDD check
+            seg_duration = seg.end_min - seg.start_min
+            new_day = seg.day_idx + 1
+            while new_day in hols:
+                new_day += 1
+
+            if new_day <= seg.edd:
+                seg.day_idx = new_day
+                seg.start_min = shift_a_start
+                seg.end_min = shift_a_start + seg_duration
+                fixed += 1
+                # Don't update crew_free_at — crew is free today for others
+                continue
+
+            # Can't fix without exceeding EDD — skip this overlap
+            skipped += 1
+            logger.warning(
+                "Crew overlap unfixable (EDD %d): %s day %d delay %d min",
+                seg.edd, seg.machine_id, seg.day_idx, delay,
+            )
+
+        # Update tracking
+        if abs_start + duration > crew_free_at:
+            crew_free_at = abs_start + duration
+            crew_machine = seg.machine_id
+
+    if fixed > 0:
+        logger.info("Safe crew serialization: fixed %d, skipped %d overlaps", fixed, skipped)
+
+    return segments
+
+
+def schedule_all(data: EngineData, audit: bool = False, config: FactoryConfig | None = None, crew_priority: list[str] | None = None) -> ScheduleResult:
     """Run the full scheduling pipeline."""
     t0 = time.perf_counter()
 
@@ -436,13 +554,13 @@ def schedule_all(data: EngineData, params=None, audit: bool = False, config: Fac
 
     # Phase 2: Lots → ToolRuns
     journal.phase_start("tool_grouping")
-    runs = create_tool_runs(lots, audit_logger=audit_logger, params=params, config=config)
+    runs = create_tool_runs(lots, audit_logger=audit_logger, config=config)
     journal.phase_end("tool_grouping", f"{len(runs)} runs from {len(lots)} lots", n_runs=len(runs))
     logger.info("Phase 2: %d tool runs (vs %d lots)", len(runs), len(lots))
 
     # Auto buffer: detect per-machine capacity infeasibility with holidays
     journal.phase_start("dispatch")
-    machine_runs = assign_machines(runs, data, audit_logger=audit_logger, params=params, config=config)
+    machine_runs = assign_machines(runs, data, audit_logger=audit_logger, config=config)
     global_holidays = set(data.holidays) if data.holidays else set()
     buffer_days = _detect_buffer_need(runs, config=config, machine_runs=machine_runs, holidays=global_holidays)
     if buffer_days > 0:
@@ -451,10 +569,10 @@ def schedule_all(data: EngineData, params=None, audit: bool = False, config: Fac
         data = _shift_engine_data(data, buffer_days)
         global_holidays = set(data.holidays) if data.holidays else set()
         # Re-assign with shifted EDDs
-        machine_runs = assign_machines(runs, data, audit_logger=audit_logger, params=params, config=config)
+        machine_runs = assign_machines(runs, data, audit_logger=audit_logger, config=config)
 
     # Phase 3: Sequence + Allocate
-    machine_runs = sequence_per_machine(machine_runs, audit_logger=audit_logger, params=params, config=config, holidays=global_holidays or None)
+    machine_runs = sequence_per_machine(machine_runs, audit_logger=audit_logger, config=config, holidays=global_holidays or None)
     baseline_segments, baseline_lots, warnings = per_machine_dispatch(machine_runs, data, config=config)
     journal.phase_end("dispatch", f"{len(baseline_segments)} segments", n_segments=len(baseline_segments))
     logger.info("Phase 3: %d segments, %d warnings", len(baseline_segments), len(warnings))
@@ -469,14 +587,14 @@ def schedule_all(data: EngineData, params=None, audit: bool = False, config: Fac
 
     # Phase 4: JIT (LST-gated re-dispatch)
     journal.phase_start("jit")
-    jit_thresh = getattr(params, 'jit_threshold', config.jit_threshold)
+    jit_thresh = config.jit_threshold
     jit_machine_runs = None
     jit_gates = None
     if config.jit_enabled and baseline_score["otd"] >= jit_thresh:
         final_segments, final_lots, jit_warnings, jit_machine_runs, jit_gates = jit_dispatch(
             runs, data,
             baseline_segments, baseline_lots, baseline_score,
-            audit_logger=audit_logger, params=params, config=config,
+            audit_logger=audit_logger, config=config,
         )
         warnings.extend(jit_warnings)
         journal.phase_end("jit", f"JIT applied, {len(final_segments)} segments")
@@ -496,7 +614,8 @@ def schedule_all(data: EngineData, params=None, audit: bool = False, config: Fac
             jit_machine_runs, jit_gates, data, config,
             final_segments, final_lots, jit_score,
         )
-        if vns_score["setups"] < jit_score["setups"] or vns_score["earliness_avg_days"] < jit_score["earliness_avg_days"]:
+        if (vns_score["tardy_count"] <= jit_score["tardy_count"]
+                and (vns_score["setups"] < jit_score["setups"] or vns_score["earliness_avg_days"] < jit_score["earliness_avg_days"])):
             final_segments = vns_segs
             final_lots = vns_lots
         warnings.extend(vns_warnings)
@@ -519,7 +638,7 @@ def schedule_all(data: EngineData, params=None, audit: bool = False, config: Fac
     pre_crew_score = compute_score(final_segments, final_lots, data, config=config)
     crew_segments = copy.deepcopy(final_segments)
     prev_hash = None
-    for _crew_pass in range(5):  # max 5 passes (convergence typically in 2-3)
+    for _crew_pass in range(10):  # max 10 passes with early exit on convergence
         crew_segments = _serialize_crew_setups(crew_segments, config, holidays=global_holidays, crew_priority=crew_priority)
         crew_segments = _fix_day_overlaps(crew_segments, config, holidays=global_holidays)
         crew_segments = _sanitize_segments(crew_segments, config, holidays=global_holidays)
@@ -534,13 +653,35 @@ def schedule_all(data: EngineData, params=None, audit: bool = False, config: Fac
         final_segments = crew_segments
         logger.info("Crew serialization applied: no tardy regression")
     else:
-        logger.warning(
-            "Crew serialization skipped: tardy %d > %d",
+        # Standard serialization causes tardy — try EDD-safe per-overlap fallback
+        logger.info(
+            "Crew serialization caused tardy %d > %d, trying EDD-safe fallback",
             crew_score["tardy_count"], pre_crew_score["tardy_count"],
         )
-        warnings.append(
-            f"Crew serialization skipped: would cause {crew_score['tardy_count']} tardies"
-        )
+        safe_segments = copy.deepcopy(final_segments)
+        prev_hash_safe = None
+        for _ in range(10):
+            safe_segments = _serialize_crew_safe(safe_segments, config, holidays=global_holidays, crew_priority=crew_priority)
+            safe_segments = _fix_day_overlaps(safe_segments, config, holidays=global_holidays)
+            safe_segments = _sanitize_segments(safe_segments, config, holidays=global_holidays)
+            curr_hash_safe = hash(tuple(
+                (s.lot_id, s.day_idx, s.start_min, s.end_min) for s in safe_segments
+            ))
+            if curr_hash_safe == prev_hash_safe:
+                break
+            prev_hash_safe = curr_hash_safe
+        safe_score = compute_score(safe_segments, final_lots, data, config=config)
+        if safe_score["tardy_count"] <= pre_crew_score["tardy_count"]:
+            final_segments = safe_segments
+            logger.info("EDD-safe crew serialization applied: no tardy regression")
+        else:
+            logger.warning(
+                "Crew serialization skipped: both strategies cause tardy (std=%d, safe=%d, pre=%d)",
+                crew_score["tardy_count"], safe_score["tardy_count"], pre_crew_score["tardy_count"],
+            )
+            warnings.append(
+                f"Crew serialization limited: {safe_score['tardy_count']} tardy vs {pre_crew_score['tardy_count']} pre-crew"
+            )
 
     # Final sanitize: enforce shift bounds
     final_segments = _sanitize_segments(final_segments, config, holidays=global_holidays)

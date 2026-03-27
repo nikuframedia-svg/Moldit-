@@ -59,7 +59,7 @@ export function Shell() {
     try {
       await recalculate();
       await refreshAll();
-    } catch { /* ignore */ }
+    } catch (err) { console.error("Recalculate failed:", err); }
     setRecalcing(false);
   };
 

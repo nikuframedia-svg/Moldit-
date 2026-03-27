@@ -111,6 +111,7 @@ class FactoryConfig:
     max_edd_gap: int = 10
     max_edd_span: int = 30
     edd_swap_tolerance: int = 5
+    edd_assign_threshold: int = 5
     lst_safety_buffer: int = 2
     campaign_window: int = 15
     urgency_threshold: int = 5

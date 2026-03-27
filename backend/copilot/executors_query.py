@@ -113,6 +113,24 @@ def exec_ver_alertas(args: dict) -> str:
         "mensagem": f"Health score: {risk.health_score}/100",
     })
 
+    # Operator alerts (crew conflicts)
+    if state.operator_alerts:
+        for oa in state.operator_alerts[:5]:
+            alerts.append({
+                "tipo": "operadores",
+                "mensagem": f"Dia {oa.day_idx} turno {oa.shift}: faltam {oa.deficit} operador(es)",
+            })
+
+    # Stress critical recommendations
+    if state.stress_map:
+        from backend.scheduler.stress import stress_recommendations
+        recs = stress_recommendations(state.stress_map, state.lots, state.segments)
+        for rec in recs[:3]:
+            alerts.append({
+                "tipo": "stress",
+                "mensagem": f"[P{rec['priority']}] {rec['machine']}: {rec['action']}",
+            })
+
     return _dumps({"alertas": alerts, "health_score": risk.health_score})
 
 
@@ -328,3 +346,49 @@ def exec_ver_historico(args: dict) -> str:
     history = store.load_history(limit=limite)
 
     return _dumps({"estudos": history})
+
+
+# ─── 11. ver_stress ──────────────────────────────────────────────────────
+
+def exec_ver_stress(args: dict) -> str:
+    if (err := _guard()):
+        return err
+
+    from backend.scheduler.stress import (
+        compute_stress_map, stress_summary, stress_recommendations,
+    )
+
+    smap = state.stress_map or compute_stress_map(
+        state.segments, state.lots, state.engine_data.n_days,
+        n_holidays=len(getattr(state.engine_data, 'holidays', []) or []),
+    )
+    summary = stress_summary(smap)
+    recs = stress_recommendations(smap, state.lots, state.segments)
+
+    return _dumps({"resumo": summary, "recomendacoes": recs})
+
+
+# ─── 12. e_se (counterfactual) ──────────────────────────────────────────
+
+def exec_e_se(args: dict) -> str:
+    """Counterfactual: 'E se a BFP079 estivesse na PRM039?'"""
+    if (err := _guard()):
+        return err
+
+    from backend.audit.counterfactual import compute_counterfactual
+
+    question_type = args.get("tipo", "force_machine")
+    params = args.get("params", {})
+
+    result = compute_counterfactual(
+        question_type, params,
+        state.engine_data, state.score, config=state.config,
+    )
+
+    return _dumps({
+        "pergunta": f"{question_type}: {params}",
+        "score_original": result.original_score,
+        "score_alternativo": result.alternative_score,
+        "conclusao": result.conclusion,
+        "time_ms": result.time_ms,
+    })

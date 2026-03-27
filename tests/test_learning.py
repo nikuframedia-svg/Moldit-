@@ -99,10 +99,11 @@ class TestSchedulerParams:
         assert p.edd_swap_tolerance == EDD_SWAP_TOLERANCE
 
     def test_default_params_same_as_no_params(self):
-        """CRITICAL: schedule_all(data, params=SchedulerParams()) == schedule_all(data)."""
+        """CRITICAL: schedule_all(data) with default config == schedule_all(data)."""
         engine = _engine()
         r1 = schedule_all(engine)
-        r2 = schedule_all(engine, params=SchedulerParams())
+        from backend.config.types import FactoryConfig
+        r2 = schedule_all(engine, config=FactoryConfig())
         assert r1.score == r2.score
 
     def test_to_from_dict_roundtrip(self):
@@ -127,12 +128,13 @@ class TestSchedulerParams:
                  d=[0, 0, 400, 0, 0, 0, 0, 0, 0, 0]),
         ])
         r1 = schedule_all(engine)
-        # Extreme params: very aggressive splitting + no interleave
-        params = SchedulerParams(
+        # Extreme config: very aggressive splitting + no interleave
+        from backend.config.types import FactoryConfig
+        cfg = FactoryConfig(
             max_edd_gap=1, max_run_days=1,
             interleave_enabled=False, campaign_window=5,
         )
-        r2 = schedule_all(engine, params=params)
+        r2 = schedule_all(engine, config=cfg)
         # At minimum, segment count or setup count should differ
         assert r1.score != r2.score or len(r1.segments) != len(r2.segments)
 
@@ -322,10 +324,11 @@ class TestIntegration:
         store.close()
 
     def test_params_backwards_compatible(self):
-        """All existing callers with params=None must work identically."""
+        """All existing callers with config=None must work identically."""
         engine = _engine()
-        r_none = schedule_all(engine, params=None)
-        r_default = schedule_all(engine, params=SchedulerParams())
+        r_none = schedule_all(engine)
+        from backend.config.types import FactoryConfig
+        r_default = schedule_all(engine, config=FactoryConfig())
         assert r_none.score == r_default.score
 
 

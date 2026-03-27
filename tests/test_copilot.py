@@ -129,8 +129,8 @@ class TestSaveConfig:
 # ─── TestToolSchemas ──────────────────────────────────────────────────────
 
 class TestToolSchemas:
-    def test_40_tools(self):
-        assert len(TOOLS) == 40
+    def test_tool_count(self):
+        assert len(TOOLS) == 44
 
     def test_all_tools_have_executor(self):
         for tool in TOOLS:

@@ -19,6 +19,15 @@ logger = logging.getLogger(__name__)
 _STATE_PATH = "data/copilot_state.json"
 
 
+def _compute_stress(segments, lots, engine_data):
+    """Lazy import + call for stress map."""
+    from backend.scheduler.stress import compute_stress_map
+    return compute_stress_map(
+        segments, lots, engine_data.n_days,
+        n_holidays=len(getattr(engine_data, 'holidays', []) or []),
+    )
+
+
 @dataclass
 class CopilotState:
     """Mutable copilot session state."""
@@ -46,6 +55,8 @@ class CopilotState:
     late_deliveries: object | None = None
     coverage: object | None = None
     order_tracking: list | None = None
+    stress_map: list | None = None
+    operator_alerts: list | None = None
 
     # Audit
     schedule_id: str = ""
@@ -64,6 +75,7 @@ class CopilotState:
         self.score = result.score
         self.warnings = result.warnings
         self.journal_entries = result.journal
+        self.operator_alerts = result.operator_alerts
 
         if result.audit_trail:
             if not self.audit_store:
@@ -99,6 +111,7 @@ class CopilotState:
                 self.segments, self.lots, self.engine_data, self.config,
             )),
             ("coverage", lambda: compute_coverage_audit(self.segments, self.lots, self.engine_data)),
+            ("stress_map", lambda: _compute_stress(self.segments, self.lots, self.engine_data)),
         ]
 
         for name, fn in analytics:

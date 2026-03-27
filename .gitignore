@@ -12,6 +12,5 @@ build/
 node_modules/
 data/*.db
 data/copilot_state.json
-=1.0
 apps/
 frontend/dist/
