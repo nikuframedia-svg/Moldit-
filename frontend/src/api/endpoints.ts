@@ -20,6 +20,7 @@ import type {
   RiskResult,
   Score,
   Segment,
+  SimulateApplyResponse,
   SimulateResponse,
   StockProjection,
   StockSummary,
@@ -94,6 +95,15 @@ export const getConsole = (dayIdx = 0) =>
 
 export const simulate = (mutations: MutationInput[]) =>
   post<SimulateResponse>("/api/data/simulate", { mutations });
+
+export const simulateApply = (mutations: MutationInput[]) =>
+  post<SimulateApplyResponse>("/api/data/simulate-apply", { mutations });
+
+export const revertSimulation = () =>
+  post<{ status: string; score: Score }>("/api/data/revert", {});
+
+export const canRevert = () =>
+  get<{ can_revert: boolean }>("/api/data/can-revert");
 
 export const checkCTP = (sku: string, qty: number, deadline: number) =>
   post<CTPResult>("/api/data/ctp", { sku, qty, deadline });

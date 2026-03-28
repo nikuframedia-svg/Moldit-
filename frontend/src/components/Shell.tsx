@@ -52,7 +52,17 @@ export function Shell() {
   const page = useAppStore((s) => s.activePage);
   const score = useDataStore((s) => s.score);
   const refreshAll = useDataStore((s) => s.refreshAll);
+  const isSimulated = useDataStore((s) => s.isSimulated);
+  const simulationSummary = useDataStore((s) => s.simulationSummary);
+  const revert = useDataStore((s) => s.revert);
   const [recalcing, setRecalcing] = useState(false);
+  const [reverting, setReverting] = useState(false);
+
+  const handleRevert = async () => {
+    setReverting(true);
+    try { await revert(); } catch (err) { console.error("Revert failed:", err); }
+    setReverting(false);
+  };
 
   const handleRecalc = async () => {
     setRecalcing(true);
@@ -120,15 +130,15 @@ export function Shell() {
                 </button>
                 <button
                   onClick={handleRecalc}
-                  disabled={recalcing}
-                  title="Recalcular schedule"
+                  disabled={recalcing || isSimulated}
+                  title={isSimulated ? "Reverta o cenario simulado primeiro" : "Recalcular schedule"}
                   style={{
                     background: "transparent",
                     border: `0.5px solid ${T.border}`,
-                    color: recalcing ? T.tertiary : T.secondary,
+                    color: (recalcing || isSimulated) ? T.tertiary : T.secondary,
                     borderRadius: 8,
                     padding: "5px 10px",
-                    cursor: recalcing ? "default" : "pointer",
+                    cursor: (recalcing || isSimulated) ? "default" : "pointer",
                     fontSize: 11,
                     fontFamily: "inherit",
                   }}
@@ -155,6 +165,42 @@ export function Shell() {
             </button>
           </div>
         </header>
+
+        {isSimulated && (
+          <div style={{
+            padding: "8px 24px",
+            background: `${T.orange}12`,
+            borderBottom: `1px solid ${T.orange}40`,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexShrink: 0,
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>Cenario simulado</span>
+            {simulationSummary.length > 0 && (
+              <span style={{ fontSize: 11, color: T.secondary, flex: 1 }}>
+                {simulationSummary[0]}
+              </span>
+            )}
+            <button
+              onClick={handleRevert}
+              disabled={reverting}
+              style={{
+                background: "transparent",
+                border: `1px solid ${T.orange}`,
+                color: T.orange,
+                borderRadius: 6,
+                padding: "4px 12px",
+                cursor: reverting ? "default" : "pointer",
+                fontSize: 11,
+                fontWeight: 600,
+                fontFamily: "inherit",
+              }}
+            >
+              {reverting ? "A reverter..." : "Reverter"}
+            </button>
+          </div>
+        )}
 
         <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
           {hasData ? <PageContent /> : <UploadZone />}

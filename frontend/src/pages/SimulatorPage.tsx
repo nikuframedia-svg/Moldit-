@@ -155,7 +155,11 @@ export function SimulatorPage() {
     setResult, setCtpResult,
   } = useSimulatorStore();
   const refreshAll = useDataStore((s) => s.refreshAll);
+  const applySimulation = useDataStore((s) => s.applySimulation);
+  const isSimulated = useDataStore((s) => s.isSimulated);
   const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // CTP
@@ -170,6 +174,7 @@ export function SimulatorPage() {
     if (validMutations.length === 0) return;
     setLoading(true);
     setError(null);
+    setApplied(false);
     try {
       const res = await simulate(validMutations);
       setResult(res);
@@ -178,6 +183,20 @@ export function SimulatorPage() {
       setError(String(e));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApply = async () => {
+    const validMutations = mutations.filter((m) => m.type).map(({ type, params }) => ({ type, params }));
+    if (validMutations.length === 0) return;
+    setApplying(true);
+    try {
+      await applySimulation(validMutations);
+      setApplied(true);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setApplying(false);
     }
   };
 
@@ -291,7 +310,20 @@ export function SimulatorPage() {
             </Card>
           )}
 
-          <div style={{ fontSize: 11, color: T.tertiary }}>Tempo: {result.time_ms.toFixed(0)}ms</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              onClick={handleApply}
+              disabled={applying || applied || isSimulated}
+              style={{
+                ...btnStyle,
+                background: applied ? T.green : isSimulated ? T.tertiary : T.blue,
+                opacity: applying || applied || isSimulated ? 0.6 : 1,
+              }}
+            >
+              {applying ? "A aplicar..." : applied ? "Aplicado" : isSimulated ? "Cenario ja activo" : "Aplicar no Gantt"}
+            </button>
+            <span style={{ fontSize: 11, color: T.tertiary }}>Tempo: {result.time_ms.toFixed(0)}ms</span>
+          </div>
         </>
       )}
 

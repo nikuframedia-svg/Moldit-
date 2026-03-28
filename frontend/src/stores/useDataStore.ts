@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { getScore, getSegments, getLots, getConfig, getLearning } from "../api/endpoints";
-import type { Score, Segment, Lot, FactoryConfig, LearningInfo } from "../api/types";
+import { getScore, getSegments, getLots, getConfig, getLearning, simulateApply, revertSimulation } from "../api/endpoints";
+import type { Score, Segment, Lot, FactoryConfig, LearningInfo, MutationInput, SimulateApplyResponse } from "../api/types";
 
 interface DataState {
   score: Score | null;
@@ -9,16 +9,27 @@ interface DataState {
   config: FactoryConfig | null;
   learning: LearningInfo | null;
 
+  // Simulation state
+  isSimulated: boolean;
+  simulationSummary: string[];
+  canRevert: boolean;
+
   refreshAll: () => Promise<void>;
+  applySimulation: (mutations: MutationInput[]) => Promise<SimulateApplyResponse>;
+  revert: () => Promise<void>;
   clear: () => void;
 }
 
-export const useDataStore = create<DataState>((set) => ({
+export const useDataStore = create<DataState>((set, get) => ({
   score: null,
   segments: null,
   lots: null,
   config: null,
   learning: null,
+
+  isSimulated: false,
+  simulationSummary: [],
+  canRevert: false,
 
   refreshAll: async () => {
     const results = await Promise.allSettled([
@@ -37,5 +48,21 @@ export const useDataStore = create<DataState>((set) => ({
     });
   },
 
-  clear: () => set({ score: null, segments: null, lots: null, config: null, learning: null }),
+  applySimulation: async (mutations) => {
+    const resp = await simulateApply(mutations);
+    await get().refreshAll();
+    set({ isSimulated: true, simulationSummary: resp.summary, canRevert: resp.can_revert });
+    return resp;
+  },
+
+  revert: async () => {
+    await revertSimulation();
+    await get().refreshAll();
+    set({ isSimulated: false, simulationSummary: [], canRevert: false });
+  },
+
+  clear: () => set({
+    score: null, segments: null, lots: null, config: null, learning: null,
+    isSimulated: false, simulationSummary: [], canRevert: false,
+  }),
 }));
