@@ -60,8 +60,8 @@ def mutation_summary(mutation_type: str, params: dict) -> str:
         "rush_order": lambda p: f"Encomenda urgente: {p.get('qty', '?')} pç SKU {p.get('sku', '?')} dia {p.get('deadline_day', '?')}",
         "demand_change": lambda p: f"Procura alterada: factor {p.get('factor', '?')}x SKU {p.get('sku', '?')}",
         "cancel_order": lambda p: f"Cancelar encomendas SKU {p.get('sku', '?')} dias {p.get('from_day', '?')}-{p.get('to_day', '?')}",
-        "third_shift": lambda p: f"3º turno activado em {p.get('machine_id', '?')} (+420 min)",
-        "overtime": lambda p: f"Horas extra em {p.get('machine_id', '?')} (+{p.get('extra_min', '?')} min)",
+        "third_shift": lambda p: f"3º turno activado (+420 min, todas as máquinas)",
+        "overtime": lambda p: f"Horas extra (+{p.get('extra_min', '?')} min, todas as máquinas)",
         "add_holiday": lambda p: f"Feriado adicionado dia {p.get('day_idx', '?')}",
         "remove_holiday": lambda p: f"Feriado removido dia {p.get('day_idx', '?')}",
         "force_machine": lambda p: f"Forçar ferramenta {p.get('tool_id', '?')} para máquina {p.get('to_machine', '?')}",
@@ -80,8 +80,8 @@ def mutation_summary(mutation_type: str, params: dict) -> str:
 def _machine_down(data: EngineData, params: dict) -> str:
     """Block specific machine on given days (per-machine, not global)."""
     machine_id = params["machine_id"]
-    start = params["start"]
-    end = params["end"]
+    start = int(params["start"])
+    end = int(params["end"])
     blocked = set(range(start, end + 1))
     if machine_id not in data.machine_blocked_days:
         data.machine_blocked_days[machine_id] = set()
@@ -93,8 +93,8 @@ def _machine_down(data: EngineData, params: dict) -> str:
 def _tool_down(data: EngineData, params: dict) -> str:
     """Block tool capacity on given days (per-tool, demand preserved)."""
     tool_id = params["tool_id"]
-    start = params["start"]
-    end = params["end"]
+    start = int(params["start"])
+    end = int(params["end"])
     blocked = set(range(start, end + 1))
     if tool_id not in data.tool_blocked_days:
         data.tool_blocked_days[tool_id] = set()
@@ -114,7 +114,7 @@ def _operator_shortage(data: EngineData, params: dict) -> str:
 def _oee_change(data: EngineData, params: dict) -> str:
     """Change OEE for ops matching tool_id."""
     tool_id = params["tool_id"]
-    new_oee = params["new_oee"]
+    new_oee = float(params["new_oee"])
     if not (0 < new_oee <= 1.0):
         raise ValueError(f"OEE deve estar entre 0 e 1.0, recebido: {new_oee}")
     count = 0
@@ -127,37 +127,43 @@ def _oee_change(data: EngineData, params: dict) -> str:
 
 @_register("rush_order")
 def _rush_order(data: EngineData, params: dict) -> str:
-    """Add demand for a SKU at a specific day."""
+    """Add demand for a SKU at a specific day (all matching ops)."""
     sku = params["sku"]
-    qty = params["qty"]
-    deadline_day = params["deadline_day"]
+    qty = int(params["qty"])
+    deadline_day = int(params["deadline_day"])
+    count = 0
     for op in data.ops:
         if op.sku == sku:
             while len(op.d) <= deadline_day:
                 op.d.append(0)
             op.d[deadline_day] += qty
-            return f"Encomenda urgente: +{qty} pç {sku} dia {deadline_day}"
-    return f"Encomenda urgente: SKU {sku} não encontrado"
+            count += 1
+    if count == 0:
+        return f"Encomenda urgente: SKU {sku} não encontrado"
+    return f"Encomenda urgente: +{qty} pç {sku} dia {deadline_day} ({count} ops)"
 
 
 @_register("demand_change")
 def _demand_change(data: EngineData, params: dict) -> str:
-    """Scale demand for a SKU by a factor."""
+    """Scale demand for a SKU by a factor (all matching ops)."""
     sku = params["sku"]
-    factor = params["factor"]
+    factor = float(params["factor"])
+    count = 0
     for op in data.ops:
         if op.sku == sku:
             op.d = [round(d * factor) for d in op.d]
-            return f"Procura {sku}: factor {factor}x aplicado"
-    return f"Procura: SKU {sku} não encontrado"
+            count += 1
+    if count == 0:
+        return f"Procura: SKU {sku} não encontrado"
+    return f"Procura {sku}: factor {factor}x aplicado ({count} ops)"
 
 
 @_register("cancel_order")
 def _cancel_order(data: EngineData, params: dict) -> str:
     """Zero demand for a SKU in a day range."""
     sku = params["sku"]
-    from_day = params["from_day"]
-    to_day = params["to_day"]
+    from_day = int(params["from_day"])
+    to_day = int(params["to_day"])
     count = 0
     for op in data.ops:
         if op.sku == sku:
@@ -185,7 +191,7 @@ def _third_shift(data: EngineData, params: dict, config: FactoryConfig | None = 
     if not any(s.id == "C" for s in config.shifts):
         config.shifts.append(ShiftConfig("C", 1440, 1860, "Noite"))
     new_cap = config.day_capacity_min
-    return f"3º turno activado: {machine_id} — capacidade global → {new_cap} min/dia"
+    return f"3º turno activado — capacidade global → {new_cap} min/dia (todas as máquinas)"
 
 
 @_register("overtime")
@@ -204,13 +210,13 @@ def _overtime(data: EngineData, params: dict, config: FactoryConfig | None = Non
     last_shift = config.shifts[-1]
     last_shift.end_min += extra_min
     new_cap = config.day_capacity_min
-    return f"Horas extra: {machine_id} +{extra_min} min — capacidade global → {new_cap} min/dia"
+    return f"Horas extra: +{extra_min} min — capacidade global → {new_cap} min/dia (todas as máquinas)"
 
 
 @_register("add_holiday")
 def _add_holiday(data: EngineData, params: dict) -> str:
     """Add a holiday day."""
-    day_idx = params["day_idx"]
+    day_idx = int(params["day_idx"])
     if day_idx not in data.holidays:
         data.holidays.append(day_idx)
     return f"Feriado adicionado: dia {day_idx}"
@@ -219,7 +225,7 @@ def _add_holiday(data: EngineData, params: dict) -> str:
 @_register("remove_holiday")
 def _remove_holiday(data: EngineData, params: dict) -> str:
     """Remove a holiday day."""
-    day_idx = params["day_idx"]
+    day_idx = int(params["day_idx"])
     if day_idx in data.holidays:
         data.holidays.remove(day_idx)
         return f"Feriado removido: dia {day_idx}"
@@ -246,7 +252,7 @@ def _force_machine(data: EngineData, params: dict) -> str:
 def _change_eco_lot(data: EngineData, params: dict) -> str:
     """Change eco lot size for a SKU."""
     sku = params["sku"]
-    new_eco_lot = params["new_eco_lot"]
+    new_eco_lot = int(params["new_eco_lot"])
     if new_eco_lot < 0:
         raise ValueError(f"Eco lot não pode ser negativo: {new_eco_lot}")
     for op in data.ops:
@@ -259,15 +265,21 @@ def _change_eco_lot(data: EngineData, params: dict) -> str:
 
 @_register("advance_edd")
 def _advance_edd(data: EngineData, params: dict) -> str:
-    """Shift demand earlier by N days for a SKU (move deadlines forward)."""
+    """Shift demand earlier by N days for a SKU (move deadlines forward).
+
+    Demand that would fall before day 0 is clamped to day 0.
+    """
     sku = params["sku"]
     days = int(params["days"])
     if days <= 0:
         return "Dias deve ser > 0"
     for op in data.ops:
         if op.sku == sku:
-            # Shift demand array left: remove first N zeros/values, append zeros at end
-            op.d = op.d[days:] + [0] * min(days, len(op.d))
+            shifted = [0] * len(op.d)
+            for i, v in enumerate(op.d):
+                new_i = max(0, i - days)
+                shifted[new_i] += v  # accumulate if clamped to day 0
+            op.d = shifted
             return f"EDD antecipada {days}d para {sku}"
     return f"SKU {sku} não encontrado"
 
@@ -281,7 +293,7 @@ def _delay_edd(data: EngineData, params: dict) -> str:
         return "Dias deve ser > 0"
     for op in data.ops:
         if op.sku == sku:
-            # Shift demand array right: prepend zeros, truncate end
-            op.d = [0] * min(days, len(op.d)) + op.d[:max(0, len(op.d) - days)]
+            # Shift demand array right: prepend zeros, keep ALL demand
+            op.d = [0] * days + op.d
             return f"EDD atrasada {days}d para {sku}"
     return f"SKU {sku} não encontrado"

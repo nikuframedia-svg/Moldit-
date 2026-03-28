@@ -269,6 +269,123 @@ class TestMutationApply:
         assert data.machine_blocked_days["M1"] == {2, 3, 4}
 
 
+class TestDelayEdd:
+    def test_delay_preserves_total_demand(self):
+        """delay_edd must NOT lose demand — array extends."""
+        data = _engine(ops=[_eop(d=[0, 0, 100, 200, 300, 400])])
+        total_before = sum(data.ops[0].d)
+        apply_mutation(data, "delay_edd", {"sku": "SKU1", "days": 3})
+        total_after = sum(data.ops[0].d)
+        assert total_after == total_before
+
+    def test_delay_shifts_correctly(self):
+        """Demand shifts right by N days."""
+        data = _engine(ops=[_eop(d=[0, 500, 0, 300, 0])])
+        apply_mutation(data, "delay_edd", {"sku": "SKU1", "days": 2})
+        assert data.ops[0].d[:4] == [0, 0, 0, 500]
+
+
+class TestAdvanceEdd:
+    def test_advance_preserves_demand(self):
+        """advance_edd preserves demand (clamped to day 0)."""
+        data = _engine(ops=[_eop(d=[0, 0, 0, 500, 300])])
+        total_before = sum(data.ops[0].d)
+        apply_mutation(data, "advance_edd", {"sku": "SKU1", "days": 2})
+        total_after = sum(data.ops[0].d)
+        assert total_after == total_before
+
+    def test_advance_shifts_correctly(self):
+        """Demand shifts left by N days, clamped to day 0."""
+        data = _engine(ops=[_eop(d=[0, 0, 0, 500, 300])])
+        apply_mutation(data, "advance_edd", {"sku": "SKU1", "days": 2})
+        # 500 from day 3 → day 1, 300 from day 4 → day 2
+        assert data.ops[0].d[1] == 500
+        assert data.ops[0].d[2] == 300
+
+    def test_advance_clamps_to_zero(self):
+        """Demand at day 0/1 that can't go earlier accumulates at day 0."""
+        data = _engine(ops=[_eop(d=[100, 200, 0, 500, 0])])
+        apply_mutation(data, "advance_edd", {"sku": "SKU1", "days": 3})
+        # day 0 (100) → clamped to 0, day 1 (200) → clamped to 0, day 3 (500) → day 0
+        assert data.ops[0].d[0] == 100 + 200 + 500
+
+
+class TestMultiOpMutations:
+    def test_rush_order_all_ops(self):
+        """rush_order adds demand to ALL matching ops."""
+        data = _engine(ops=[
+            _eop(op_id="op1", sku="SKU1", machine="M1"),
+            _eop(op_id="op2", sku="SKU1", machine="M1"),
+        ])
+        msg = apply_mutation(data, "rush_order", {"sku": "SKU1", "qty": 100, "deadline_day": 2})
+        assert data.ops[0].d[2] == 100
+        assert data.ops[1].d[2] == 100
+        assert "2 ops" in msg
+
+    def test_demand_change_all_ops(self):
+        """demand_change scales ALL matching ops."""
+        data = _engine(ops=[
+            _eop(op_id="op1", sku="SKU1", d=[0, 100, 0, 200, 0]),
+            _eop(op_id="op2", sku="SKU1", d=[0, 300, 0, 0, 0]),
+        ])
+        msg = apply_mutation(data, "demand_change", {"sku": "SKU1", "factor": 2.0})
+        assert data.ops[0].d[1] == 200
+        assert data.ops[0].d[3] == 400
+        assert data.ops[1].d[1] == 600
+        assert "2 ops" in msg
+
+
+class TestStringParams:
+    """Frontend sends all params as strings — handlers must convert."""
+
+    def test_machine_down_string_params(self):
+        data = _engine()
+        apply_mutation(data, "machine_down", {"machine_id": "M1", "start": "2", "end": "4"})
+        assert data.machine_blocked_days["M1"] == {2, 3, 4}
+
+    def test_rush_order_string_params(self):
+        data = _engine(ops=[_eop(d=[0, 0, 0, 0, 0])])
+        apply_mutation(data, "rush_order", {"sku": "SKU1", "qty": "500", "deadline_day": "3"})
+        assert data.ops[0].d[3] == 500
+
+    def test_demand_change_string_params(self):
+        data = _engine(ops=[_eop(d=[0, 100, 0, 200, 0])])
+        apply_mutation(data, "demand_change", {"sku": "SKU1", "factor": "2.0"})
+        assert data.ops[0].d[1] == 200
+        assert data.ops[0].d[3] == 400
+
+    def test_cancel_order_string_params(self):
+        data = _engine(ops=[_eop(d=[0, 500, 0, 300, 0])])
+        apply_mutation(data, "cancel_order", {"sku": "SKU1", "from_day": "1", "to_day": "3"})
+        assert data.ops[0].d[1] == 0
+        assert data.ops[0].d[3] == 0
+
+    def test_oee_change_string_params(self):
+        data = _engine()
+        apply_mutation(data, "oee_change", {"tool_id": "T1", "new_oee": "0.5"})
+        assert data.ops[0].oee == 0.5
+
+    def test_change_eco_lot_string_params(self):
+        data = _engine(ops=[_eop(eco_lot=100)])
+        apply_mutation(data, "change_eco_lot", {"sku": "SKU1", "new_eco_lot": "500"})
+        assert data.ops[0].eco_lot == 500
+
+    def test_add_holiday_string_params(self):
+        data = _engine()
+        apply_mutation(data, "add_holiday", {"day_idx": "3"})
+        assert 3 in data.holidays
+
+    def test_remove_holiday_string_params(self):
+        data = _engine(holidays=[2, 5])
+        apply_mutation(data, "remove_holiday", {"day_idx": "2"})
+        assert 2 not in data.holidays
+
+    def test_tool_down_string_params(self):
+        data = _engine()
+        apply_mutation(data, "tool_down", {"tool_id": "T1", "start": "1", "end": "3"})
+        assert data.tool_blocked_days["T1"] == {1, 2, 3}
+
+
 class TestOriginalDataUnchanged:
     def test_simulate_does_not_mutate_original(self):
         """simulate() must not modify the original EngineData."""
