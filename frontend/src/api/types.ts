@@ -162,3 +162,83 @@ export interface LoadResponse {
   score: ScoreMoldit;
   warnings: string[];
 }
+
+// ── Mold Explorer Types ─────────────────────────────────────
+
+export interface SlackInfo {
+  op_id: number;
+  earliest_start_h: number;
+  latest_start_h: number;
+  slack_h: number;
+  no_caminho_critico: boolean;
+}
+
+export interface ExplorerOp {
+  op_id: number;
+  nome: string;
+  codigo: string;
+  maquina: string;
+  dia: number;
+  inicio_h: number;
+  fim_h: number;
+  work_h: number;
+  setup_h: number;
+  predecessores: number[];
+  sucessores: number[];
+  slack_h: number;
+  maquinas_alternativas: number;
+  no_caminho_critico: boolean;
+  flexibilidade: 'verde' | 'azul' | 'laranja' | 'vermelho' | 'cinzento';
+  earliest_start: { dia: number; hora: number };
+  latest_start: { dia: number; hora: number };
+}
+
+export interface GhostOp {
+  op_id: number;
+  molde: string;
+  maquina: string;
+  dia: number;
+  inicio_h: number;
+  fim_h: number;
+}
+
+export interface ExplorerDep {
+  de: number;
+  para: number;
+  no_critico: boolean;
+}
+
+export interface MoldExplorerData {
+  molde: { id: string; deadline: string; progresso: number; status: string };
+  operacoes: ExplorerOp[];
+  fantasmas: GhostOp[];
+  dependencias: ExplorerDep[];
+}
+
+export interface MachineOption {
+  maquina: string;
+  dia: number;
+  inicio: number;
+  fim: number;
+  setup_delta: number;
+  impacto: {
+    makespan_delta: number;
+    compliance_delta: number;
+    setups_delta: number;
+    balance_delta: number;
+    score_delta: number;
+  };
+  cascata: { op_id: number; molde: string; efeito: string; severidade: string }[];
+}
+
+export interface OpOptions {
+  op_id: number;
+  situacao_atual: { maquina: string; dia: number; inicio: number; fim: number };
+  opcoes_maquina: MachineOption[];
+  opcoes_timing: {
+    earliest: { dia: number; hora: number };
+    latest: { dia: number; hora: number };
+    atual: { dia: number; hora: number };
+  };
+  opcoes_sequencia: { trocar_com: number; descricao: string; setup_delta: number }[];
+}

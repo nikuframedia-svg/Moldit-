@@ -4,6 +4,7 @@ import { useAppStore } from "../stores/useAppStore";
 const NAV = [
   { id: "console", label: "Consola" },
   { id: "gantt", label: "Producao" },
+  { id: "explorer", label: "Explorador" },
   { id: "deadlines", label: "Prazos" },
   { id: "risk", label: "Risco" },
   { id: "sim", label: "Simulador" },

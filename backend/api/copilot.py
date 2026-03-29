@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 from backend.api.console import router as console_router
 from backend.api.data import router as data_router
+from backend.api.explorer import router as explorer_router
 
 app = FastAPI(title="Moldit Copilot", version="1.0.0")
 app.add_middleware(
@@ -38,6 +39,7 @@ app.add_middleware(
 )
 app.include_router(console_router)
 app.include_router(data_router)
+app.include_router(explorer_router)
 
 
 class ChatMessage(BaseModel):

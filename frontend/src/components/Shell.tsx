@@ -14,10 +14,12 @@ import { RiskPage } from "../pages/RiskPage";
 import { SimulatorPage } from "../pages/SimulatorPage";
 import { ConfigPage } from "../pages/ConfigPage";
 import { JournalPage } from "../pages/JournalPage";
+import { MoldExplorerPage } from "./mold-explorer/MoldExplorerPage";
 
 const NAV_LABELS: Record<string, string> = {
   console: "Consola",
   gantt: "Producao",
+  explorer: "Explorador",
   deadlines: "Prazos",
   risk: "Risco",
   sim: "Simulador",
@@ -30,6 +32,7 @@ function PageContent() {
   switch (page) {
     case "console": return <ConsolePage />;
     case "gantt": return <GanttPage />;
+    case "explorer": return <MoldExplorerPage />;
     case "deadlines": return <DeadlinesPage />;
     case "risk": return <RiskPage />;
     case "sim": return <SimulatorPage />;

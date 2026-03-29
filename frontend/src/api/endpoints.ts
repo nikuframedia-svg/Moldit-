@@ -9,9 +9,11 @@ import type {
   JournalEntry,
   LoadResponse,
   MaquinaStatus,
+  MoldExplorerData,
   Molde,
   MolditConfig,
   MutationMoldit,
+  OpOptions,
   Operacao,
   RiskResult,
   ScoreMoldit,
@@ -81,3 +83,19 @@ export const getRisk = () => get<RiskResult>("/api/data/risk");
 
 export const chatCopilot = (messages: { role: string; content: string }[]) =>
   post<ChatResponse>("/api/copilot/chat", { messages });
+
+// ── Explorer ────────────────────────────────────────────────
+
+export const getExplorerData = (moldeId: string) =>
+  get<MoldExplorerData>(`/api/explorer/moldes/${encodeURIComponent(moldeId)}`);
+
+export const getOpOptions = (opId: number) =>
+  get<OpOptions>(`/api/explorer/operacoes/${opId}/opcoes`);
+
+export const previewOpChange = (opId: number, body: { target_machine: string; target_day?: number }) =>
+  post<{ op_id: number; target_machine: string; impacto: Record<string, number>; cascata: unknown[] }>(
+    `/api/explorer/operacoes/${opId}/preview`, body,
+  );
+
+export const applyOpChange = (opId: number, body: { target_machine: string }) =>
+  post<MoldExplorerData>(`/api/explorer/operacoes/${opId}/apply`, body);
