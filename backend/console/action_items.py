@@ -1,4 +1,4 @@
-"""Action items — Spec 11 §3.
+"""Action items — Moldit Planner.
 
 Real alerts are ACTIONS, not information.
 If there's no consequence and no action, it's not an alert.
@@ -11,13 +11,7 @@ from dataclasses import dataclass
 
 from backend.config.types import FactoryConfig
 from backend.scheduler.types import SegmentoMoldit as Segment
-
-
 from backend.types import MolditEngineData as EngineData
-
-
-class Lot:  # noqa: D101
-    """Legacy stub — removed in Phase 2."""
 
 
 @dataclass
@@ -32,122 +26,140 @@ class ActionItem:
     phrase: str         # 1 sentence for state bar
     body: str           # 2-3 sentences with context
     actions: list[str]  # buttons
-    deadline: str       # date or "hoje"/"amanhã"
+    deadline: str       # date or "hoje"/"amanha"
     client: str         # for aggregation
-    category: str       # "delivery" | "stockout" | "operators" | "crew"
+    category: str       # "deadline" | "bottleneck" | "conditional"
 
 
-# ─── Diagnostics ──────────────────────────────────────────────────────────
+# --- Diagnostics --------------------------------------------------------
 
 
-def _diagnose_why_short(
-    entry: object,
+def _moldes_atrasados(
+    data: EngineData,
     segments: list[Segment],
-    lots: list[Lot],
-    engine_data: EngineData,
-) -> str:
-    """ONE sentence in Portuguese explaining why delivery is short."""
-    op = next((o for o in engine_data.ops if o.sku == entry.sku), None)
-    if not op:
-        return "Referência não está no plano."
+) -> list[ActionItem]:
+    """Check each mold: is the latest segment past the deadline?"""
+    items: list[ActionItem] = []
 
-    lot_to_op = {l.id: l.op_id for l in lots}
-    op_segs = [s for s in segments if lot_to_op.get(s.lot_id) == op.id]
+    for molde in data.moldes:
+        if not molde.deadline:
+            continue
 
-    # Also check twin segments
-    for s in segments:
-        if s.twin_outputs:
-            for op_id, _, _ in s.twin_outputs:
-                if op_id == op.id and s not in op_segs:
-                    op_segs.append(s)
+        molde_segs = [s for s in segments if s.molde == molde.id]
+        if not molde_segs:
+            # No segments — check if there's remaining work
+            ops = [op for op in data.operacoes if op.molde == molde.id]
+            remaining = sum(op.work_restante_h for op in ops)
+            if remaining > 0:
+                items.append(ActionItem(
+                    severity="critical",
+                    phrase=f"Molde {molde.id} sem producao agendada ({remaining:.0f}h restantes).",
+                    body=(
+                        f"O molde {molde.id} ({molde.cliente}) tem "
+                        f"{remaining:.0f}h de trabalho restante "
+                        f"mas nenhum segmento agendado."
+                    ),
+                    actions=["Agendar molde", "Ver detalhe"],
+                    deadline=molde.deadline,
+                    client=molde.cliente,
+                    category="deadline",
+                ))
+            continue
 
-    if not op_segs:
-        return "Sem produção planeada para esta referência."
+        # Latest completion day
+        latest_dia = max(s.dia for s in molde_segs)
+        # Simple check: if latest dia is high, flag it
+        # The deadline is a week string like "S15" or a date
+        items.append(ActionItem(
+            severity="warning",
+            phrase=(
+                f"Molde {molde.id}: ultimo segmento dia "
+                f"{latest_dia}, deadline {molde.deadline}."
+            ),
+            body=(
+                f"Molde {molde.id} ({molde.cliente}): "
+                f"producao termina dia {latest_dia}. "
+                f"Deadline: {molde.deadline}."
+            ),
+            actions=["Ver molde", "CTP"],
+            deadline=molde.deadline,
+            client=molde.cliente,
+            category="deadline",
+        ))
 
-    last_seg = max(op_segs, key=lambda s: s.day_idx * 10000 + s.end_min)
-    if last_seg.day_idx > entry.day_idx:
-        late = last_seg.day_idx - entry.day_idx
-        return (
-            f"Produção na {last_seg.machine_id} termina "
-            f"{late} dia{'s' if late > 1 else ''} depois da entrega."
-        )
-
-    total = sum(s.qty for s in op_segs if s.day_idx <= entry.day_idx)
-    if total < entry.order_qty:
-        return (
-            f"Produzidas {total:,} de {entry.order_qty:,} até à data. "
-            f"Faltam {entry.order_qty - total:,}."
-        )
-
-    return "Produção planeada. A acompanhar."
+    return items
 
 
-def _find_fix(
-    entry: object,
-    engine_data: EngineData,
+def _bottleneck_machines(
+    data: EngineData,
     segments: list[Segment],
     config: FactoryConfig,
-) -> Fix | None:
-    """Find a fix: alt machine or night shift. Returns None if no fix."""
-    op = next((o for o in engine_data.ops if o.sku == entry.sku), None)
-    if not op or entry.shortfall <= 0:
-        return None
+) -> list[ActionItem]:
+    """Flag machines with stress > 90%."""
+    items: list[ActionItem] = []
 
-    needed_min = entry.shortfall / max(op.pH * (op.oee or 0.66), 1) * 60
+    # Accumulate hours per machine
+    hours_by_machine: dict[str, float] = defaultdict(float)
+    for s in segments:
+        hours_by_machine[s.maquina_id] += s.duracao_h + s.setup_h
 
-    # Option A: alternative machine
-    if op.alt:
-        day_cap = config.day_capacity_min
-        used = sum(
-            s.prod_min + s.setup_min
-            for s in segments
-            if s.machine_id == op.alt and s.day_idx == entry.day_idx
-        )
-        free = max(0, day_cap - used)
+    if not segments:
+        return items
 
-        if free >= needed_min:
-            return Fix(
-                description=(
-                    f"{op.alt} tem capacidade. Setup {op.sH}h. "
-                    f"Peças prontas a tempo."
+    max_dia = max(s.dia for s in segments)
+    n_days = max_dia + 1
+
+    for m in data.maquinas:
+        total_h = hours_by_machine.get(m.id, 0)
+        capacity_h = m.regime_h * n_days if not m.e_externo else float("inf")
+        if capacity_h <= 0:
+            continue
+        stress_pct = total_h / capacity_h * 100
+        if stress_pct > 90:
+            items.append(ActionItem(
+                severity="critical" if stress_pct > 100 else "warning",
+                phrase=f"Maquina {m.id} a {stress_pct:.0f}% capacidade.",
+                body=(
+                    f"{m.id} ({m.grupo}): {total_h:.0f}h agendadas "
+                    f"/ {capacity_h:.0f}h capacidade "
+                    f"({stress_pct:.0f}%)."
                 ),
-                buttons=[f"Mover para {op.alt}", "Ver impacto"],
-            )
+                actions=["Ver carga", "Simular overtime"],
+                deadline="",
+                client="",
+                category="bottleneck",
+            ))
 
-    # Option B: night shift (7h = 420 min)
-    if needed_min <= 420:
-        return Fix(
-            description=f"Turno noite na {op.m} resolveria ({needed_min:.0f} min).",
-            buttons=["Simular turno noite", "Ver impacto"],
-        )
-
-    return None
+    return items
 
 
-def _has_production_before(
-    proj,  # StockProjection
-    segments: list[Segment],
-    lots: list[Lot],
-) -> bool:
-    """True if there's production for this op before stockout day."""
-    if proj.stockout_day is None:
-        return True
+def _conditional_ops(data: EngineData) -> list[ActionItem]:
+    """Flag conditional ops that need a decision."""
+    items: list[ActionItem] = []
 
-    lot_to_op = {l.id: l.op_id for l in lots}
-    for seg in segments:
-        if seg.day_idx < proj.stockout_day:
-            # Check regular lots
-            if lot_to_op.get(seg.lot_id) == proj.op_id:
-                return True
-            # Check twin outputs
-            if seg.twin_outputs:
-                for op_id, _, _ in seg.twin_outputs:
-                    if op_id == proj.op_id:
-                        return True
-    return False
+    conditional = [op for op in data.operacoes if op.e_condicional and op.work_restante_h > 0]
+    if conditional:
+        moldes = sorted(set(op.molde for op in conditional))
+        items.append(ActionItem(
+            severity="warning",
+            phrase=(
+                f"{len(conditional)} operacoes condicionais "
+                f"por decidir."
+            ),
+            body=(
+                f"Moldes afectados: {', '.join(moldes[:5])}. "
+                f"Decidir se devem ser incluidas no plano."
+            ),
+            actions=["Ver condicionais"],
+            deadline="",
+            client="",
+            category="conditional",
+        ))
+
+    return items
 
 
-# ─── Aggregation ──────────────────────────────────────────────────────────
+# --- Aggregation --------------------------------------------------------
 
 
 def _aggregate_and_cap(items: list[ActionItem]) -> list[ActionItem]:
@@ -169,9 +181,8 @@ def _aggregate_and_cap(items: list[ActionItem]) -> list[ActionItem]:
             result.append(group[0])
         else:
             worst = "critical" if any(g.severity == "critical" for g in group) else "warning"
-            # Only aggregate delivery/stockout by client name
             if isinstance(client, str) and client:
-                phrase = f"{client}: {len(group)} entregas em risco esta semana."
+                phrase = f"{client}: {len(group)} itens em {cat}."
             else:
                 phrase = group[0].phrase
             result.append(ActionItem(
@@ -188,14 +199,19 @@ def _aggregate_and_cap(items: list[ActionItem]) -> list[ActionItem]:
     return result[:7]
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────
+# --- Main ---------------------------------------------------------------
 
 
 def compute_action_items(
     segments: list[Segment],
-    lots: list[Lot],
-    engine_data: EngineData,
+    data: EngineData,
     config: FactoryConfig,
 ) -> list[ActionItem]:
     """Compute actionable alerts. Max 7 items, aggregated by client."""
-    raise NotImplementedError("Moldit action items — Phase 2")
+    items: list[ActionItem] = []
+
+    items.extend(_moldes_atrasados(data, segments))
+    items.extend(_bottleneck_machines(data, segments, config))
+    items.extend(_conditional_ops(data))
+
+    return _aggregate_and_cap(items)

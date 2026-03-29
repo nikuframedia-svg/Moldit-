@@ -1,6 +1,7 @@
 """Action executors — Spec 10.
 
 8 executors that may modify state (schedule, config, rules).
+Uses Moldit Operacao fields (no Incompol references).
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ def _guard() -> str | None:
     return None
 
 
-# ─── 1. recalcular_plano ─────────────────────────────────────────────────
+# --- 1. recalcular_plano ------------------------------------------------
 
 def exec_recalcular_plano(args: dict) -> str:
     if (err := _guard()):
@@ -50,17 +51,17 @@ def exec_recalcular_plano(args: dict) -> str:
 
     state.update_schedule(result)
 
-    # Compute lot-level diff
+    # Compute segment-level diff
     alteracoes = None
     if old_segments:
         try:
             from backend.audit.diff import compute_diff
             diff = compute_diff(old_segments, result.segments, old_score, result.score)
             alteracoes = {
-                "lots_movidos": len(diff.moved),
-                "lots_retimed": len(diff.retimed),
-                "lots_added": len(diff.added),
-                "lots_removed": len(diff.removed),
+                "segments_movidos": len(diff.moved),
+                "segments_retimed": len(diff.retimed),
+                "segments_added": len(diff.added),
+                "segments_removed": len(diff.removed),
             }
         except Exception:
             pass
@@ -76,7 +77,7 @@ def exec_recalcular_plano(args: dict) -> str:
     })
 
 
-# ─── 2. mover_referencia ─────────────────────────────────────────────────
+# --- 2. mover_operacao (was mover_referencia) ----------------------------
 
 def exec_mover_referencia(args: dict) -> str:
     if (err := _guard()):
@@ -84,25 +85,32 @@ def exec_mover_referencia(args: dict) -> str:
 
     from backend.cpo import optimize
 
-    sku = args.get("sku", "")
+    # Accept op_id or molde to identify what to move
+    op_id = args.get("op_id")
+    molde = args.get("molde", "")
     dest = args.get("maquina_destino", "")
 
     # Validate machine exists
-    machine_ids = {m.id for m in state.engine_data.machines}
+    machine_ids = {m.id for m in state.engine_data.maquinas}
     if dest not in machine_ids:
-        return _dumps({"error": f"Máquina {dest} não existe. Válidas: {sorted(machine_ids)}"})
+        return _dumps({"error": f"Maquina {dest} nao existe. Validas: {sorted(machine_ids)}"})
 
-    # Find ops for this SKU
-    ops_found = [o for o in state.engine_data.ops if o.sku == sku]
+    # Find ops to move
+    if op_id is not None:
+        ops_found = [o for o in state.engine_data.operacoes if o.id == int(op_id)]
+    elif molde:
+        ops_found = [o for o in state.engine_data.operacoes if o.molde == molde]
+    else:
+        return _dumps({"error": "Especifica op_id ou molde."})
+
     if not ops_found:
-        return _dumps({"error": f"SKU {sku} não encontrado."})
+        return _dumps({"error": f"Operacao nao encontrada (op_id={op_id}, molde={molde})."})
 
     # Deep copy and mutate
     mutated = copy.deepcopy(state.engine_data)
-    for op in mutated.ops:
-        if op.sku == sku:
-            op.m = dest
-            op.alt = None
+    for op in mutated.operacoes:
+        if op.id in {o.id for o in ops_found}:
+            op.recurso = dest
 
     # Re-schedule on mutated data
     result = optimize(mutated, mode="quick", audit=True, config=state.config)
@@ -113,7 +121,7 @@ def exec_mover_referencia(args: dict) -> str:
     if new_tardy > old_tardy:
         return _dumps({
             "status": "rejeitado",
-            "razao": f"Tardiness pioraria: {old_tardy} → {new_tardy}",
+            "razao": f"Tardiness pioraria: {old_tardy} -> {new_tardy}",
             "score_proposto": result.score,
         })
 
@@ -123,14 +131,14 @@ def exec_mover_referencia(args: dict) -> str:
 
     return _dumps({
         "status": "aceite",
-        "sku": sku,
-        "maquina_anterior": ops_found[0].m,
+        "op_id": op_id,
+        "molde": molde,
         "maquina_nova": dest,
         "score": result.score,
     })
 
 
-# ─── 3. adicionar_regra ──────────────────────────────────────────────────
+# --- 3. adicionar_regra -------------------------------------------------
 
 def exec_adicionar_regra(args: dict) -> str:
     rule = {
@@ -141,30 +149,28 @@ def exec_adicionar_regra(args: dict) -> str:
     return _dumps({"status": "ok", "regra_id": rule_id, "regra": rule})
 
 
-# ─── 4. remover_regra ────────────────────────────────────────────────────
+# --- 4. remover_regra ---------------------------------------------------
 
 def exec_remover_regra(args: dict) -> str:
     rule_id = args.get("regra_id", "")
     removed = state.remove_rule(rule_id)
     if removed:
         return _dumps({"status": "ok", "regra_id": rule_id})
-    return _dumps({"error": f"Regra {rule_id} não encontrada."})
+    return _dumps({"error": f"Regra {rule_id} nao encontrada."})
 
 
-# ─── 5. alterar_config ───────────────────────────────────────────────────
+# --- 5. alterar_config --------------------------------------------------
 
 _ALLOWED_KEYS = {
     "oee_default": float,
-    "jit_enabled": bool,
-    "jit_buffer_pct": float,
-    "jit_threshold": float,
     "max_run_days": int,
     "max_edd_gap": int,
     "edd_swap_tolerance": int,
-    "campaign_window": int,
     "urgency_threshold": int,
-    "interleave_enabled": bool,
-    "weight_earliness": float,
+    "vns_enabled": bool,
+    "vns_max_iter": int,
+    "weight_makespan": float,
+    "weight_deadline_compliance": float,
     "weight_setups": float,
     "weight_balance": float,
 }
@@ -172,14 +178,14 @@ _ALLOWED_KEYS = {
 
 def exec_alterar_config(args: dict) -> str:
     if state.config is None:
-        return _dumps({"error": "Configuração não carregada."})
+        return _dumps({"error": "Configuracao nao carregada."})
 
     chave = args.get("chave", "")
     valor = args.get("valor")
 
     if chave not in _ALLOWED_KEYS:
         return _dumps({
-            "error": f"Chave '{chave}' não permitida.",
+            "error": f"Chave '{chave}' nao permitida.",
             "chaves_validas": list(_ALLOWED_KEYS.keys()),
         })
 
@@ -187,7 +193,12 @@ def exec_alterar_config(args: dict) -> str:
     try:
         typed_value = expected_type(valor)
     except (TypeError, ValueError):
-        return _dumps({"error": f"Valor '{valor}' inválido para {chave} (esperado {expected_type.__name__})."})
+        return _dumps({
+            "error": (
+                f"Valor '{valor}' invalido para "
+                f"{chave} (esperado {expected_type.__name__})."
+            ),
+        })
 
     old_value = getattr(state.config, chave)
     setattr(state.config, chave, typed_value)
@@ -197,11 +208,11 @@ def exec_alterar_config(args: dict) -> str:
         "chave": chave,
         "valor_anterior": old_value,
         "valor_novo": typed_value,
-        "nota": "Configuração alterada. Usa recalcular_plano para aplicar.",
+        "nota": "Configuracao alterada. Usa recalcular_plano para aplicar.",
     })
 
 
-# ─── 6. simular_cenario ──────────────────────────────────────────────────
+# --- 6. simular_cenario -------------------------------------------------
 
 def exec_simular_cenario(args: dict) -> str:
     if (err := _guard()):
@@ -223,17 +234,17 @@ def exec_simular_cenario(args: dict) -> str:
         "score_actual": state.score,
         "score_cenario": result.score,
         "delta": {
-            "otd": f"{result.delta.otd_before:.1f}% → {result.delta.otd_after:.1f}%",
-            "otd_d": f"{result.delta.otd_d_before:.1f}% → {result.delta.otd_d_after:.1f}%",
-            "setups": f"{result.delta.setups_before} → {result.delta.setups_after}",
-            "tardy": f"{result.delta.tardy_before} → {result.delta.tardy_after}",
+            "otd": f"{result.delta.otd_before:.1f}% -> {result.delta.otd_after:.1f}%",
+            "otd_d": f"{result.delta.otd_d_before:.1f}% -> {result.delta.otd_d_after:.1f}%",
+            "setups": f"{result.delta.setups_before} -> {result.delta.setups_after}",
+            "tardy": f"{result.delta.tardy_before} -> {result.delta.tardy_after}",
         },
         "time_ms": result.time_ms,
         "resumo": result.summary,
     })
 
 
-# ─── 7. simular_overtime ─────────────────────────────────────────────────
+# --- 7. simular_overtime ------------------------------------------------
 
 def exec_simular_overtime(args: dict) -> str:
     if (err := _guard()):
@@ -259,43 +270,40 @@ def exec_simular_overtime(args: dict) -> str:
         "score_actual": state.score,
         "score_cenario": result.score,
         "delta": {
-            "otd": f"{result.delta.otd_before:.1f}% → {result.delta.otd_after:.1f}%",
-            "tardy": f"{result.delta.tardy_before} → {result.delta.tardy_after}",
+            "otd": f"{result.delta.otd_before:.1f}% -> {result.delta.otd_after:.1f}%",
+            "tardy": f"{result.delta.tardy_before} -> {result.delta.tardy_after}",
         },
         "resumo": result.summary,
     })
 
 
-# ─── 8. check_ctp ────────────────────────────────────────────────────────
+# --- 8. check_ctp -------------------------------------------------------
 
 def exec_check_ctp(args: dict) -> str:
     if (err := _guard()):
         return err
 
-    from backend.analytics.ctp import compute_ctp
+    from backend.analytics.ctp import compute_ctp_molde
 
-    sku = args.get("sku", "")
-    qty = args.get("quantidade", 0)
-    deadline = args.get("dia_deadline", 0)
+    molde_id = args.get("molde_id", "")
+    target_week = args.get("target_week", "")
 
-    result = compute_ctp(
-        sku, qty, deadline,
+    result = compute_ctp_molde(
+        molde_id, target_week,
         state.segments, state.engine_data, config=state.config,
     )
 
     return _dumps({
-        "sku": result.sku,
-        "qty_pedida": result.qty_requested,
+        "molde_id": result.molde_id,
+        "target_week": result.target_week,
         "feasible": result.feasible,
-        "dia_mais_tarde": result.latest_day,
-        "maquina": result.machine,
-        "confianca": result.confidence,
-        "slack_min": result.slack_min,
-        "razao": result.reason,
+        "slack_dias": result.slack_dias,
+        "dias_extra": result.dias_extra,
+        "reason": result.reason,
     })
 
 
-# ─── 9. simular_avaria ─────────────────────────────────────────────────
+# --- 9. simular_avaria -------------------------------------------------
 
 def exec_simular_avaria(args: dict) -> str:
     if (err := _guard()):
@@ -320,23 +328,23 @@ def exec_simular_avaria(args: dict) -> str:
         "resumo": report.summary_pt,
         "operacoes_afectadas": report.affected_ops[:10],
         "delta": {
-            "otd": f"{report.delta.otd_before:.1f}% → {report.delta.otd_after:.1f}%",
-            "tardy": f"{report.delta.tardy_before} → {report.delta.tardy_after}",
-            "setups": f"{report.delta.setups_before} → {report.delta.setups_after}",
+            "otd": f"{report.delta.otd_before:.1f}% -> {report.delta.otd_after:.1f}%",
+            "tardy": f"{report.delta.tardy_before} -> {report.delta.tardy_after}",
+            "setups": f"{report.delta.setups_before} -> {report.delta.setups_after}",
         },
         "time_ms": report.time_ms,
     })
 
 
-# ─── 10. monte_carlo ───────────────────────────────────────────────────
+# --- 10. monte_carlo ----------------------------------------------------
 
 def exec_monte_carlo(args: dict) -> str:
     if (err := _guard()):
         return err
 
     try:
-        from backend.risk.monte_carlo import monte_carlo_risk
         from backend.cpo import optimize
+        from backend.risk.monte_carlo import monte_carlo_risk
 
         def schedule_fn(data):
             return optimize(data, mode="quick", config=state.config)
@@ -345,4 +353,4 @@ def exec_monte_carlo(args: dict) -> str:
         mc = monte_carlo_risk(state.engine_data, schedule_fn, n_samples=n)
         return _dumps(mc)
     except ImportError:
-        return _dumps({"erro": "scipy/numpy não instalados. Monte Carlo indisponível."})
+        return _dumps({"erro": "scipy/numpy nao instalados. Monte Carlo indisponivel."})

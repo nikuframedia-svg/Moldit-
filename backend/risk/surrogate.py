@@ -1,7 +1,8 @@
-"""Tier 2 — Surrogate Risk Model: Spec 06 §3.
+"""Tier 2 — Surrogate Risk Model: Spec 06 S3.
 
 Feature extraction + lightweight prediction from pre-trained model.
 No scipy/numpy dependency (uses statistics stdlib).
+Uses Moldit types (no Incompol references).
 """
 
 from __future__ import annotations
@@ -28,16 +29,16 @@ def extract_features(
     """Extract 10 features for surrogate model.
 
     Features:
-      0. min_slack_days      — minimum slack across all lots
-      1. slack_std            — std dev of slack days
-      2. critical_pct         — fraction of lots that are critical
-      3. high_pct             — fraction of lots that are high risk
-      4. max_utilization      — peak machine utilization
-      5. util_std             — std dev of avg utilizations
-      6. n_machines           — number of machines
-      7. n_lots               — number of lots
-      8. avg_oee              — average OEE across ops
-      9. twin_pct             — fraction of twin groups vs total ops
+      0. min_slack_days      -- minimum slack across all lots
+      1. slack_std            -- std dev of slack days
+      2. critical_pct         -- fraction of lots that are critical
+      3. high_pct             -- fraction of lots that are high risk
+      4. max_utilization      -- peak machine utilization
+      5. util_std             -- std dev of avg utilizations
+      6. n_machines           -- number of machines
+      7. n_lots               -- number of lots
+      8. avg_work_h           -- average work_h across ops
+      9. dependency_density   -- fraction of ops with dependencies
     """
     n_lots = len(lot_risks) or 1
     n_machines = len(machine_risks) or 1
@@ -53,10 +54,16 @@ def extract_features(
     utils = [mr.avg_utilization for mr in machine_risks] or [0.0]
     util_sd = statistics.stdev(utils) if len(utils) > 1 else 0.0
 
-    oees = [op.oee for op in engine_data.ops] or [0.66]
-    avg_oee = sum(oees) / len(oees)
+    # Average work_h across ops
+    work_hours = [op.work_h for op in engine_data.operacoes] or [0.0]
+    avg_work_h = sum(work_hours) / len(work_hours)
 
-    twin_pct = len(engine_data.twin_groups) / max(len(engine_data.ops), 1)
+    # Dependency density
+    ops_with_deps = set()
+    for dep in engine_data.dependencias:
+        ops_with_deps.add(dep.predecessor_id)
+        ops_with_deps.add(dep.sucessor_id)
+    dep_density = len(ops_with_deps) / max(len(engine_data.operacoes), 1)
 
     return [
         float(min_slack),
@@ -67,8 +74,8 @@ def extract_features(
         round(util_sd, 3),
         float(n_machines),
         float(n_lots),
-        round(avg_oee, 3),
-        round(twin_pct, 4),
+        round(avg_work_h, 3),
+        round(dep_density, 4),
     ]
 
 
@@ -97,7 +104,7 @@ def predict_risk(features: list[float]) -> tuple[float, str] | None:
         )
         return None
 
-    # Linear model: sigmoid(w·x + b)
+    # Linear model: sigmoid(w.x + b)
     z = sum(w * x for w, x in zip(weights, features)) + bias
     prob = 1.0 / (1.0 + _safe_exp(-z))
 
@@ -164,7 +171,7 @@ def train_surrogate(
     }
 
     save_path.write_text(json.dumps(model, indent=2))
-    logger.info("Surrogate trained with %d samples → %s", len(training_data), save_path)
+    logger.info("Surrogate trained with %d samples -> %s", len(training_data), save_path)
 
 
 def _safe_exp(x: float) -> float:

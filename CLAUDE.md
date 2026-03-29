@@ -3,12 +3,13 @@
 Scheduler de produção para fábricas de moldes de injeção.
 Forked de INCOMPOLINHO (APS stamping factory scheduler).
 
-## Status: Phase 4 (CPO Optimizer + Analytics)
+## Status: Phase 5 (API Cleanup + Moldit Endpoints)
 
 Phase 1: Fork & cleanup (Incompol modules removed).
 Phase 2: Moldit types, transform, guardian, config.
 Phase 3: Greedy forward scheduler (dispatch, scoring, pipeline).
 Phase 4: CPO optimizer, VNS, simulator, risk, analytics (CTP, late delivery, replan).
+Phase 5: Eliminated all Incompol references (.sku, .pH, .sH, .eco_lot, .oee). New Moldit API endpoints (/moldes, /timeline, /bottlenecks). Rewrote presets, coverage audit, trust index, console modules.
 
 ## Architecture
 
@@ -31,6 +32,16 @@ Python 3.12+, FastAPI, OR-Tools (CP-SAT), openpyxl, jpype1/mpxj (MPP parser), Re
 - `backend/guardian/` — Input/output validation
 - `backend/transform/transform.py` — MPP parser + enrichment
 - `backend/config/` — Factory YAML loader + types
+
+## API Endpoints (Phase 5)
+
+- GET /api/data/moldes — list molds with progress, deadline
+- GET /api/data/moldes/{molde_id} — operations, segments, critical path for a mold
+- GET /api/data/timeline — segments grouped by machine/day for Gantt
+- GET /api/data/bottlenecks — top 5 machines by stress
+- POST /api/data/load — upload .mpp, transform, schedule, respond
+- POST /api/data/ctp — CTP per molde (molde_id + target_week)
+- Config presets: rapido, equilibrado, min_setups, balanceado
 
 ## Working Modules (Phase 4)
 

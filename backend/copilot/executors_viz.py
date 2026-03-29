@@ -1,6 +1,7 @@
 """Visualization executors — Spec 10.
 
 8 executors returning JSON with viz_type + data for frontend widgets.
+Uses Moldit types (no Incompol references).
 """
 
 from __future__ import annotations
@@ -24,50 +25,54 @@ def _guard() -> str | None:
     return None
 
 
-# ─── 1. visualizar_stock ─────────────────────────────────────────────────
+# --- 1. visualizar_stock ------------------------------------------------
 
 def exec_visualizar_stock(args: dict) -> str:
     if (err := _guard()):
         return err
-    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
+    return _dumps({"error": "Not available in Moldit -- no stock concept"})
 
 
-# ─── 2. visualizar_carga_temporal ────────────────────────────────────────
+# --- 2. visualizar_carga_temporal ----------------------------------------
 
 def exec_visualizar_carga_temporal(args: dict) -> str:
     if (err := _guard()):
         return err
 
     dia_inicio = args.get("dia_inicio", 0)
-    dia_fim = args.get("dia_fim", state.engine_data.n_days)
-    day_cap = state.config.day_capacity_min if state.config else 1020
+    dia_fim = args.get("dia_fim", 30)
 
-    # machine → day → total_min
+    # machine -> day -> total_h
     load: dict[str, dict[int, float]] = defaultdict(lambda: defaultdict(float))
     for s in state.segments:
-        if dia_inicio <= s.day_idx < dia_fim:
-            load[s.machine_id][s.day_idx] += s.prod_min + s.setup_min
+        if dia_inicio <= s.dia < dia_fim:
+            load[s.maquina_id][s.dia] += s.duracao_h + s.setup_h
 
     machines = sorted(load.keys())
     days = list(range(dia_inicio, dia_fim))
 
+    # Get regime per machine
+    machine_regime: dict[str, int] = {}
+    for m in state.engine_data.maquinas:
+        machine_regime[m.id] = m.regime_h
+
     series = []
     for mid in machines:
-        values = [round(load[mid].get(d, 0) / day_cap * 100, 1) for d in days]
+        regime = machine_regime.get(mid, 16)
+        values = [round(load[mid].get(d, 0) / regime * 100, 1) if regime > 0 else 0 for d in days]
         series.append({"name": mid, "values": values})
 
     return _dumps({
         "viz_type": "bar_chart",
-        "title": "Carga máquinas (%)",
+        "title": "Carga maquinas (%)",
         "data": {
             "labels": [str(d) for d in days],
             "series": series,
         },
-        "meta": {"day_cap": day_cap},
     })
 
 
-# ─── 3. visualizar_risco_heatmap ─────────────────────────────────────────
+# --- 3. visualizar_risco_heatmap ----------------------------------------
 
 def exec_visualizar_risco_heatmap(args: dict) -> str:
     if (err := _guard()):
@@ -88,7 +93,7 @@ def exec_visualizar_risco_heatmap(args: dict) -> str:
 
     return _dumps({
         "viz_type": "heatmap",
-        "title": "Risco (máquina × dia)",
+        "title": "Risco (maquina x dia)",
         "data": {"cells": cells},
         "meta": {
             "health_score": risk.health_score,
@@ -98,23 +103,41 @@ def exec_visualizar_risco_heatmap(args: dict) -> str:
     })
 
 
-# ─── 4. visualizar_encomendas ────────────────────────────────────────────
+# --- 4. visualizar_encomendas -------------------------------------------
 
 def exec_visualizar_encomendas(args: dict) -> str:
     if (err := _guard()):
         return err
-    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
+
+    rows = []
+    for m in state.engine_data.moldes:
+        rows.append({
+            "molde": m.id,
+            "cliente": m.cliente,
+            "deadline": m.deadline,
+            "progresso": m.progresso,
+            "total_work_h": m.total_work_h,
+        })
+
+    return _dumps({
+        "viz_type": "table",
+        "title": "Moldes",
+        "data": {
+            "columns": ["molde", "cliente", "deadline", "progresso", "total_work_h"],
+            "rows": rows,
+        },
+    })
 
 
-# ─── 5. visualizar_expedicao ─────────────────────────────────────────────
+# --- 5. visualizar_expedicao -------------------------------------------
 
 def exec_visualizar_expedicao(args: dict) -> str:
     if (err := _guard()):
         return err
-    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
+    return _dumps({"error": "Not available in Moldit -- use /moldes endpoint"})
 
 
-# ─── 6. visualizar_gantt ─────────────────────────────────────────────────
+# --- 6. visualizar_gantt ------------------------------------------------
 
 def exec_visualizar_gantt(args: dict) -> str:
     if (err := _guard()):
@@ -126,22 +149,22 @@ def exec_visualizar_gantt(args: dict) -> str:
 
     events = []
     for s in state.segments:
-        if s.day_idx < dia_inicio or s.day_idx >= dia_fim:
+        if s.dia < dia_inicio or s.dia >= dia_fim:
             continue
-        if maquina_filter and s.machine_id != maquina_filter:
+        if maquina_filter and s.maquina_id != maquina_filter:
             continue
 
         events.append({
-            "maquina": s.machine_id,
-            "tool": s.tool_id,
-            "sku": s.sku,
-            "dia": s.day_idx,
-            "inicio_min": s.start_min,
-            "fim_min": s.end_min,
-            "turno": s.shift,
-            "qty": s.qty,
-            "setup_min": round(s.setup_min, 1),
-            "prod_min": round(s.prod_min, 1),
+            "maquina": s.maquina_id,
+            "molde": s.molde,
+            "op_id": s.op_id,
+            "dia": s.dia,
+            "inicio_h": s.inicio_h,
+            "fim_h": s.fim_h,
+            "duracao_h": round(s.duracao_h, 2),
+            "setup_h": round(s.setup_h, 2),
+            "e_2a_placa": s.e_2a_placa,
+            "e_continuacao": s.e_continuacao,
         })
 
     return _dumps({
@@ -151,7 +174,7 @@ def exec_visualizar_gantt(args: dict) -> str:
     })
 
 
-# ─── 7. visualizar_comparacao ─────────────────────────────────────────────
+# --- 7. visualizar_comparacao -------------------------------------------
 
 def exec_visualizar_comparacao(args: dict) -> str:
     if (err := _guard()):
@@ -171,7 +194,7 @@ def exec_visualizar_comparacao(args: dict) -> str:
 
     return _dumps({
         "viz_type": "kpi_compare",
-        "title": "Comparação: actual vs cenário",
+        "title": "Comparacao: actual vs cenario",
         "data": {
             "baseline": {
                 "otd": result.delta.otd_before,
@@ -195,7 +218,7 @@ def exec_visualizar_comparacao(args: dict) -> str:
     })
 
 
-# ─── 8. visualizar_learning ──────────────────────────────────────────────
+# --- 8. visualizar_learning ---------------------------------------------
 
 def exec_visualizar_learning(args: dict) -> str:
     from backend.learning.store import LearnStore
@@ -225,7 +248,7 @@ def exec_visualizar_learning(args: dict) -> str:
     })
 
 
-# ─── 9. visualizar_atrasos ──────────────────────────────────────────────
+# --- 9. visualizar_atrasos ---------------------------------------------
 
 def exec_visualizar_atrasos(args: dict) -> str:
     if (err := _guard()):
@@ -240,9 +263,7 @@ def exec_visualizar_atrasos(args: dict) -> str:
     rows = []
     for a in late.analyses:
         rows.append({
-            "lot_id": a.lot_id,
-            "sku": a.sku,
-            "edd": a.edd,
+            "molde": a.molde if hasattr(a, "molde") else getattr(a, "lot_id", ""),
             "completion_day": a.completion_day,
             "delay_days": a.delay_days,
             "root_cause": a.root_cause,
@@ -251,9 +272,9 @@ def exec_visualizar_atrasos(args: dict) -> str:
 
     return _dumps({
         "viz_type": "table",
-        "title": f"Atrasos ({late.tardy_count} lots)",
+        "title": f"Atrasos ({late.tardy_count})",
         "data": {
-            "columns": ["lot_id", "sku", "edd", "completion_day", "delay_days", "root_cause", "suggestion"],
+            "columns": ["molde", "completion_day", "delay_days", "root_cause", "suggestion"],
             "rows": rows,
         },
         "meta": {
@@ -264,15 +285,15 @@ def exec_visualizar_atrasos(args: dict) -> str:
     })
 
 
-# ─── 10. visualizar_workforce ────────────────────────────────────────────
+# --- 10. visualizar_workforce -------------------------------------------
 
 def exec_visualizar_workforce(args: dict) -> str:
     if (err := _guard()):
         return err
-    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
+    return _dumps({"error": "Not yet available in Moldit"})
 
 
-# ─── 11. visualizar_cobertura ────────────────────────────────────────────
+# --- 11. visualizar_cobertura -------------------------------------------
 
 def exec_visualizar_cobertura(args: dict) -> str:
     if (err := _guard()):
@@ -281,38 +302,35 @@ def exec_visualizar_cobertura(args: dict) -> str:
     from backend.analytics.coverage_audit import compute_coverage_audit
 
     cov = state.coverage or compute_coverage_audit(
-        state.segments, state.lots, state.engine_data,
+        state.segments, state.engine_data,
     )
 
     rows = []
-    for c in cov.clients:
+    for c in cov.molds:
         rows.append({
-            "cliente": c.client,
-            "total_encomendas": c.total_orders,
-            "cobertas": c.covered_orders,
-            "cobertura_pct": c.coverage_pct,
-            "em_risco": c.at_risk_orders,
-            "pior_sku": c.worst_sku,
+            "molde": c.molde_id,
+            "total_ops": c.total_ops,
+            "ops_agendadas": c.ops_agendadas,
+            "cobertura_pct": c.cobertura_pct,
+            "ops_sem_maquina": c.ops_sem_maquina,
         })
 
     return _dumps({
         "viz_type": "table",
         "title": f"Cobertura ({cov.overall_coverage_pct:.0f}%)",
         "data": {
-            "columns": ["cliente", "total_encomendas", "cobertas", "cobertura_pct", "em_risco", "pior_sku"],
+            "columns": ["molde", "total_ops", "ops_agendadas", "cobertura_pct", "ops_sem_maquina"],
             "rows": rows,
         },
         "meta": {
             "overall_coverage_pct": cov.overall_coverage_pct,
-            "fill_rate": cov.overall_fill_rate,
-            "stockout_count": cov.stockout_count,
-            "health_score": cov.health_score,
+            "uncovered_ops": cov.uncovered_ops,
             "summary": cov.summary,
         },
     })
 
 
-# ─── 12. visualizar_propostas ────────────────────────────────────────────
+# --- 12. visualizar_propostas -------------------------------------------
 
 def exec_visualizar_propostas(args: dict) -> str:
     if (err := _guard()):
@@ -340,7 +358,10 @@ def exec_visualizar_propostas(args: dict) -> str:
         "viz_type": "table",
         "title": f"Propostas de Melhoria ({len(report.proposals)})",
         "data": {
-            "columns": ["id", "tipo", "descricao", "impacto", "prioridade", "maquina_de", "maquina_para"],
+            "columns": [
+                "id", "tipo", "descricao", "impacto",
+                "prioridade", "maquina_de", "maquina_para",
+            ],
             "rows": rows,
         },
         "meta": {

@@ -1,9 +1,11 @@
-"""ISOP context extraction — Spec 08 §2."""
+"""ISOP context extraction — Spec 08 S2.
+
+Uses Moldit Operacao fields (no Incompol references).
+"""
 
 from __future__ import annotations
 
 from backend.config.types import FactoryConfig
-from backend.scheduler.constants import DAY_CAP, DEFAULT_OEE
 from backend.types import MolditEngineData as EngineData
 
 from .types import ISContext
@@ -11,59 +13,43 @@ from .types import ISContext
 
 def extract_context(data: EngineData, config: FactoryConfig | None = None) -> ISContext:
     """Extract feature vector from an ISOP for transfer learning."""
-    day_cap = config.day_capacity_min if config else DAY_CAP
-    oee_default = config.oee_default if config else DEFAULT_OEE
+    oee_default = config.oee_default if config else 0.66
 
-    n_ops = len(data.ops)
-    n_machines = len(data.machines)
-    n_days = data.n_days
+    n_ops = len(data.operacoes)
+    n_machines = len(data.maquinas)
+    n_days = 30  # default planning horizon
 
-    # Total demand (sum of positive d values = actual demand)
-    total_demand = 0
-    demand_days: list[int] = []
-    for op in data.ops:
-        for day_idx, d in enumerate(op.d):
-            if d > 0:
-                total_demand += d
-                demand_days.append(day_idx)
+    # Total work hours
+    total_work_h = sum(op.work_h for op in data.operacoes)
 
-    # Average OEE
-    oees = [op.oee for op in data.ops if op.oee and op.oee > 0]
-    avg_oee = sum(oees) / len(oees) if oees else oee_default
+    # Average completion ratio (inverse of remaining/total)
+    ratios = []
+    for op in data.operacoes:
+        if op.work_h > 0:
+            ratios.append(op.work_restante_h / op.work_h)
+        else:
+            ratios.append(0.0)
+    avg_remaining_ratio = sum(ratios) / len(ratios) if ratios else 1.0
 
-    # Twin fraction
-    twin_op_ids: set[str] = set()
-    for tg in data.twin_groups:
-        twin_op_ids.add(tg.op_id_1)
-        twin_op_ids.add(tg.op_id_2)
-    twin_pct = len(twin_op_ids) / max(n_ops, 1)
+    # Compute effective OEE-like metric from work_restante / work ratio
+    avg_efficiency = 1.0 - avg_remaining_ratio if avg_remaining_ratio < 1.0 else oee_default
 
-    # Alt machine fraction
-    alt_count = sum(1 for op in data.ops if op.alt)
-    alt_pct = alt_count / max(n_ops, 1)
+    # Alt machine fraction (ops with recurso assigned)
+    recurso_count = sum(1 for op in data.operacoes if op.recurso)
+    recurso_pct = recurso_count / max(n_ops, 1)
 
-    # Average EDD (day index of demands)
-    avg_edd = sum(demand_days) / len(demand_days) if demand_days else 0.0
-
-    # Demand density: total load in minutes / total capacity
-    total_load_min = 0.0
-    for op in data.ops:
-        oee = op.oee if op.oee and op.oee > 0 else oee_default
-        ph = max(op.pH, 1)
-        op_demand = sum(max(0, d) for d in op.d)
-        total_load_min += (op_demand / ph / oee) * 60.0
-
-    total_capacity = n_machines * n_days * day_cap
-    demand_density = total_load_min / total_capacity if total_capacity > 0 else 0.0
+    # Demand density: total work hours / total capacity
+    total_capacity_h = sum(m.regime_h for m in data.maquinas) * n_days
+    demand_density = total_work_h / total_capacity_h if total_capacity_h > 0 else 0.0
 
     return ISContext(
         n_ops=n_ops,
         n_machines=n_machines,
         n_days=n_days,
-        total_demand=total_demand,
-        avg_oee=round(avg_oee, 3),
-        twin_pct=round(twin_pct, 3),
-        alt_pct=round(alt_pct, 3),
-        avg_edd=round(avg_edd, 1),
+        total_demand=round(total_work_h),
+        avg_oee=round(avg_efficiency, 3),
+        twin_pct=0.0,  # No twin concept in Moldit
+        alt_pct=round(recurso_pct, 3),
+        avg_edd=0.0,
         demand_density=round(demand_density, 4),
     )

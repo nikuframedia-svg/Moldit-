@@ -1,6 +1,7 @@
 """Query executors — Spec 10.
 
 10 read-only executors. Each receives args dict, returns JSON string.
+Uses Moldit Operacao fields (no Incompol references).
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ def _guard() -> str | None:
     return None
 
 
-# ─── 1. ver_producao_dia ──────────────────────────────────────────────────
+# --- 1. ver_producao_dia ------------------------------------------------
 
 def exec_ver_producao_dia(args: dict) -> str:
     if (err := _guard()):
@@ -35,17 +36,16 @@ def exec_ver_producao_dia(args: dict) -> str:
     by_machine: dict[str, list[dict]] = defaultdict(list)
 
     for s in state.segments:
-        if s.day_idx == day:
-            by_machine[s.machine_id].append({
-                "lot_id": s.lot_id,
-                "tool_id": s.tool_id,
-                "sku": s.sku,
-                "qty": s.qty,
-                "prod_min": round(s.prod_min, 1),
-                "setup_min": round(s.setup_min, 1),
-                "start_min": s.start_min,
-                "end_min": s.end_min,
-                "shift": s.shift,
+        if s.dia == day:
+            by_machine[s.maquina_id].append({
+                "op_id": s.op_id,
+                "molde": s.molde,
+                "duracao_h": round(s.duracao_h, 2),
+                "setup_h": round(s.setup_h, 2),
+                "inicio_h": s.inicio_h,
+                "fim_h": s.fim_h,
+                "e_2a_placa": s.e_2a_placa,
+                "e_continuacao": s.e_continuacao,
             })
 
     return _dumps({
@@ -55,33 +55,38 @@ def exec_ver_producao_dia(args: dict) -> str:
     })
 
 
-# ─── 2. ver_carga_maquinas ───────────────────────────────────────────────
+# --- 2. ver_carga_maquinas ----------------------------------------------
 
 def exec_ver_carga_maquinas(args: dict) -> str:
     if (err := _guard()):
         return err
 
     dia_inicio = args.get("dia_inicio", 0)
-    dia_fim = args.get("dia_fim", state.engine_data.n_days)
-    day_cap = state.config.day_capacity_min if state.config else 1020
+    dia_fim = args.get("dia_fim", 30)
 
-    # machine → day → total_min
+    # machine -> day -> total_h
     load: dict[str, dict[int, float]] = defaultdict(lambda: defaultdict(float))
     for s in state.segments:
-        if dia_inicio <= s.day_idx < dia_fim:
-            load[s.machine_id][s.day_idx] += s.prod_min + s.setup_min
+        if dia_inicio <= s.dia < dia_fim:
+            load[s.maquina_id][s.dia] += s.duracao_h + s.setup_h
+
+    # Build result with regime_h as capacity
+    machine_regime: dict[str, int] = {}
+    for m in state.engine_data.maquinas:
+        machine_regime[m.id] = m.regime_h
 
     result = {}
     for mid, days in sorted(load.items()):
+        regime = machine_regime.get(mid, 16)
         result[mid] = {
-            str(d): {"min": round(m, 1), "pct": round(m / day_cap * 100, 1)}
-            for d, m in sorted(days.items())
+            str(d): {"horas": round(h, 1), "pct": round(h / regime * 100, 1) if regime > 0 else 0}
+            for d, h in sorted(days.items())
         }
 
-    return _dumps({"carga": result, "day_cap": day_cap})
+    return _dumps({"carga": result, "regime_h_default": 16})
 
 
-# ─── 3. ver_alertas ──────────────────────────────────────────────────────
+# --- 3. ver_alertas -----------------------------------------------------
 
 def exec_ver_alertas(args: dict) -> str:
     if (err := _guard()):
@@ -94,12 +99,12 @@ def exec_ver_alertas(args: dict) -> str:
     alerts = []
     tardy = state.score.get("tardy_count", 0)
     if tardy > 0:
-        alerts.append({"tipo": "tardiness", "mensagem": f"{tardy} lots em atraso"})
+        alerts.append({"tipo": "tardiness", "mensagem": f"{tardy} moldes em atraso"})
 
     if risk.critical_count > 0:
         alerts.append({
             "tipo": "risco_critico",
-            "mensagem": f"{risk.critical_count} lots com risco crítico",
+            "mensagem": f"{risk.critical_count} itens com risco critico",
         })
 
     if risk.bottleneck:
@@ -118,7 +123,7 @@ def exec_ver_alertas(args: dict) -> str:
         for oa in state.operator_alerts[:5]:
             alerts.append({
                 "tipo": "operadores",
-                "mensagem": f"Dia {oa.day_idx} turno {oa.shift}: faltam {oa.deficit} operador(es)",
+                "mensagem": f"Dia {oa.dia} grupo {oa.grupo_maquina}: deficit {oa.deficit_h:.1f}h",
             })
 
     # Stress critical recommendations
@@ -134,7 +139,7 @@ def exec_ver_alertas(args: dict) -> str:
     return _dumps({"alertas": alerts, "health_score": risk.health_score})
 
 
-# ─── 4. ver_score ────────────────────────────────────────────────────────
+# --- 4. ver_score -------------------------------------------------------
 
 def exec_ver_score(args: dict) -> str:
     if (err := _guard()):
@@ -142,11 +147,11 @@ def exec_ver_score(args: dict) -> str:
     return _dumps(state.score)
 
 
-# ─── 5. ver_config ───────────────────────────────────────────────────────
+# --- 5. ver_config ------------------------------------------------------
 
 def exec_ver_config(args: dict) -> str:
     if state.config is None:
-        return _dumps({"error": "Configuração não carregada."})
+        return _dumps({"error": "Configuracao nao carregada."})
 
     c = state.config
     return _dumps({
@@ -160,52 +165,66 @@ def exec_ver_config(args: dict) -> str:
         ],
         "day_capacity_min": c.day_capacity_min,
         "maquinas": {
-            mid: {"grupo": m.group, "activa": m.active}
+            mid: {"grupo": m.group, "activa": m.active, "regime_h": m.regime_h}
             for mid, m in c.machines.items()
         },
         "n_ferramentas": len(c.tools),
-        "n_twins": len(c.twins),
         "n_feriados": len(c.holidays),
-        "oee_default": c.oee_default,
-        "jit_enabled": c.jit_enabled,
-        "eco_lot_mode": c.eco_lot_mode,
+        "weight_makespan": c.weight_makespan,
+        "weight_deadline_compliance": c.weight_deadline_compliance,
+        "weight_setups": c.weight_setups,
+        "weight_balance": c.weight_balance,
     })
 
 
-# ─── 6. explicar_referencia ──────────────────────────────────────────────
+# --- 6. explicar_referencia (now explicar_operacao) ---------------------
 
 def exec_explicar_referencia(args: dict) -> str:
     if (err := _guard()):
         return err
 
-    sku = args.get("sku", "")
-    op = next((o for o in state.engine_data.ops if o.sku == sku), None)
-    if not op:
-        return _dumps({"error": f"SKU {sku} não encontrado."})
+    # Accept op_id (int) or molde+codigo search
+    op_id = args.get("op_id")
+    molde = args.get("molde", "")
+    codigo = args.get("codigo", "")
 
-    n_lots = sum(1 for lot in state.lots if lot.op_id == op.id)
-    n_segs = sum(1 for s in state.segments if s.sku == sku)
-    total_demand = sum(d for d in op.d if d > 0)
+    op = None
+    if op_id is not None:
+        op = next((o for o in state.engine_data.operacoes if o.id == int(op_id)), None)
+    elif molde:
+        op = next((o for o in state.engine_data.operacoes
+                    if o.molde == molde and (not codigo or o.codigo == codigo)), None)
+
+    if not op:
+        return _dumps({
+            "error": (
+                f"Operacao nao encontrada "
+                f"(op_id={op_id}, molde={molde}, codigo={codigo})."
+            ),
+        })
+
+    n_segs = sum(1 for s in state.segments if s.op_id == op.id)
 
     return _dumps({
-        "sku": sku,
-        "cliente": op.client,
-        "designacao": op.designation,
-        "maquina": op.m,
-        "ferramenta": op.t,
-        "alt_maquina": op.alt,
-        "pecas_hora": op.pH,
-        "setup_horas": op.sH,
-        "eco_lot": op.eco_lot,
-        "stock_inicial": op.stk,
-        "oee": op.oee,
-        "demand_total": total_demand,
-        "n_lots": n_lots,
+        "id": op.id,
+        "molde": op.molde,
+        "componente": op.componente,
+        "nome": op.nome,
+        "codigo": op.codigo,
+        "duracao_h": op.duracao_h,
+        "work_h": op.work_h,
+        "progresso": op.progresso,
+        "work_restante_h": op.work_restante_h,
+        "recurso": op.recurso,
+        "grupo_recurso": op.grupo_recurso,
+        "e_condicional": op.e_condicional,
+        "e_2a_placa": op.e_2a_placa,
+        "deadline_semana": op.deadline_semana,
         "n_segments": n_segs,
     })
 
 
-# ─── 7. explicar_decisao ─────────────────────────────────────────────────
+# --- 7. explicar_decisao ------------------------------------------------
 
 def exec_explicar_decisao(args: dict) -> str:
     if (err := _guard()):
@@ -213,71 +232,55 @@ def exec_explicar_decisao(args: dict) -> str:
 
     if not state.audit_store or not state.schedule_id:
         return _dumps({
-            "aviso": "Sem decisões registadas. Usa recalcular_plano primeiro.",
+            "aviso": "Sem decisoes registadas. Usa recalcular_plano primeiro.",
         })
 
-    sku = args.get("sku", "")
-    # Find tool_id for this SKU to use as subject_id
-    op = next((o for o in state.engine_data.ops if o.sku == sku), None)
-    subject_id = op.t if op else sku
+    op_id = args.get("op_id")
+    molde = args.get("molde", "")
+    subject_id = str(op_id) if op_id else molde
 
     decisions = state.audit_store.load_decisions(
         state.schedule_id, subject_id=subject_id,
     )
 
     return _dumps({
-        "sku": sku,
-        "ferramenta": subject_id,
+        "op_id": op_id,
+        "molde": molde,
         "schedule_id": state.schedule_id,
-        "decisoes": decisions[:20],  # limit to 20
+        "decisoes": decisions[:20],
     })
 
 
-# ─── 8. explicar_logica ──────────────────────────────────────────────────
+# --- 8. explicar_logica -------------------------------------------------
 
 _LOGIC_EXPLANATIONS = {
-    "jit": (
-        "JIT (Just-In-Time): Phase 4 do scheduler. Produzir o mais tarde possível "
-        "(2-5 dias antes do EDD) para reduzir stock intermédio. "
-        "O scheduler calcula o LST (Latest Start Time) para cada ToolRun. "
-        "Safety net: se o JIT piora tardiness, faz fallback ao baseline."
+    "dispatch": (
+        "Dispatch: o scheduler atribui operacoes a maquinas por prioridade. "
+        "Criterios: caminho critico, deadline, work restante, dependencias DAG."
     ),
-    "campaign": (
-        "Campaign sequencing: agrupar runs com a mesma ferramenta consecutivamente "
-        "para eliminar setups. Nearest-neighbour por tool family. "
-        "Interrompido quando há runs urgentes (EDD próximo)."
+    "caminho_critico": (
+        "Caminho critico: sequencia de operacoes que determina o makespan do molde. "
+        "Calculado via DAG (grafo aciclico dirigido) com duracao como peso."
     ),
-    "eco_lot": (
-        "Eco lot HARD: cada lot é arredondado para cima ao múltiplo do lote económico. "
-        "Carry-forward: surplus de um lot reduz a demand do lot seguinte do mesmo SKU."
-    ),
-    "twins": (
-        "Peças gémeas: 2 SKUs produzidos em simultâneo com a mesma ferramenta. "
-        "1 ciclo → 2 peças. Tempo = max(tempo_A, tempo_B). "
-        "Cada SKU recebe exactamente o que precisa."
+    "2a_placa": (
+        "2a Placa (//): paralelismo na mesma maquina CNC. "
+        "Duas operacoes correm em simultaneo, partilhando a maquina."
     ),
     "scoring": (
-        "Scoring: 3 componentes com pesos — earliness (0.40), setups (0.30), "
-        "utilization_balance (0.30). OTD e OTD-D são calculados mas não entram no score "
-        "(são constraints, não objectivos)."
+        "Scoring: 4 componentes com pesos -- makespan (0.35), deadline_compliance (0.35), "
+        "setups (0.15), balance (0.15). Configuraveis via presets."
     ),
-    "oee": (
-        "OEE (Overall Equipment Effectiveness): default 0.66. "
-        "prod_min = (qty / (pH × OEE)) × 60. OEE NÃO se aplica ao setup."
+    "vns": (
+        "VNS (Variable Neighbourhood Search): pos-processamento que melhora o plano. "
+        "4 vizinhancas: swap, move, resequence, shift."
     ),
-    "interleave": (
-        "Interleave: quando um run urgente (EDD próximo) está bloqueado por uma "
-        "campanha longa, o scheduler interrompe a campanha para produzir o urgente primeiro."
+    "dependencias": (
+        "Dependencias FS (Finish-to-Start): uma operacao so pode comecar quando "
+        "a predecessora terminar. Respeita lags definidos no MPP."
     ),
-    "2opt": (
-        "2-opt: optimização local que tenta trocar pares de runs na sequência "
-        "para reduzir o número total de setups, respeitando a tolerância EDD."
-    ),
-    "lot_sizing": (
-        "Lot sizing: not yet available in Moldit. Will be implemented in Phase 2."
-    ),
-    "tool_grouping": (
-        "Tool grouping: not yet available in Moldit. Will be implemented in Phase 2."
+    "compatibilidade": (
+        "Compatibilidade: mapeia operacoes a maquinas compativeis. "
+        "Cada operacao pode correr em multiplas maquinas do mesmo grupo."
     ),
 }
 
@@ -293,16 +296,26 @@ def exec_explicar_logica(args: dict) -> str:
     return _dumps({"conceito": conceito, "explicacao": text})
 
 
-# ─── 9. ver_encomendas ───────────────────────────────────────────────────
+# --- 9. ver_encomendas --------------------------------------------------
 
 def exec_ver_encomendas(args: dict) -> str:
     if (err := _guard()):
         return err
 
-    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
+    # Return molde list with deadlines as "orders"
+    moldes = []
+    for m in state.engine_data.moldes:
+        moldes.append({
+            "molde": m.id,
+            "cliente": m.cliente,
+            "deadline": m.deadline,
+            "progresso": m.progresso,
+            "total_work_h": m.total_work_h,
+        })
+    return _dumps({"moldes": moldes})
 
 
-# ─── 10. ver_historico ───────────────────────────────────────────────────
+# --- 10. ver_historico --------------------------------------------------
 
 def exec_ver_historico(args: dict) -> str:
     from backend.learning.store import LearnStore
@@ -314,19 +327,21 @@ def exec_ver_historico(args: dict) -> str:
     return _dumps({"estudos": history})
 
 
-# ─── 11. ver_stress ──────────────────────────────────────────────────────
+# --- 11. ver_stress -----------------------------------------------------
 
 def exec_ver_stress(args: dict) -> str:
     if (err := _guard()):
         return err
 
     from backend.scheduler.stress import (
-        compute_stress_map, stress_summary, stress_recommendations,
+        compute_stress_map,
+        stress_recommendations,
+        stress_summary,
     )
 
     smap = state.stress_map or compute_stress_map(
         state.segments, state.lots, state.engine_data.n_days,
-        n_holidays=len(getattr(state.engine_data, 'holidays', []) or []),
+        n_holidays=len(state.engine_data.feriados or []),
     )
     summary = stress_summary(smap)
     recs = stress_recommendations(smap, state.lots, state.segments)
@@ -334,10 +349,10 @@ def exec_ver_stress(args: dict) -> str:
     return _dumps({"resumo": summary, "recomendacoes": recs})
 
 
-# ─── 12. e_se (counterfactual) ──────────────────────────────────────────
+# --- 12. e_se (counterfactual) ------------------------------------------
 
 def exec_e_se(args: dict) -> str:
-    """Counterfactual: 'E se a BFP079 estivesse na PRM039?'"""
+    """Counterfactual: 'E se a operacao X estivesse na maquina Y?'"""
     if (err := _guard()):
         return err
 

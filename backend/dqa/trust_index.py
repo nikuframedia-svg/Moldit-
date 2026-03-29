@@ -1,7 +1,8 @@
-"""DQA / TrustIndex — Spec 12 §3.
+"""DQA / TrustIndex — Spec 12 S3.
 
 Data quality scoring with automation gate recommendation.
 4 dimensions: completeness, validity, consistency, richness.
+Uses Moldit Operacao fields (no Incompol references).
 """
 
 from __future__ import annotations
@@ -31,35 +32,35 @@ class TrustResult:
 def _score_completeness(data: EngineData) -> DQADimension:
     """% of ops with essential fields filled."""
     details: list[str] = []
-    if not data.ops:
-        return DQADimension("completeness", 0.0, ["Sem operações"])
+    if not data.operacoes:
+        return DQADimension("completeness", 0.0, ["Sem operacoes"])
 
     checks = 0
     passed = 0
-    for op in data.ops:
-        # pH present and > 0
+    for op in data.operacoes:
+        # work_h present and > 0
         checks += 1
-        if op.pH > 0:
+        if op.work_h > 0:
             passed += 1
         else:
-            details.append(f"{op.id}: pH vazio/zero")
+            details.append(f"{op.id}: work_h vazio/zero")
 
-        # Client non-empty
+        # nome non-empty
         checks += 1
-        if op.client:
+        if op.nome:
             passed += 1
 
-        # Designation non-empty
+        # molde non-empty
         checks += 1
-        if op.designation:
+        if op.molde:
             passed += 1
 
-        # Demand array aligned with n_days
+        # duracao_h > 0
         checks += 1
-        if len(op.d) == data.n_days:
+        if op.duracao_h > 0:
             passed += 1
         else:
-            details.append(f"{op.id}: len(d)={len(op.d)} != n_days={data.n_days}")
+            details.append(f"{op.id}: duracao_h vazio/zero")
 
     score = (passed / max(checks, 1)) * 100
     return DQADimension("completeness", round(score, 1), details[:5])
@@ -68,50 +69,45 @@ def _score_completeness(data: EngineData) -> DQADimension:
 def _score_validity(data: EngineData) -> DQADimension:
     """Fields within valid ranges."""
     details: list[str] = []
-    machine_ids = {m.id for m in data.machines}
+    machine_ids = {m.id for m in data.maquinas}
 
-    if not data.ops:
-        return DQADimension("validity", 0.0, ["Sem operações"])
+    if not data.operacoes:
+        return DQADimension("validity", 0.0, ["Sem operacoes"])
 
     checks = 0
     passed = 0
-    for op in data.ops:
-        # pH > 0
+    for op in data.operacoes:
+        # work_h >= 0
         checks += 1
-        if op.pH > 0:
+        if op.work_h >= 0:
             passed += 1
 
-        # OEE in (0, 1]
+        # progresso in 0-100
         checks += 1
-        if 0 < op.oee <= 1.0:
-            passed += 1
-        else:
-            details.append(f"{op.id}: oee={op.oee}")
-
-        # sH >= 0
-        checks += 1
-        if op.sH >= 0:
-            passed += 1
-
-        # eco_lot >= 0
-        checks += 1
-        if op.eco_lot >= 0:
-            passed += 1
-
-        # Machine exists
-        checks += 1
-        if op.m in machine_ids:
+        if 0 <= op.progresso <= 100:
             passed += 1
         else:
-            details.append(f"{op.id}: máquina {op.m!r} inválida")
+            details.append(f"{op.id}: progresso={op.progresso}")
 
-        # Alt machine exists if defined
-        if op.alt:
+        # duracao_h >= 0
+        checks += 1
+        if op.duracao_h >= 0:
+            passed += 1
+
+        # work_restante_h >= 0
+        checks += 1
+        if op.work_restante_h >= 0:
+            passed += 1
+        else:
+            details.append(f"{op.id}: work_restante_h={op.work_restante_h}")
+
+        # Recurso (machine) exists if defined
+        if op.recurso:
             checks += 1
-            if op.alt in machine_ids:
+            if op.recurso in machine_ids:
                 passed += 1
             else:
-                details.append(f"{op.id}: alt {op.alt!r} inválida")
+                details.append(f"{op.id}: recurso {op.recurso!r} invalido")
 
     score = (passed / max(checks, 1)) * 100
     return DQADimension("validity", round(score, 1), details[:5])
@@ -123,40 +119,32 @@ def _score_consistency(data: EngineData) -> DQADimension:
     checks = 0
     passed = 0
 
-    op_ids = {op.id for op in data.ops}
+    op_ids = {op.id for op in data.operacoes}
 
-    # Twin groups reference valid ops
-    for tg in data.twin_groups:
+    # Dependencies reference valid ops
+    for dep in data.dependencias:
         checks += 1
-        if tg.op_id_1 in op_ids and tg.op_id_2 in op_ids:
+        if dep.predecessor_id in op_ids and dep.sucessor_id in op_ids:
             passed += 1
         else:
-            details.append(f"Twin {tg.tool_id}: ops inválidos")
-
-    # Twin ops on same machine
-    op_map = {op.id: op for op in data.ops}
-    for tg in data.twin_groups:
-        checks += 1
-        op1 = op_map.get(tg.op_id_1)
-        op2 = op_map.get(tg.op_id_2)
-        if op1 and op2 and op1.m == op2.m:
-            passed += 1
-        elif op1 and op2:
-            details.append(f"Twin {tg.tool_id}: máquinas {op1.m} vs {op2.m}")
-
-    # workdays count matches n_days
-    checks += 1
-    if len(data.workdays) >= data.n_days:
-        passed += 1
-    else:
-        details.append(f"workdays={len(data.workdays)} < n_days={data.n_days}")
+            details.append(f"Dep {dep.predecessor_id}->{dep.sucessor_id}: ops invalidos")
 
     # No duplicate op.id
     checks += 1
-    if len(op_ids) == len(data.ops):
+    if len(op_ids) == len(data.operacoes):
         passed += 1
     else:
-        details.append(f"{len(data.ops) - len(op_ids)} op.id duplicados")
+        details.append(f"{len(data.operacoes) - len(op_ids)} op.id duplicados")
+
+    # Moldes referenced by ops exist
+    molde_ids = {m.id for m in data.moldes}
+    op_moldes = {op.molde for op in data.operacoes}
+    checks += 1
+    orphan = op_moldes - molde_ids
+    if not orphan:
+        passed += 1
+    else:
+        details.append(f"Moldes sem definicao: {', '.join(sorted(orphan)[:3])}")
 
     if checks == 0:
         return DQADimension("consistency", 100.0, [])
@@ -168,40 +156,41 @@ def _score_consistency(data: EngineData) -> DQADimension:
 def _score_richness(data: EngineData) -> DQADimension:
     """Optional but valuable data presence."""
     details: list[str] = []
-    if not data.ops:
-        return DQADimension("richness", 0.0, ["Sem operações"])
+    if not data.operacoes:
+        return DQADimension("richness", 0.0, ["Sem operacoes"])
 
     checks = 0
     passed = 0
 
-    # % ops with alt machine
-    with_alt = sum(1 for op in data.ops if op.alt)
+    # % ops with recurso (machine assignment)
+    with_recurso = sum(1 for op in data.operacoes if op.recurso)
     checks += 1
-    alt_pct = with_alt / len(data.ops)
-    if alt_pct > 0.3:
+    if with_recurso / len(data.operacoes) > 0.3:
         passed += 1
     else:
-        details.append(f"Só {with_alt}/{len(data.ops)} ops com máquina alternativa")
+        details.append(f"So {with_recurso}/{len(data.operacoes)} ops com recurso")
 
-    # % ops with eco_lot > 0
-    with_eco = sum(1 for op in data.ops if op.eco_lot > 0)
+    # % ops with deadline_semana
+    with_deadline = sum(1 for op in data.operacoes if op.deadline_semana)
     checks += 1
-    if with_eco / len(data.ops) > 0.5:
+    if with_deadline / len(data.operacoes) > 0.3:
         passed += 1
+    else:
+        details.append(f"So {with_deadline}/{len(data.operacoes)} ops com deadline_semana")
 
     # Holidays defined
     checks += 1
-    if data.holidays:
+    if data.feriados:
         passed += 1
     else:
         details.append("Sem feriados definidos")
 
-    # Client demands populated
+    # DAG populated
     checks += 1
-    if data.client_demands:
+    if data.dag:
         passed += 1
     else:
-        details.append("Sem client_demands")
+        details.append("Sem DAG (grafo de dependencias)")
 
     score = (passed / max(checks, 1)) * 100
     return DQADimension("richness", round(score, 1), details[:5])
@@ -242,6 +231,6 @@ def compute_trust_index(
         score=score,
         gate=gate,
         dimensions=dims,
-        n_ops=len(data.ops),
+        n_ops=len(data.operacoes),
         n_issues=n_issues,
     )

@@ -5,12 +5,9 @@ What the encarregado needs to know: setups, operators, expeditions, problems.
 
 from __future__ import annotations
 
-
 from backend.config.loader import _min_to_time
 from backend.config.types import FactoryConfig
 from backend.scheduler.types import SegmentoMoldit as Segment
-
-
 from backend.types import MolditEngineData as EngineData
 
 

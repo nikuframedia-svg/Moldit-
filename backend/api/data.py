@@ -1,6 +1,6 @@
 """Data REST API — direct endpoints for the frontend.
 
-22 endpoints as thin wrappers over CopilotState.
+Moldit endpoints as thin wrappers over CopilotState.
 All analytics are pre-computed in state._refresh_analytics().
 """
 
@@ -8,20 +8,18 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import defaultdict
 from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from backend.copilot.state import state
 from backend.copilot.executors_master import (
-    exec_editar_maquina,
-    exec_editar_ferramenta,
     exec_adicionar_feriado,
+    exec_editar_maquina,
     exec_remover_feriado,
-    exec_adicionar_twin,
-    exec_remover_twin,
 )
+from backend.copilot.state import state
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +34,11 @@ def _require_data():
 
 def _require_config():
     if state.config is None:
-        raise HTTPException(503, "Configuração não carregada.")
+        raise HTTPException(503, "Configuracao nao carregada.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CORE (5)
+# CORE
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -50,18 +48,9 @@ async def get_today():
     _require_data()
     import datetime as _dt
     today = _dt.date.today().isoformat()
-    workdays = state.engine_data.workdays
-    for i, d in enumerate(workdays):
-        if d >= today:
-            return {"today_idx": i, "date": d}
-    return {"today_idx": len(workdays) - 1, "date": workdays[-1] if workdays else ""}
-
-
-@router.get("/workdays")
-async def get_workdays():
-    """Return workdays list (day_idx → ISO date mapping)."""
-    _require_data()
-    return state.engine_data.workdays
+    data = state.engine_data
+    # Use data_referencia as fallback
+    return {"today": today, "data_referencia": data.data_referencia}
 
 
 @router.get("/score")
@@ -76,16 +65,10 @@ async def get_segments():
     return [asdict(s) for s in state.segments]
 
 
-@router.get("/lots")
-async def get_lots():
-    _require_data()
-    return [asdict(lot) for lot in state.lots]
-
-
 @router.get("/trust")
 async def get_trust():
     if state.trust_index is None:
-        raise HTTPException(503, "Trust index não calculado.")
+        raise HTTPException(503, "Trust index nao calculado.")
     t = state.trust_index
     return {
         "score": t.score,
@@ -111,99 +94,133 @@ async def get_learning():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ANALYTICS (8)
+# MOLDIT ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-@router.get("/stock")
-async def get_stock_summary():
-    """Stock grid data — all SKUs with daily stock values."""
+@router.get("/moldes")
+async def get_moldes():
+    """List molds with progress and deadline."""
     _require_data()
-    if not state.stock_projections:
-        return []
+    data = state.engine_data
+    result = []
+    for m in data.moldes:
+        result.append({
+            "id": m.id,
+            "cliente": m.cliente,
+            "deadline": m.deadline,
+            "data_ensaio": m.data_ensaio,
+            "total_ops": m.total_ops,
+            "ops_concluidas": m.ops_concluidas,
+            "progresso": m.progresso,
+            "total_work_h": m.total_work_h,
+            "componentes": m.componentes,
+        })
+    return result
 
-    # Build op_id → (machine, tool) lookup from engine_data
-    op_info: dict[str, tuple[str, str]] = {}
-    if state.engine_data:
-        for op in state.engine_data.ops:
-            op_info[op.id] = (op.m, op.t)
 
-    # Detect non-workdays (weekends + holidays)
-    holidays = set(state.engine_data.holidays) if state.engine_data else set()
+@router.get("/moldes/{molde_id}")
+async def get_molde_detail(molde_id: str):
+    """Operations, segments, and critical path for a specific mold."""
+    _require_data()
+    data = state.engine_data
 
-    def _is_workday(date_str, day_idx):
-        if day_idx in holidays:
-            return False
-        # ISO date "YYYY-MM-DD" → weekday (5=Sat, 6=Sun)
-        import datetime as _dt
-        try:
-            dt = _dt.date.fromisoformat(date_str.split("T")[0])
-            return dt.weekday() < 5
-        except (ValueError, AttributeError):
-            return True
+    molde = next((m for m in data.moldes if m.id == molde_id), None)
+    if not molde:
+        raise HTTPException(404, f"Molde {molde_id} nao encontrado.")
 
-    return [
+    ops = [
         {
-            "op_id": p.op_id,
-            "sku": p.sku,
-            "client": p.client,
-            "machine": op_info.get(p.op_id, ("", ""))[0],
-            "tool": op_info.get(p.op_id, ("", ""))[1],
-            "initial_stock": p.initial_stock,
-            "stockout_day": p.stockout_day,
-            "coverage_days": p.coverage_days,
-            "total_demand": p.total_demand,
-            "total_produced": p.total_produced,
-            "days": [
-                {
-                    "day": d.day_idx,
-                    "date": d.date,
-                    "stock": d.stock,
-                    "demand": d.demand,
-                    "produced": d.produced,
-                    "workday": True if d.is_buffer else _is_workday(d.date, d.day_idx),
-                    "is_buffer": d.is_buffer,
-                }
-                for d in p.days
-            ],
+            "id": op.id,
+            "componente": op.componente,
+            "nome": op.nome,
+            "codigo": op.codigo,
+            "duracao_h": op.duracao_h,
+            "work_h": op.work_h,
+            "progresso": op.progresso,
+            "work_restante_h": op.work_restante_h,
+            "recurso": op.recurso,
+            "grupo_recurso": op.grupo_recurso,
+            "e_condicional": op.e_condicional,
+            "e_2a_placa": op.e_2a_placa,
+            "deadline_semana": op.deadline_semana,
+            "notas": op.notas,
         }
-        for p in state.stock_projections
+        for op in data.operacoes
+        if op.molde == molde_id
     ]
 
+    segs = [
+        asdict(s)
+        for s in state.segments
+        if s.molde == molde_id
+    ]
 
-@router.get("/stock/{sku}")
-async def get_stock_detail(sku: str):
-    """Full stock projection for a single SKU (with daily data)."""
+    # Critical path ops for this molde
+    cp_ops = [oid for oid in data.caminho_critico
+              if any(op.id == oid and op.molde == molde_id for op in data.operacoes)]
+
+    return {
+        "molde": asdict(molde) if hasattr(molde, '__dataclass_fields__') else {
+            "id": molde.id, "cliente": molde.cliente, "deadline": molde.deadline,
+            "progresso": molde.progresso, "total_work_h": molde.total_work_h,
+        },
+        "operacoes": ops,
+        "segmentos": segs,
+        "caminho_critico": cp_ops,
+    }
+
+
+@router.get("/timeline")
+async def get_timeline():
+    """Segments grouped by machine/day for Gantt chart."""
     _require_data()
-    if not state.stock_projections:
-        raise HTTPException(404, f"SKU {sku} não encontrado.")
-    proj = next((p for p in state.stock_projections if p.sku == sku), None)
-    if not proj:
-        raise HTTPException(404, f"SKU {sku} não encontrado.")
-    return asdict(proj)
+
+    by_machine: dict[str, list[dict]] = defaultdict(list)
+    for s in state.segments:
+        by_machine[s.maquina_id].append({
+            "op_id": s.op_id,
+            "molde": s.molde,
+            "dia": s.dia,
+            "inicio_h": s.inicio_h,
+            "fim_h": s.fim_h,
+            "duracao_h": s.duracao_h,
+            "setup_h": s.setup_h,
+            "e_2a_placa": s.e_2a_placa,
+            "e_continuacao": s.e_continuacao,
+        })
+
+    return {"timeline": dict(by_machine)}
 
 
-@router.get("/expedition")
-async def get_expedition():
+@router.get("/bottlenecks")
+async def get_bottlenecks():
+    """Top 5 machines by stress (total hours / capacity)."""
     _require_data()
-    if state.expedition is None:
-        raise HTTPException(503, "Expedição não calculada.")
-    return asdict(state.expedition)
+    from backend.scheduler.stress import compute_stress
+
+    machines = {m.id: m for m in state.engine_data.maquinas}
+    stress = compute_stress(state.segments, machines, state.config)
+
+    # Sort by stress_pct descending, take top 5
+    ranked = sorted(stress.items(), key=lambda kv: kv[1].get("stress_pct", 0), reverse=True)
+    top5 = [
+        {"maquina_id": mid, **metrics}
+        for mid, metrics in ranked[:5]
+    ]
+    return {"bottlenecks": top5}
 
 
-@router.get("/orders")
-async def get_orders():
-    _require_data()
-    if not state.order_tracking:
-        return []
-    return [asdict(co) for co in state.order_tracking]
+# ═══════════════════════════════════════════════════════════════════════════
+# ANALYTICS
+# ═══════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/coverage")
 async def get_coverage():
     _require_data()
     if state.coverage is None:
-        raise HTTPException(503, "Cobertura não calculada.")
+        raise HTTPException(503, "Cobertura nao calculada.")
     return asdict(state.coverage)
 
 
@@ -211,7 +228,7 @@ async def get_coverage():
 async def get_risk():
     _require_data()
     if state.risk_result is None:
-        raise HTTPException(503, "Risco não calculado.")
+        raise HTTPException(503, "Risco nao calculado.")
     return asdict(state.risk_result)
 
 
@@ -228,18 +245,12 @@ async def get_stress():
 async def get_late_deliveries():
     _require_data()
     if state.late_deliveries is None:
-        raise HTTPException(503, "Atrasos não calculados.")
+        raise HTTPException(503, "Atrasos nao calculados.")
     return asdict(state.late_deliveries)
 
 
-@router.get("/workforce")
-async def get_workforce(window: int = 10):
-    """Workforce forecast (computed on-demand, not cached)."""
-    raise HTTPException(501, detail="Not implemented for Moldit")
-
-
 # ═══════════════════════════════════════════════════════════════════════════
-# CONFIG / MASTER DATA (3)
+# CONFIG / MASTER DATA
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -263,64 +274,57 @@ async def get_config():
         ],
         "day_capacity_min": c.day_capacity_min,
         "machines": {
-            mid: {"group": m.group, "active": m.active}
+            mid: {
+                "group": m.group, "active": m.active,
+                "regime_h": m.regime_h, "setup_h": m.setup_h,
+            }
             for mid, m in c.machines.items()
         },
-        "tools": {
-            tid: (
-                {"primary": t.get("primary", ""), "alt": t.get("alt"), "setup_hours": t.get("setup_hours", 0.5)}
-                if isinstance(t, dict) else
-                {"primary": t.primary, "alt": t.alt, "setup_hours": t.setup_hours}
-            )
-            for tid, t in c.tools.items()
+        "operators": {
+            f"{k[0]} {k[1]}" if isinstance(k, tuple) else str(k): v
+            for k, v in c.operators.items()
         },
-        "twins": (
-            [{"tool_id": tid, "sku_a": skus[0], "sku_b": skus[1]} for tid, skus in c.twins.items()]
-            if isinstance(c.twins, dict) else
-            [{"tool_id": tw.tool_id, "sku_a": tw.sku_a, "sku_b": tw.sku_b} for tw in c.twins]
-        ),
-        "operators": {f"{k[0]} {k[1]}" if isinstance(k, tuple) else str(k): v for k, v in c.operators.items()},
         "holidays": [str(h) for h in c.holidays],
-        # Tunables
+        # Scheduler weights
+        "weight_makespan": c.weight_makespan,
+        "weight_deadline_compliance": c.weight_deadline_compliance,
+        "weight_setups": c.weight_setups,
+        "weight_balance": c.weight_balance,
+        # Risk
         "oee_default": c.oee_default,
-        "jit_enabled": c.jit_enabled,
-        "jit_buffer_pct": c.jit_buffer_pct,
-        "jit_threshold": c.jit_threshold,
+        # Scheduler tunables
         "max_run_days": c.max_run_days,
         "max_edd_gap": c.max_edd_gap,
         "edd_swap_tolerance": c.edd_swap_tolerance,
-        "campaign_window": c.campaign_window,
         "urgency_threshold": c.urgency_threshold,
-        "interleave_enabled": c.interleave_enabled,
-        "weight_earliness": c.weight_earliness,
-        "weight_setups": c.weight_setups,
-        "weight_balance": c.weight_balance,
-        "eco_lot_mode": c.eco_lot_mode,
+        "vns_enabled": c.vns_enabled,
     }
 
 
 @router.get("/ops")
 async def get_ops():
+    """Return all operations (Moldit Operacao fields)."""
     _require_data()
     return [
         {
             "id": op.id,
-            "sku": op.sku,
-            "client": op.client,
-            "designation": op.designation,
-            "machine": op.m,
-            "tool": op.t,
-            "alt_machine": op.alt,
-            "pcs_hour": op.pH,
-            "setup_hours": op.sH,
-            "eco_lot": op.eco_lot,
-            "stock": op.stk,
-            "oee": op.oee,
-            "backlog": op.backlog,
-            "operators": op.operators,
-            "demand": op.d,
+            "molde": op.molde,
+            "componente": op.componente,
+            "nome": op.nome,
+            "codigo": op.codigo,
+            "nome_completo": op.nome_completo,
+            "duracao_h": op.duracao_h,
+            "work_h": op.work_h,
+            "progresso": op.progresso,
+            "work_restante_h": op.work_restante_h,
+            "recurso": op.recurso,
+            "grupo_recurso": op.grupo_recurso,
+            "e_condicional": op.e_condicional,
+            "e_2a_placa": op.e_2a_placa,
+            "deadline_semana": op.deadline_semana,
+            "notas": op.notas,
         }
-        for op in state.engine_data.ops
+        for op in state.engine_data.operacoes
     ]
 
 
@@ -335,10 +339,10 @@ async def update_config(updates: dict):
     _require_config()
 
     tunables = [
-        "oee_default", "jit_enabled", "jit_buffer_pct", "jit_threshold",
-        "max_run_days", "max_edd_gap", "edd_swap_tolerance", "campaign_window",
-        "urgency_threshold", "interleave_enabled", "weight_earliness",
-        "weight_setups", "weight_balance", "eco_lot_mode",
+        "oee_default", "max_run_days", "max_edd_gap", "edd_swap_tolerance",
+        "urgency_threshold", "vns_enabled", "vns_max_iter",
+        "weight_makespan", "weight_deadline_compliance",
+        "weight_setups", "weight_balance",
     ]
     c = state.config
     changed = []
@@ -366,7 +370,7 @@ async def update_config(updates: dict):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ACTIONS (3)
+# ACTIONS
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -418,7 +422,7 @@ async def simulate_and_apply(request: SimulateRequest):
         "score_previous": old_score,
         "summary": result.summary,
         "n_segments_before": old_n,
-        "n_segments_after": len(result.segments),
+        "n_segments_after": len(result.segmentos),
         "time_ms": result.time_ms,
         "can_revert": True,
     }
@@ -442,28 +446,25 @@ async def can_revert():
 
 
 class CTPRequest(BaseModel):
-    sku: str
-    qty: int
-    deadline: int
+    molde_id: str
+    target_week: str
 
 
 @router.post("/ctp")
 async def check_ctp(request: CTPRequest):
     _require_data()
-    from backend.analytics.ctp import compute_ctp
+    from backend.analytics.ctp import compute_ctp_molde
 
-    result = compute_ctp(
-        request.sku, request.qty, request.deadline,
+    result = compute_ctp_molde(
+        request.molde_id, request.target_week,
         state.segments, state.engine_data, config=state.config,
     )
     return {
-        "sku": result.sku,
-        "qty_requested": result.qty_requested,
+        "molde_id": result.molde_id,
+        "target_week": result.target_week,
         "feasible": result.feasible,
-        "latest_day": result.latest_day,
-        "machine": result.machine,
-        "confidence": result.confidence,
-        "slack_min": result.slack_min,
+        "slack_dias": result.slack_dias,
+        "dias_extra": result.dias_extra,
         "reason": result.reason,
     }
 
@@ -488,7 +489,7 @@ async def recalculate():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# UPLOAD (1)
+# UPLOAD
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -497,12 +498,45 @@ async def load_project_upload(
     file: UploadFile,
     config_path: str = "config/factory.yaml",
 ):
-    """Load project plan from uploaded file (multipart/form-data)."""
-    raise HTTPException(501, detail="Not implemented for Moldit")
+    """Load project plan from uploaded .mpp, transform, schedule, respond."""
+    import tempfile
+    from pathlib import Path
+
+    from backend.config.loader import load_config
+    from backend.scheduler.scheduler import schedule_all
+    from backend.transform.transform import transform_mpp
+
+    suffix = Path(file.filename or "plan.mpp").suffix
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        config = load_config(config_path)
+        state.config = config
+        engine_data = transform_mpp(tmp_path, config)
+        state.engine_data = engine_data
+
+        result = schedule_all(engine_data, audit=True, config=config)
+        state.update_schedule(result)
+
+        return {
+            "status": "ok",
+            "n_operacoes": len(engine_data.operacoes),
+            "n_moldes": len(engine_data.moldes),
+            "n_maquinas": len(engine_data.maquinas),
+            "n_segmentos": len(result.segmentos),
+            "score": result.score,
+            "warnings": result.warnings[:10],
+        }
+    finally:
+        import os
+        os.unlink(tmp_path)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# MASTER DATA MUTATIONS (8)
+# MASTER DATA MUTATIONS
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -522,14 +556,6 @@ async def edit_machine(mid: str, body: dict):
     return _exec_result(exec_editar_maquina(body))
 
 
-@router.put("/tools/{tid}")
-async def edit_tool(tid: str, body: dict):
-    """Edit tool setup_hours or alt machine."""
-    _require_data()
-    body["id"] = tid
-    return _exec_result(exec_editar_ferramenta(body))
-
-
 @router.put("/operators")
 async def update_operators(body: dict):
     """Batch update operator counts. Body: { "Grandes A": 6, ... }"""
@@ -546,7 +572,7 @@ async def update_operators(body: dict):
             state.config.operators[key] = int(count)
             changed.append(key)
         else:
-            # Try tuple key format: "Grandes A" → ("Grandes", "A")
+            # Try tuple key format: "Grandes A" -> ("Grandes", "A")
             parts = key.split()
             if len(parts) == 2:
                 tkey = (parts[0], parts[1])
@@ -570,7 +596,7 @@ async def add_holiday(body: dict):
     _require_data()
     date = body.get("data", "")
     if not date:
-        raise HTTPException(400, "Campo 'data' obrigatório.")
+        raise HTTPException(400, "Campo 'data' obrigatorio.")
     return _exec_result(exec_adicionar_feriado({"data": date}))
 
 
@@ -581,26 +607,9 @@ async def remove_holiday(date: str):
     return _exec_result(exec_remover_feriado({"data": date}))
 
 
-@router.post("/twins")
-async def add_twin(body: dict):
-    """Add a twin pair. Body: { "tool_id": "...", "sku_a": "...", "sku_b": "..." }"""
-    _require_data()
-    for field in ("tool_id", "sku_a", "sku_b"):
-        if field not in body:
-            raise HTTPException(400, f"Campo '{field}' obrigatório.")
-    return _exec_result(exec_adicionar_twin(body))
-
-
-@router.delete("/twins/{tool_id}")
-async def remove_twin(tool_id: str):
-    """Remove a twin pair by tool_id."""
-    _require_data()
-    return _exec_result(exec_remover_twin({"tool_id": tool_id}))
-
-
 @router.post("/presets/{name}")
 async def apply_preset_endpoint(name: str):
-    """Apply a named config preset (urgente, equilibrado, min_setups, max_otd)."""
+    """Apply a named config preset (rapido, equilibrado, min_setups, balanceado)."""
     _require_config()
     from backend.config.presets import get_preset
 

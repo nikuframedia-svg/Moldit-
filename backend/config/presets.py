@@ -1,6 +1,7 @@
-"""Policy presets — Spec 12 §7.
+"""Policy presets — Moldit Planner.
 
 Named config profiles for common scheduling scenarios.
+4 presets with Moldit scoring weights.
 """
 
 from __future__ import annotations
@@ -10,23 +11,29 @@ import copy
 from backend.config.types import FactoryConfig
 
 PRESETS: dict[str, dict] = {
-    "urgente": {
-        "jit_enabled": False,
-        "urgency_threshold": 2,
-        "interleave_enabled": True,
-        "lst_safety_buffer": 0,
+    "rapido": {
+        "weight_deadline_compliance": 0.60,
+        "weight_makespan": 0.25,
+        "weight_setups": 0.05,
+        "weight_balance": 0.10,
     },
-    "equilibrado": {},  # factory defaults
+    "equilibrado": {
+        "weight_deadline_compliance": 0.35,
+        "weight_makespan": 0.35,
+        "weight_setups": 0.15,
+        "weight_balance": 0.15,
+    },
     "min_setups": {
-        "campaign_window": 30,
-        "max_edd_gap": 15,
-        "edd_swap_tolerance": 10,
+        "weight_setups": 0.50,
+        "weight_makespan": 0.20,
+        "weight_deadline_compliance": 0.20,
+        "weight_balance": 0.10,
     },
-    "max_otd": {
-        "jit_enabled": True,
-        "jit_threshold": 80.0,
-        "lst_safety_buffer": 3,
-        "urgency_threshold": 3,
+    "balanceado": {
+        "weight_balance": 0.45,
+        "weight_makespan": 0.25,
+        "weight_deadline_compliance": 0.20,
+        "weight_setups": 0.10,
     },
 }
 
@@ -39,7 +46,7 @@ def list_presets() -> list[str]:
 def get_preset(name: str) -> dict:
     """Return override dict for a preset. Raises KeyError if unknown."""
     if name not in PRESETS:
-        raise KeyError(f"Preset desconhecido: {name!r}. Disponíveis: {list_presets()}")
+        raise KeyError(f"Preset desconhecido: {name!r}. Disponiveis: {list_presets()}")
     return PRESETS[name].copy()
 
 
@@ -49,6 +56,6 @@ def apply_preset(config: FactoryConfig, name: str) -> FactoryConfig:
     result = copy.copy(config)
     for key, value in overrides.items():
         if not hasattr(result, key):
-            raise KeyError(f"FactoryConfig não tem atributo {key!r}")
+            raise KeyError(f"FactoryConfig nao tem atributo {key!r}")
         setattr(result, key, value)
     return result
