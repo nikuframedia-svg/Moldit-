@@ -155,8 +155,10 @@ export interface ChatResponse {
 
 export interface LoadResponse {
   status: string;
-  n_ops: number;
-  n_segments: number;
+  n_operacoes: number;
+  n_moldes: number;
+  n_maquinas: number;
+  n_segmentos: number;
   score: ScoreMoldit;
-  time_ms: number;
+  warnings: string[];
 }

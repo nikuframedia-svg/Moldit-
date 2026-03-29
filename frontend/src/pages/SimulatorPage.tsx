@@ -174,7 +174,7 @@ export function SimulatorPage() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>Simulador de Cenarios</span>
-          <button onClick={addMutation} style={{ ...btnStyle, background: T.elevated, color: T.blue, border: `0.5px solid ${T.border}` }}>
+          <button data-testid="btn-add-mutation" onClick={addMutation} style={{ ...btnStyle, background: T.elevated, color: T.blue, border: `0.5px solid ${T.border}` }}>
             + Adicionar Mutacao
           </button>
         </div>
@@ -228,6 +228,7 @@ export function SimulatorPage() {
 
         <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
           <button
+            data-testid="btn-simulate"
             onClick={runSimulation}
             disabled={loading || mutations.filter((m) => m.type).length === 0}
             style={{
@@ -276,6 +277,7 @@ export function SimulatorPage() {
             style={{ ...inputStyle, width: 200 }}
           />
           <button
+            data-testid="btn-ctp"
             onClick={runCTP}
             disabled={ctpLoading || !ctpMolde}
             style={{ ...btnStyle, opacity: ctpLoading || !ctpMolde ? 0.5 : 1 }}

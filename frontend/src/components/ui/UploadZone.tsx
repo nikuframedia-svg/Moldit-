@@ -51,6 +51,7 @@ export function UploadZone() {
       }}
     >
       <div
+        data-testid="upload-zone"
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}

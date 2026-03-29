@@ -39,6 +39,7 @@ export function Sidebar() {
           return (
             <button
               key={n.id}
+              data-testid={`nav-${n.id}`}
               onClick={() => setPage(n.id)}
               style={{
                 background: active ? "rgba(255,255,255,0.06)" : "transparent",

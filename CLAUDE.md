@@ -3,13 +3,14 @@
 Scheduler de produção para fábricas de moldes de injeção.
 Forked de INCOMPOLINHO (APS stamping factory scheduler).
 
-## Status: Phase 5 (API Cleanup + Moldit Endpoints)
+## Status: Phase 6 (Testing & Quality)
 
 Phase 1: Fork & cleanup (Incompol modules removed).
 Phase 2: Moldit types, transform, guardian, config.
 Phase 3: Greedy forward scheduler (dispatch, scoring, pipeline).
 Phase 4: CPO optimizer, VNS, simulator, risk, analytics (CTP, late delivery, replan).
 Phase 5: Eliminated all Incompol references (.sku, .pH, .sH, .eco_lot, .oee). New Moldit API endpoints (/moldes, /timeline, /bottlenecks). Rewrote presets, coverage audit, trust index, console modules.
+Phase 6: Added python-multipart dep, fixed transform_mpp->transform import in upload endpoint, .mpp validation + error handling, aligned LoadResponse types, data-testid attributes, test fixture script, upload integration tests, Playwright config + e2e scaffold.
 
 ## Architecture
 
@@ -58,6 +59,33 @@ Python 3.12+, FastAPI, OR-Tools (CP-SAT), openpyxl, jpype1/mpxj (MPP parser), Re
 - `backend/analytics/ctp.py` — CTP per molde (compute_ctp_molde)
 - `backend/analytics/late_delivery.py` — Late delivery root cause analysis
 - `backend/analytics/replan_proposals.py` — Replan proposals (move_to_alt, extend_regime, resequence)
+
+## Testing
+
+### Backend
+```bash
+python -m pytest tests/ -v --tb=short
+ruff check backend/ tests/ scripts/
+```
+
+### Test fixture
+```bash
+python scripts/create_test_fixture.py          # generates data/test_fixture.mpp
+python -m pytest tests/test_upload_flow.py -v   # upload integration test
+```
+
+### Frontend E2E (Playwright)
+```bash
+cd frontend && npx playwright test
+```
+
+## data-testid Attributes
+
+- `upload-zone` — UploadZone drop area
+- `nav-{id}` — Sidebar nav buttons (console, gantt, deadlines, risk, sim, config, journal)
+- `kpi-strip`, `kpi-makespan`, `kpi-compliance`, `kpi-setups`, `kpi-balance` — ConsolePage KPIs
+- `gantt-container` — GanttPage root
+- `btn-add-mutation`, `btn-simulate`, `btn-ctp` — SimulatorPage buttons
 
 ## Commands
 

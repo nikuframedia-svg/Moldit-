@@ -6,12 +6,14 @@ interface Props {
   style?: CSSProperties;
   onClick?: () => void;
   hoverable?: boolean;
+  "data-testid"?: string;
 }
 
-export function Card({ children, style, onClick, hoverable = false }: Props) {
+export function Card({ children, style, onClick, hoverable = false, "data-testid": testId }: Props) {
   const [hovered, setH] = useState(false);
   return (
     <div
+      data-testid={testId}
       onClick={onClick}
       onMouseEnter={() => hoverable && setH(true)}
       onMouseLeave={() => hoverable && setH(false)}

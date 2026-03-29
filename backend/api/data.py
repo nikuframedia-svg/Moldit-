@@ -504,18 +504,24 @@ async def load_project_upload(
 
     from backend.config.loader import load_config
     from backend.scheduler.scheduler import schedule_all
-    from backend.transform.transform import transform_mpp
+    from backend.transform.transform import transform
 
-    suffix = Path(file.filename or "plan.mpp").suffix
+    fname = file.filename or "plan.mpp"
+    suffix = Path(fname).suffix.lower()
+    if suffix != ".mpp":
+        raise HTTPException(400, f"Formato invalido: {suffix}. Apenas .mpp e aceite.")
+
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         content = await file.read()
+        if len(content) == 0:
+            raise HTTPException(400, "Ficheiro vazio.")
         tmp.write(content)
         tmp_path = tmp.name
 
     try:
         config = load_config(config_path)
         state.config = config
-        engine_data = transform_mpp(tmp_path, config)
+        engine_data = transform(tmp_path, config)
         state.engine_data = engine_data
 
         result = schedule_all(engine_data, audit=True, config=config)
@@ -530,6 +536,11 @@ async def load_project_upload(
             "score": result.score,
             "warnings": result.warnings[:10],
         }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Erro ao processar ficheiro MPP")
+        raise HTTPException(422, f"Erro ao processar MPP: {exc}") from exc
     finally:
         import os
         os.unlink(tmp_path)

@@ -51,28 +51,28 @@ export function ConsolePage() {
       )}
 
       {/* KPI Strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-        <Card style={{ padding: 16 }}>
+      <div data-testid="kpi-strip" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <Card style={{ padding: 16 }} data-testid="kpi-makespan">
           <Label>Makespan</Label>
           <div style={{ marginTop: 8, display: "flex", alignItems: "baseline", gap: 3 }}>
             <Num size={28} color={T.primary}>{score.makespan_total_dias}</Num>
             <span style={{ fontSize: 13, color: T.tertiary, fontWeight: 500 }}>dias</span>
           </div>
         </Card>
-        <Card style={{ padding: 16 }}>
+        <Card style={{ padding: 16 }} data-testid="kpi-compliance">
           <Label>Compliance</Label>
           <div style={{ marginTop: 8, display: "flex", alignItems: "baseline", gap: 3 }}>
             <Num size={28} color={complianceColor}>{score.deadline_compliance?.toFixed(1)}</Num>
             <span style={{ fontSize: 13, color: T.tertiary, fontWeight: 500 }}>%</span>
           </div>
         </Card>
-        <Card style={{ padding: 16 }}>
+        <Card style={{ padding: 16 }} data-testid="kpi-setups">
           <Label>Setups</Label>
           <div style={{ marginTop: 8 }}>
             <Num size={28} color={T.primary}>{score.total_setups}</Num>
           </div>
         </Card>
-        <Card style={{ padding: 16 }}>
+        <Card style={{ padding: 16 }} data-testid="kpi-balance">
           <Label>Balanceamento</Label>
           <div style={{ marginTop: 8 }}>
             <Num size={28} color={score.utilization_balance < 0.15 ? T.green : T.orange}>

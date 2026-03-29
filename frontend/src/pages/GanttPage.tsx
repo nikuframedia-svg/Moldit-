@@ -72,7 +72,7 @@ export function GanttPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div data-testid="gantt-container" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Score banner */}
       {score && (
         <div style={{ display: "flex", gap: 16, alignItems: "center", padding: "8px 0" }}>
