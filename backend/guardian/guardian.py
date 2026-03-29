@@ -237,6 +237,10 @@ def validate_output(
             op_start[seg.op_id] = key
 
     for dep in data.dependencias:
+        # Skip violations where predecessor is conditional
+        pred_op = op_map.get(dep.predecessor_id)
+        if pred_op is not None and pred_op.e_condicional:
+            continue
         pred_end = op_end.get(dep.predecessor_id)
         succ_start = op_start.get(dep.sucessor_id)
         if pred_end is not None and succ_start is not None:

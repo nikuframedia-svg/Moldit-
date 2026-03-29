@@ -159,7 +159,6 @@ class TestValidation:
 # -- Scheduler with config (Phase 3) --
 
 
-@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 3")
 class TestSchedulerWithConfig:
     def test_default_config_same_as_no_config(self):
         from backend.scheduler.scheduler import schedule_all

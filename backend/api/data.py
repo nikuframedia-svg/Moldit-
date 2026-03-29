@@ -218,16 +218,10 @@ async def get_risk():
 @router.get("/stress")
 async def get_stress():
     _require_data()
-    from backend.scheduler.stress import (
-        compute_stress_map, stress_summary, stress_recommendations,
-    )
-    smap = state.stress_map or compute_stress_map(
-        state.segments, state.lots, state.engine_data.n_days,
-        n_holidays=len(getattr(state.engine_data, 'holidays', []) or []),
-    )
-    summary = stress_summary(smap)
-    recs = stress_recommendations(smap, state.lots, state.segments)
-    return {"summary": summary, "recommendations": recs}
+    from backend.scheduler.stress import compute_stress
+    machines = {m.id: m for m in state.engine_data.maquinas}
+    stress = compute_stress(state.segments, machines, state.config)
+    return {"stress": stress}
 
 
 @router.get("/late")
@@ -477,10 +471,10 @@ async def check_ctp(request: CTPRequest):
 @router.post("/recalculate")
 async def recalculate():
     _require_data()
-    from backend.cpo import optimize
+    from backend.scheduler.scheduler import schedule_all
 
     old_score = dict(state.score) if state.score else {}
-    result = optimize(state.engine_data, mode="quick", audit=True, config=state.config)
+    result = schedule_all(state.engine_data, audit=True, config=state.config)
     state.update_schedule(result)
 
     return {
@@ -488,7 +482,7 @@ async def recalculate():
         "score": result.score,
         "score_previous": old_score,
         "time_ms": result.time_ms,
-        "n_segments": len(result.segments),
+        "n_segments": len(result.segmentos),
         "warnings": result.warnings[:10],
     }
 

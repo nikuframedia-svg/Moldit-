@@ -3,11 +3,11 @@
 Scheduler de produção para fábricas de moldes de injeção.
 Forked de INCOMPOLINHO (APS stamping factory scheduler).
 
-## Status: Phase 1 (Fork & Cleanup)
+## Status: Phase 3 (Greedy Scheduler)
 
-Incompol-specific modules removed (lot_sizing, tool_grouping, jit, ISOP parser).
-Core scheduling infrastructure preserved but stubbed with NotImplementedError.
-Moldit-specific logic to be implemented in Phase 2.
+Phase 1: Fork & cleanup (Incompol modules removed).
+Phase 2: Moldit types, transform, guardian, config.
+Phase 3: Greedy forward scheduler (dispatch, scoring, pipeline).
 
 ## Architecture
 
@@ -20,25 +20,22 @@ Moldit-specific logic to be implemented in Phase 2.
 
 Python 3.12+, FastAPI, OR-Tools (CP-SAT), openpyxl, jpype1/mpxj (MPP parser), React 19, TypeScript, Vite, Zustand
 
-## Working Modules (Phase 1)
+## Working Modules (Phase 3)
 
-- `backend/scheduler/dispatch.py` — Machine assignment + sequencing
-- `backend/scheduler/scoring.py` — KPI computation
-- `backend/scheduler/types.py` — Data structures (Lot, Segment, ToolRun, ScheduleResult)
+- `backend/scheduler/dispatch.py` — Priority queue, machine assignment, timeline dispatch
+- `backend/scheduler/scoring.py` — KPI computation (makespan, compliance, utilization, balance)
+- `backend/scheduler/scheduler.py` — schedule_all() pipeline (validate → prioritize → assign → dispatch → score)
+- `backend/scheduler/stress.py` — Per-machine stress analysis
+- `backend/scheduler/types.py` — SegmentoMoldit, ScheduleResult, OperatorAlert
 - `backend/guardian/` — Input/output validation
-- `backend/simulator/` — What-if simulation (stubbed pending scheduler)
-- `backend/cpo/population.py` — GA population management (MAP-Elites)
-- `backend/cpo/surrogate.py` — Fast fitness approximation
-- `backend/journal/` — Event journal
-- `backend/audit/` — Audit logging
-- `backend/risk/` — Monte Carlo simulation
+- `backend/transform/transform.py` — MPP parser + enrichment
+- `backend/config/` — Factory YAML loader + types
 
-## Stubbed Modules (Phase 2)
+## Stubbed Modules (Phase 4+)
 
-- `backend/scheduler/scheduler.py` — schedule_all() → NotImplementedError
 - `backend/cpo/optimizer.py` — optimize() → NotImplementedError
-- `backend/transform/transform.py` — transform() → NotImplementedError
 - `backend/scheduler/vns.py` — vns_polish() → NotImplementedError
+- `backend/simulator/` — What-if simulation (stubbed pending optimizer)
 
 ## Commands
 
