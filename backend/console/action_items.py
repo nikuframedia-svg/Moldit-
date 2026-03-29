@@ -10,8 +10,14 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from backend.config.types import FactoryConfig
-from backend.scheduler.types import Lot, Segment
-from backend.types import EngineData
+from backend.scheduler.types import SegmentoMoldit as Segment
+
+
+from backend.types import MolditEngineData as EngineData
+
+
+class Lot:  # noqa: D101
+    """Legacy stub — removed in Phase 2."""
 
 
 @dataclass

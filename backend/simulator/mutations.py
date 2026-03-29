@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 
 from backend.config.types import FactoryConfig, ShiftConfig
-from backend.types import EngineData
+from backend.types import MolditEngineData as EngineData
 
 logger = logging.getLogger(__name__)
 

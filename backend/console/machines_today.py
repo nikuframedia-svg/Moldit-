@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from backend.config.loader import _min_to_time
 from backend.config.types import FactoryConfig
-from backend.scheduler.types import Segment
-from backend.types import EngineData
+from backend.scheduler.types import SegmentoMoldit as Segment
+from backend.types import MolditEngineData as EngineData
 
 
 def _get_client(seg: Segment, engine_data: EngineData) -> str:

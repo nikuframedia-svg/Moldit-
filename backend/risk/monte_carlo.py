@@ -10,7 +10,7 @@ import copy
 import math
 from typing import Any, Callable
 
-from backend.types import EngineData
+from backend.types import MolditEngineData as EngineData
 
 # Distribution parameters for Incompol (metal stamping)
 OEE_ALPHA = 10.6          # Beta(10.6, 5.5) → mean ≈ 0.66

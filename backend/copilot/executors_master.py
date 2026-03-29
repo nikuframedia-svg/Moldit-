@@ -12,7 +12,13 @@ import logging
 from backend.config.loader import _parse_time, save_config
 from backend.config.types import MachineConfig, ShiftConfig
 from backend.copilot.state import state
-from backend.types import MachineInfo, TwinGroup
+from backend.types import Maquina as MachineInfo
+
+
+class TwinGroup:  # noqa: D101 — legacy stub, removed in Phase 2
+    def __init__(self, **kwargs):  # type: ignore[no-untyped-def]
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 logger = logging.getLogger(__name__)
 

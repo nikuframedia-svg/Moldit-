@@ -9,8 +9,8 @@ from collections import defaultdict
 
 from backend.config.types import FactoryConfig
 from backend.scheduler.constants import DAY_CAP
-from backend.scheduler.types import Segment
-from backend.types import EngineData
+from backend.scheduler.types import SegmentoMoldit as Segment
+from backend.types import MolditEngineData as EngineData
 
 from .types import HeatmapCell, LotRisk
 

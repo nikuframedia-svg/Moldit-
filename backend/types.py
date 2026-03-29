@@ -1,99 +1,79 @@
-# LEGACY INCOMPOL TYPES — DO NOT USE. Will be replaced in Phase 2 with Moldit types.
-"""Core types."""
+"""Moldit Planner — Core Types.
 
+Central data contract for the mold production scheduler.
+All modules import from here.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
-class RawRow:
-    """Raw row extracted from project plan."""
-
-    client_id: str  # "210020"
-    client_name: str  # "FAURECIA"
-    sku: str  # "1064169X100"
-    designation: str
-    eco_lot: int  # HARD: produzir sempre este mínimo (0=sem)
-    machine_id: str  # "PRM031"
-    tool_id: str  # "BFP079"
-    pieces_per_hour: float  # 1681.0
-    operators: int  # 1
-    wip: int
-    backlog: int
-    twin_ref: str  # SKU da gémea (vazio se coluna não existe)
-    np_values: list[int]  # positivo=stock, negativo=encomenda, 0=vazio
-
-
-@dataclass(slots=True)
-class EOp:
-    """Engine operation — the unified representation after transform."""
-
-    id: str  # "{tool}_{machine}_{sku}"
-    sku: str
-    client: str  # "FAURECIA, FAUR-SIEGE, FAUREC. CZ"
-    designation: str
-    m: str  # machine_id
-    t: str  # tool_id
-    pH: float  # noqa: N815
-    sH: float  # setup hours (default 0.5)  # noqa: N815
-    operators: int
-    eco_lot: int  # HARD (0=sem)
-    alt: str | None  # máquina alternativa
-    stk: int  # stock real
-    backlog: int
-    d: list[int]  # demanda/dia: |NP neg|, 0 nos outros
-    oee: float  # 0.66
-    wip: int
+class Operacao:
+    """A single operation from the MPP plan."""
+    id: int
+    molde: str
+    componente: str
+    nome: str
+    codigo: str
+    nome_completo: str
+    duracao_h: float
+    work_h: float
+    progresso: float  # 0.0–100.0
+    work_restante_h: float
+    data_inicio: str | None = None
+    data_fim: str | None = None
+    recurso: str | None = None
+    grupo_recurso: str | None = None
+    e_condicional: bool = False
+    e_2a_placa: bool = False
+    deadline_semana: str | None = None
+    notas: str | None = None
 
 
 @dataclass(slots=True)
-class TwinGroup:
-    """Twin pair — two SKUs produced simultaneously on the same tool+machine."""
-
-    tool_id: str
-    machine_id: str
-    op_id_1: str
-    op_id_2: str
-    sku_1: str
-    sku_2: str
-    eco_lot_1: int
-    eco_lot_2: int
-
-
-@dataclass(slots=True)
-class ClientDemandEntry:
-    """Original client demand (before merge), for expedição view."""
-
-    client: str
-    sku: str
-    day_idx: int
-    date: str  # "2026-03-05"
-    order_qty: int  # encomenda real (>= |NP|)
-    np_value: int  # NP original (negativo)
-
-
-@dataclass(slots=True)
-class MachineInfo:
-    """Machine definition."""
-
+class Molde:
+    """A mold (project) being produced."""
     id: str
-    group: str  # "Grandes" ou "Medias"
-    day_capacity: int  # 1020
+    cliente: str
+    deadline: str
+    data_ensaio: str | None = None
+    componentes: list[str] = field(default_factory=list)
+    total_ops: int = 0
+    ops_concluidas: int = 0
+    progresso: float = 0.0
+    total_work_h: float = 0.0
 
 
 @dataclass(slots=True)
-class EngineData:
-    """Complete data contract for the scheduler."""
+class Maquina:
+    """A machine or work station."""
+    id: str
+    grupo: str
+    regime_h: int = 16  # 8, 16, 24 (0 = infinite/external)
+    e_externo: bool = False
+    setup_h: float = 1.0
 
-    ops: list[EOp]
-    machines: list[MachineInfo]
-    twin_groups: list[TwinGroup]
-    client_demands: dict[str, list[ClientDemandEntry]]
-    workdays: list[str]
-    n_days: int
-    holidays: list[int] = field(default_factory=list)
-    # Per-machine blocked days (for machine_down simulation)
-    machine_blocked_days: dict[str, set[int]] = field(default_factory=dict)
-    # Per-tool blocked days (for tool_down simulation)
-    tool_blocked_days: dict[str, set[int]] = field(default_factory=dict)
+
+@dataclass(slots=True)
+class Dependencia:
+    """A precedence dependency between operations."""
+    predecessor_id: int
+    sucessor_id: int
+    tipo: str = "FS"
+    lag: int = 0
+
+
+@dataclass
+class MolditEngineData:
+    """Complete input data for the Moldit scheduler."""
+    operacoes: list[Operacao] = field(default_factory=list)
+    maquinas: list[Maquina] = field(default_factory=list)
+    moldes: list[Molde] = field(default_factory=list)
+    dependencias: list[Dependencia] = field(default_factory=list)
+    compatibilidade: dict[str, list[str]] = field(default_factory=dict)
+    dag: dict[int, list[int]] = field(default_factory=dict)
+    dag_reverso: dict[int, list[int]] = field(default_factory=dict)
+    caminho_critico: list[int] = field(default_factory=list)
+    feriados: list[str] = field(default_factory=list)
+    data_referencia: str = ""

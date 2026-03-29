@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from backend.config.types import FactoryConfig
 from backend.scheduler.constants import DAY_CAP, DEFAULT_OEE
-from backend.types import EngineData
+from backend.types import MolditEngineData as EngineData
 
 from .types import ISContext
 

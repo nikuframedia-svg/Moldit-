@@ -6,8 +6,14 @@ Grouped by client. Status clear.
 from __future__ import annotations
 
 
-from backend.scheduler.types import Lot, Segment
-from backend.types import EngineData
+from backend.scheduler.types import SegmentoMoldit as Segment
+
+
+from backend.types import MolditEngineData as EngineData
+
+
+class Lot:  # noqa: D101
+    """Legacy stub — removed in Phase 2."""
 
 
 def _estimate_eta(

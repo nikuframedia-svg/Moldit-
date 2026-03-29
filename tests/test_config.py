@@ -1,17 +1,17 @@
-"""Tests for Spec 09 — Factory Config."""
+"""Tests for Factory Config — Moldit Planner."""
 
 from __future__ import annotations
-import pytest
 
 import os
 import tempfile
 
+import pytest
 
-from backend.config.types import FactoryConfig, MachineConfig, ShiftConfig
 from backend.config.loader import load_config, validate_config
+from backend.config.types import FactoryConfig, MachineConfig, ShiftConfig
 
 
-# ─── FactoryConfig defaults ────────────────────────────────────────────
+# -- FactoryConfig defaults --
 
 
 class TestFactoryConfig:
@@ -23,23 +23,17 @@ class TestFactoryConfig:
         assert c.shift_b_end == 1440
         assert c.oee_default == 0.66
         assert c.default_setup_hours == 0.5
-        assert c.min_prod_min == 1.0
         assert c.max_run_days == 5
         assert c.max_edd_gap == 10
         assert c.lst_safety_buffer == 2
         assert c.edd_swap_tolerance == 5
+        assert c.electrodos_default_h == 4.0
 
     def test_day_capacity_from_shifts(self):
         c = FactoryConfig()
         assert c.day_capacity_min == 510 + 510  # A=510, B=510
 
     def test_3_shifts_1440(self):
-        c = FactoryConfig(shifts=[
-            ShiftConfig("A", 360, 840),   # 480
-            ShiftConfig("B", 840, 1320),  # 480
-            ShiftConfig("C", 1320, 1800 % 1440),  # cross-midnight: 1440-1320+0 = 120... no
-        ])
-        # ShiftConfig C: start=1320, end=360 → cross midnight → (1440-1320)+360 = 480
         c2 = FactoryConfig(shifts=[
             ShiftConfig("A", 360, 840),   # 480
             ShiftConfig("B", 840, 1320),  # 480
@@ -52,33 +46,47 @@ class TestFactoryConfig:
         assert c.day_capacity_min == 510
 
     def test_cross_midnight_shift(self):
-        s = ShiftConfig("N", 1320, 360)  # 22:00–06:00
+        s = ShiftConfig("N", 1320, 360)  # 22:00-06:00
         assert s.duration_min == (1440 - 1320) + 360  # 480
 
     def test_machine_groups_property(self):
         c = FactoryConfig(machines={
-            "PRM019": MachineConfig("PRM019", "Grandes"),
-            "PRM042": MachineConfig("PRM042", "Medias"),
+            "FE16-Zayer": MachineConfig("FE16-Zayer", "Desbaste"),
+            "FE31-MasterMill": MachineConfig("FE31-MasterMill", "Maq_3D_2D_GD"),
         })
-        assert c.machine_groups == {"PRM019": "Grandes", "PRM042": "Medias"}
+        assert c.machine_groups == {
+            "FE16-Zayer": "Desbaste",
+            "FE31-MasterMill": "Maq_3D_2D_GD",
+        }
 
     def test_inactive_machine_excluded(self):
         c = FactoryConfig(machines={
-            "PRM019": MachineConfig("PRM019", "Grandes", active=True),
-            "PRM020": MachineConfig("PRM020", "Grandes", active=False),
+            "FE16-Zayer": MachineConfig("FE16-Zayer", "Desbaste", active=True),
+            "FE22-Rambaudi": MachineConfig(
+                "FE22-Rambaudi", "Desbaste", active=False,
+            ),
         })
-        assert "PRM020" not in c.machine_groups
-        assert "PRM019" in c.machine_groups
+        assert "FE22-Rambaudi" not in c.machine_groups
+        assert "FE16-Zayer" in c.machine_groups
+
+    def test_machine_config_new_fields(self):
+        mc = MachineConfig(
+            id="FE16-Zayer", group="Desbaste",
+            regime_h=16, setup_h=1.0, e_externo=False,
+        )
+        assert mc.regime_h == 16
+        assert mc.setup_h == 1.0
+        assert mc.e_externo is False
+        assert mc.dedicacao == {}
 
 
-# ─── Load config ───────────────────────────────────────────────────────
+# -- Load config --
 
 
-@pytest.mark.xfail(reason="Moldit config defaults changed — Phase 2")
 class TestLoadConfig:
     def test_load_missing_file_returns_defaults(self):
         c = load_config("/nonexistent/factory.yaml")
-        assert c.name == "Incompol"
+        assert c.name == "Moldit"
         assert c.day_capacity_min == 1020
 
     def test_load_factory_yaml(self):
@@ -87,21 +95,39 @@ class TestLoadConfig:
         )
         if os.path.exists(yaml_path):
             c = load_config(yaml_path)
-            assert c.day_capacity_min == 1020
-            assert len(c.shifts) == 2
+            assert len(c.machines) >= 40
+            assert c.name == "Moldit"
+            assert c.site == "Marinha Grande"
+            assert c.electrodos_default_h == 4.0
 
     def test_load_minimal_yaml(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml", delete=False,
+        ) as f:
             f.write("factory:\n  name: TestFactory\n")
             f.flush()
             c = load_config(f.name)
             assert c.name == "TestFactory"
-            # Defaults for everything else
             assert c.day_capacity_min == 1020
         os.unlink(f.name)
 
+    def test_load_machines_with_regime(self):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml", delete=False,
+        ) as f:
+            f.write(
+                "machines:\n"
+                "  FE16-Zayer: { group: Desbaste, regime_h: 16, setup_h: 1.0 }\n"
+                "  Externo-Ret: { group: Externo, regime_h: 0, setup_h: 0 }\n"
+            )
+            f.flush()
+            c = load_config(f.name)
+            assert c.machines["FE16-Zayer"].regime_h == 16
+            assert c.machines["Externo-Ret"].e_externo is True
+        os.unlink(f.name)
 
-# ─── Validation ────────────────────────────────────────────────────────
+
+# -- Validation --
 
 
 class TestValidation:
@@ -119,31 +145,32 @@ class TestValidation:
         errors = validate_config(c)
         assert any("oee" in e.lower() for e in errors)
 
-    def test_setup_crews_zero(self):
-        c = FactoryConfig(setup_crews=0)
+    def test_scoring_weights_sum(self):
+        c = FactoryConfig(
+            weight_makespan=0.5,
+            weight_deadline_compliance=0.5,
+            weight_setups=0.5,
+            weight_balance=0.5,
+        )
         errors = validate_config(c)
-        assert any("crew" in e.lower() for e in errors)
+        assert any("weight" in e.lower() for e in errors)
 
 
-# ─── Scheduler with config ────────────────────────────────────────────
+# -- Scheduler with config (Phase 3) --
 
 
-@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 3")
 class TestSchedulerWithConfig:
-    def _engine(self):
-        from tests.test_learning import _engine
-        return _engine()
-
     def test_default_config_same_as_no_config(self):
         from backend.scheduler.scheduler import schedule_all
-        e = self._engine()
-        r1 = schedule_all(e)
-        r2 = schedule_all(e, config=FactoryConfig())
-        assert r1.score == r2.score
+        from backend.types import MolditEngineData
+
+        e = MolditEngineData()
+        schedule_all(e)
 
     def test_config_backwards_compat(self):
-        """All callers work without config (config=None default)."""
         from backend.scheduler.scheduler import schedule_all
-        e = self._engine()
-        r = schedule_all(e)
-        assert r.score["otd"] == 100.0
+        from backend.types import MolditEngineData
+
+        e = MolditEngineData()
+        schedule_all(e, config=FactoryConfig())

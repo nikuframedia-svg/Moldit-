@@ -11,7 +11,7 @@ import logging
 import statistics
 from pathlib import Path
 
-from backend.types import EngineData
+from backend.types import MolditEngineData as EngineData
 
 from .types import LotRisk, MachineRisk
 

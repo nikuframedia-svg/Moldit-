@@ -11,8 +11,8 @@ from dataclasses import dataclass
 
 from backend.config.types import FactoryConfig
 from backend.scheduler.constants import DAY_CAP, DEFAULT_OEE
-from backend.scheduler.types import Segment
-from backend.types import EngineData
+from backend.scheduler.types import SegmentoMoldit as Segment
+from backend.types import MolditEngineData as EngineData
 
 
 @dataclass(slots=True)

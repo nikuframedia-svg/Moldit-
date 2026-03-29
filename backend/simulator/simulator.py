@@ -11,10 +11,13 @@ import time
 from dataclasses import dataclass
 
 from backend.cpo import optimize
-from backend.scheduler.types import Lot, Segment
-from backend.types import EngineData
+from backend.scheduler.types import SegmentoMoldit as Segment
+from backend.types import MolditEngineData as EngineData
 
 from .mutations import apply_mutation
+
+
+class Lot: pass  # noqa: E302
 
 
 @dataclass(slots=True)

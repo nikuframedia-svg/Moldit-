@@ -12,7 +12,7 @@ from pathlib import Path
 
 from backend.audit.store import AuditStore
 from backend.config.types import FactoryConfig
-from backend.scheduler.types import Lot, ScheduleResult, Segment
+from backend.scheduler.types import ScheduleResult, SegmentoMoldit as Segment
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class CopilotState:
 
     # Schedule results
     segments: list[Segment] = field(default_factory=list)
-    lots: list[Lot] = field(default_factory=list)
+    lots: list = field(default_factory=list)  # legacy Lot — Phase 3
     score: dict = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 

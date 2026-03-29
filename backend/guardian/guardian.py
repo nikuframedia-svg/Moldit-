@@ -1,4 +1,4 @@
-"""Guardian — Spec 12 §1.
+"""Guardian — Moldit Planner.
 
 Input validation (pre-schedule) and output validation (post-schedule).
 Never crashes — returns issues list. Drops or fixes bad data.
@@ -7,19 +7,17 @@ Never crashes — returns issues list. Drops or fixes bad data.
 from __future__ import annotations
 
 import copy
+from collections import defaultdict
 from dataclasses import dataclass
 
 from backend.config.types import FactoryConfig
-from backend.scheduler.types import Segment
-from backend.types import EngineData
-
-
-DEFAULT_OEE = 0.66
+from backend.scheduler.types import SegmentoMoldit
+from backend.types import MolditEngineData
 
 
 @dataclass(slots=True)
 class GuardianIssue:
-    op_id: str
+    op_id: str | int
     field: str
     severity: str  # "drop" | "warn" | "fix"
     message: str
@@ -27,119 +25,150 @@ class GuardianIssue:
 
 @dataclass(slots=True)
 class GuardianResult:
-    cleaned: EngineData
-    dropped_ops: list[str]
+    cleaned: MolditEngineData
+    dropped_ops: list[int]
     issues: list[GuardianIssue]
     is_clean: bool
 
 
 def validate_input(
-    data: EngineData, config: FactoryConfig | None = None,
+    data: MolditEngineData,
+    config: FactoryConfig | None = None,
 ) -> GuardianResult:
-    """Validate EngineData before scheduling. Returns cleaned copy + issues."""
+    """Validate MolditEngineData before scheduling. Returns cleaned copy + issues."""
     issues: list[GuardianIssue] = []
-    drop_ids: set[str] = set()
-    machine_ids = {m.id for m in data.machines}
+    drop_ids: set[int] = set()
 
-    # Detect duplicate op.id
-    seen_ids: set[str] = set()
-    for op in data.ops:
+    # Load config for machine checks and electrode defaults
+    if config is None:
+        from backend.config.loader import load_config
+        config = load_config()
+
+    config_machine_ids = set(config.machines.keys()) if config.machines else set()
+    electrodos_default_h = config.electrodos_default_h if config else 4.0
+
+    # ── Check DAG is acyclic (DFS cycle detection) ───────────────────
+    has_cycle, cycle_node = _detect_cycle(data.dag)
+    if has_cycle:
+        issues.append(GuardianIssue(
+            cycle_node or 0, "dag", "warn",
+            f"DAG contains a cycle near op {cycle_node}",
+        ))
+
+    # ── Validate operations ──────────────────────────────────────────
+    seen_ids: set[int] = set()
+    compat = data.compatibilidade
+
+    for op in data.operacoes:
+        # Duplicate ID
         if op.id in seen_ids:
-            issues.append(GuardianIssue(op.id, "id", "drop", f"op.id duplicado: {op.id}"))
+            issues.append(GuardianIssue(
+                op.id, "id", "drop", f"op.id duplicado: {op.id}",
+            ))
             drop_ids.add(op.id)
+            continue
         seen_ids.add(op.id)
 
-    for op in data.ops:
-        if op.id in drop_ids:
-            continue
-
-        # pH <= 0 → drop
-        if op.pH <= 0:
-            issues.append(GuardianIssue(op.id, "pH", "drop", f"pH={op.pH} inválido (div by zero)"))
+        # Op with no compatible machine -> drop
+        machines_for_code = compat.get(op.codigo, [])
+        if not machines_for_code and op.recurso is None and not op.e_condicional:
+            issues.append(GuardianIssue(
+                op.id, "compatibilidade", "drop",
+                f"Sem maquina compativel para codigo {op.codigo!r}",
+            ))
             drop_ids.add(op.id)
             continue
 
-        # Machine not in data.machines → drop
-        if op.m not in machine_ids:
-            issues.append(GuardianIssue(op.id, "m", "drop", f"Máquina {op.m!r} não existe"))
-            drop_ids.add(op.id)
-            continue
-
-        # eco_lot < 0 → fix
-        if op.eco_lot < 0:
-            issues.append(GuardianIssue(op.id, "eco_lot", "fix", f"eco_lot={op.eco_lot} → 0"))
-
-        # demand array length mismatch → fix
-        if len(op.d) != data.n_days:
+        # Fix electrodes with 0 duration
+        if op.codigo in ("EL001", "EL005") and op.work_h <= 0.0:
             issues.append(GuardianIssue(
-                op.id, "d", "fix",
-                f"len(d)={len(op.d)} != n_days={data.n_days}",
+                op.id, "work_h", "fix",
+                f"Electrodo com 0h -> {electrodos_default_h}h",
             ))
 
-        # OEE out of range → fix
-        if op.oee <= 0 or op.oee > 1.0:
-            issues.append(GuardianIssue(op.id, "oee", "fix", f"oee={op.oee} → {DEFAULT_OEE}"))
-
-        # Negative setup hours → fix
-        if op.sH < 0:
-            issues.append(GuardianIssue(op.id, "sH", "fix", f"sH={op.sH} → 0"))
-
-        # All demand zero + no backlog → warn
-        if all(d == 0 for d in op.d) and op.backlog == 0:
-            issues.append(GuardianIssue(op.id, "d", "warn", "Sem demand nem backlog"))
-
-    # Validate twin groups
-    op_id_set = seen_ids - drop_ids
-    drop_twin_indices: set[int] = set()
-    for i, tg in enumerate(data.twin_groups):
-        if tg.op_id_1 not in op_id_set or tg.op_id_2 not in op_id_set:
+        # Warn on duration <= 0 (except electrodes which are fixed above)
+        if op.work_h <= 0.0 and op.codigo not in ("EL001", "EL005"):
             issues.append(GuardianIssue(
-                f"twin:{tg.tool_id}", "twin_group", "drop",
-                f"Twin referencia op inexistente ({tg.op_id_1}, {tg.op_id_2})",
-            ))
-            drop_twin_indices.add(i)
-            continue
-
-        # Check machine mismatch
-        op1 = next((o for o in data.ops if o.id == tg.op_id_1), None)
-        op2 = next((o for o in data.ops if o.id == tg.op_id_2), None)
-        if op1 and op2 and op1.m != op2.m:
-            issues.append(GuardianIssue(
-                f"twin:{tg.tool_id}", "twin_group", "warn",
-                f"Twin com máquinas diferentes: {op1.m} vs {op2.m}",
+                op.id, "work_h", "warn",
+                f"Duracao work_h={op.work_h} <= 0",
             ))
 
-    # Build cleaned EngineData
+        # Clamp progress > 100
+        if op.progresso > 100.0:
+            issues.append(GuardianIssue(
+                op.id, "progresso", "fix",
+                f"Progresso {op.progresso} > 100 -> 100",
+            ))
+
+        # Warn on conditional ops without flag
+        if op.recurso == "?" and not op.e_condicional:
+            issues.append(GuardianIssue(
+                op.id, "e_condicional", "warn",
+                "Recurso='?' mas e_condicional=False",
+            ))
+
+        # Warn on unknown machines
+        if (op.recurso and op.recurso != "?"
+                and config_machine_ids
+                and op.recurso not in config_machine_ids):
+            issues.append(GuardianIssue(
+                op.id, "recurso", "warn",
+                f"Recurso {op.recurso!r} nao existe na config",
+            ))
+
+    # ── Drop deps referencing non-existent ops ───────────────────────
+    valid_ids = seen_ids - drop_ids
+    bad_dep_count = 0
+    for dep in data.dependencias:
+        if dep.predecessor_id not in valid_ids or dep.sucessor_id not in valid_ids:
+            bad_dep_count += 1
+
+    if bad_dep_count:
+        issues.append(GuardianIssue(
+            0, "dependencias", "fix",
+            f"Removidas {bad_dep_count} dependencias com ops inexistentes",
+        ))
+
+    # ── Build cleaned data ───────────────────────────────────────────
     if not issues:
         return GuardianResult(
             cleaned=data, dropped_ops=[], issues=[], is_clean=True,
         )
 
     cleaned = copy.copy(data)
+    cleaned.operacoes = []
 
-    # Deep-copy ops to avoid mutating originals
-    cleaned.ops = [copy.copy(op) for op in data.ops if op.id not in drop_ids]
+    for op in data.operacoes:
+        if op.id in drop_ids:
+            continue
+        cop = copy.copy(op)
 
-    # Apply fixes on remaining ops
-    for op in cleaned.ops:
-        if op.eco_lot < 0:
-            op.eco_lot = 0
-        if len(op.d) != data.n_days:
-            if len(op.d) < data.n_days:
-                op.d = list(op.d) + [0] * (data.n_days - len(op.d))
-            else:
-                op.d = list(op.d[:data.n_days])
-        if op.oee <= 0 or op.oee > 1.0:
-            op.oee = DEFAULT_OEE
-        if op.sH < 0:
-            op.sH = 0
+        # Apply fixes
+        if cop.codigo in ("EL001", "EL005") and cop.work_h <= 0.0:
+            cop.work_h = electrodos_default_h
+            cop.duracao_h = electrodos_default_h
+            cop.work_restante_h = electrodos_default_h * (1.0 - cop.progresso / 100.0)
 
-    # Filter twin groups
-    if drop_twin_indices:
-        cleaned.twin_groups = [
-            tg for i, tg in enumerate(data.twin_groups)
-            if i not in drop_twin_indices
-        ]
+        if cop.progresso > 100.0:
+            cop.progresso = 100.0
+            cop.work_restante_h = 0.0
+
+        cleaned.operacoes.append(cop)
+
+    # Filter deps
+    cleaned.dependencias = [
+        dep for dep in data.dependencias
+        if dep.predecessor_id in valid_ids and dep.sucessor_id in valid_ids
+    ]
+
+    # Rebuild DAG
+    new_dag: dict[int, list[int]] = defaultdict(list)
+    new_dag_rev: dict[int, list[int]] = defaultdict(list)
+    for dep in cleaned.dependencias:
+        new_dag[dep.predecessor_id].append(dep.sucessor_id)
+        new_dag_rev[dep.sucessor_id].append(dep.predecessor_id)
+    cleaned.dag = dict(new_dag)
+    cleaned.dag_reverso = dict(new_dag_rev)
 
     return GuardianResult(
         cleaned=cleaned,
@@ -149,57 +178,124 @@ def validate_input(
     )
 
 
+def _detect_cycle(dag: dict[int, list[int]]) -> tuple[bool, int | None]:
+    """DFS-based cycle detection. Returns (has_cycle, offending_node)."""
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color: dict[int, int] = {}
+
+    all_nodes: set[int] = set()
+    for node, succs in dag.items():
+        all_nodes.add(node)
+        for s in succs:
+            all_nodes.add(s)
+
+    for node in all_nodes:
+        color[node] = WHITE
+
+    def dfs(u: int) -> int | None:
+        color[u] = GRAY
+        for v in dag.get(u, []):
+            if color.get(v, WHITE) == GRAY:
+                return v  # cycle found
+            if color.get(v, WHITE) == WHITE:
+                result = dfs(v)
+                if result is not None:
+                    return result
+        color[u] = BLACK
+        return None
+
+    for node in all_nodes:
+        if color[node] == WHITE:
+            result = dfs(node)
+            if result is not None:
+                return True, result
+
+    return False, None
+
+
 def validate_output(
-    segments: list[Segment], data: EngineData,
+    segmentos: list[SegmentoMoldit],
+    data: MolditEngineData,
 ) -> list[GuardianIssue]:
     """Post-schedule sanity checks on segments."""
     issues: list[GuardianIssue] = []
-    machine_ids = {m.id for m in data.machines}
+    machine_ids = {m.id for m in data.maquinas}
+    op_map = {op.id: op for op in data.operacoes}
 
-    # Group segments by machine+day for overlap detection
-    by_machine_day: dict[tuple[str, int], list[Segment]] = {}
+    # ── Check dependency violations ──────────────────────────────────
+    # Build: op_id -> latest segment end (dia, fim_h)
+    op_end: dict[int, tuple[int, float]] = {}
+    for seg in segmentos:
+        key = (seg.dia, seg.fim_h)
+        if seg.op_id not in op_end or key > op_end[seg.op_id]:
+            op_end[seg.op_id] = key
 
-    for seg in segments:
-        # Out of horizon
-        if seg.day_idx >= data.n_days:
-            issues.append(GuardianIssue(
-                seg.lot_id, "day_idx", "warn",
-                f"Segment dia {seg.day_idx} >= horizonte {data.n_days}",
-            ))
+    op_start: dict[int, tuple[int, float]] = {}
+    for seg in segmentos:
+        key = (seg.dia, seg.inicio_h)
+        if seg.op_id not in op_start or key < op_start[seg.op_id]:
+            op_start[seg.op_id] = key
 
-        # Outside shift bounds (420=07:00, 1440=00:00)
-        if seg.start_min < 420 or seg.end_min > 1440:
-            issues.append(GuardianIssue(
-                seg.lot_id, "time", "warn",
-                f"Segment fora dos turnos: {seg.start_min}-{seg.end_min}",
-            ))
-
-        # Orphan machine
-        if seg.machine_id not in machine_ids:
-            issues.append(GuardianIssue(
-                seg.lot_id, "machine_id", "warn",
-                f"Máquina {seg.machine_id!r} não existe",
-            ))
-
-        # Negative qty
-        if seg.qty < 0:
-            issues.append(GuardianIssue(
-                seg.lot_id, "qty", "warn",
-                f"Produção negativa: {seg.qty}",
-            ))
-
-        key = (seg.machine_id, seg.day_idx)
-        by_machine_day.setdefault(key, []).append(seg)
-
-    # Overlap detection
-    for (machine, day), segs in by_machine_day.items():
-        sorted_segs = sorted(segs, key=lambda s: s.start_min)
-        for i in range(len(sorted_segs) - 1):
-            if sorted_segs[i].end_min > sorted_segs[i + 1].start_min:
+    for dep in data.dependencias:
+        pred_end = op_end.get(dep.predecessor_id)
+        succ_start = op_start.get(dep.sucessor_id)
+        if pred_end is not None and succ_start is not None:
+            if succ_start < pred_end:
                 issues.append(GuardianIssue(
-                    sorted_segs[i].lot_id, "overlap", "warn",
-                    f"Sobreposição {machine} dia {day}: "
-                    f"{sorted_segs[i].end_min} > {sorted_segs[i + 1].start_min}",
+                    dep.sucessor_id, "dependencia", "warn",
+                    f"Op {dep.sucessor_id} comeca antes do predecessor "
+                    f"{dep.predecessor_id} terminar",
                 ))
+
+    # ── Check machine overlaps (except 2a placa) ────────────────────
+    by_machine_day: dict[tuple[str, int], list[SegmentoMoldit]] = defaultdict(list)
+    for seg in segmentos:
+        if not seg.e_2a_placa:
+            by_machine_day[(seg.maquina_id, seg.dia)].append(seg)
+
+    for (machine, day), segs in by_machine_day.items():
+        sorted_segs = sorted(segs, key=lambda s: s.inicio_h)
+        for i in range(len(sorted_segs) - 1):
+            if sorted_segs[i].fim_h > sorted_segs[i + 1].inicio_h:
+                issues.append(GuardianIssue(
+                    sorted_segs[i].op_id, "overlap", "warn",
+                    f"Sobreposicao {machine} dia {day}: "
+                    f"{sorted_segs[i].fim_h} > {sorted_segs[i + 1].inicio_h}",
+                ))
+
+    # ── Check machine compatibility ──────────────────────────────────
+    for seg in segmentos:
+        op = op_map.get(seg.op_id)
+        if op is None:
+            continue
+        compat_machines = data.compatibilidade.get(op.codigo, [])
+        if compat_machines and seg.maquina_id not in compat_machines:
+            issues.append(GuardianIssue(
+                seg.op_id, "compatibilidade", "warn",
+                f"Maquina {seg.maquina_id} nao e compativel com "
+                f"codigo {op.codigo}",
+            ))
+
+    # ── Check daily regime limits ────────────────────────────────────
+    machine_regime = {m.id: m.regime_h for m in data.maquinas}
+    hours_by_machine_day: dict[tuple[str, int], float] = defaultdict(float)
+    for seg in segmentos:
+        hours_by_machine_day[(seg.maquina_id, seg.dia)] += seg.duracao_h
+
+    for (machine, day), total_h in hours_by_machine_day.items():
+        regime = machine_regime.get(machine, 16)
+        if regime > 0 and total_h > regime + 0.5:  # 0.5h tolerance
+            issues.append(GuardianIssue(
+                0, "regime", "warn",
+                f"Maquina {machine} dia {day}: {total_h:.1f}h > regime {regime}h",
+            ))
+
+    # ── Orphan machine check ─────────────────────────────────────────
+    for seg in segmentos:
+        if seg.maquina_id not in machine_ids:
+            issues.append(GuardianIssue(
+                seg.op_id, "maquina_id", "warn",
+                f"Maquina {seg.maquina_id!r} nao existe",
+            ))
 
     return issues

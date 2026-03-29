@@ -1,7 +1,6 @@
-"""Scheduler constants — Spec 02 §1 / Spec 09.
+"""Scheduler constants — Moldit Planner.
 
 Thin wrapper over FactoryConfig defaults for backward compatibility.
-All values match the Incompol factory configuration.
 New code should use config directly via FactoryConfig.
 """
 
@@ -11,7 +10,7 @@ from backend.config.types import FactoryConfig
 
 _DEFAULT = FactoryConfig()
 
-# Day capacity in minutes (07:00–00:00 = 17h = 1020 min)
+# Day capacity in minutes (07:00-00:00 = 17h = 1020 min)
 DAY_CAP = _DEFAULT.day_capacity_min
 
 # Shift boundaries (real clock minutes from midnight)
@@ -29,17 +28,14 @@ DEFAULT_SETUP_H = _DEFAULT.default_setup_hours
 MAX_RUN_DAYS = _DEFAULT.max_run_days
 MAX_EDD_GAP = _DEFAULT.max_edd_gap
 
-# JIT / Latest Start Time
+# Latest Start Time
 LST_SAFETY_BUFFER = _DEFAULT.lst_safety_buffer
 
 # Dispatch sequencing
 EDD_SWAP_TOLERANCE = _DEFAULT.edd_swap_tolerance
 
-# Minimum production time per lot
-MIN_PROD_MIN = _DEFAULT.min_prod_min
-
 # Operator capacities per (group, shift)
 OPERATOR_CAP = dict(_DEFAULT.operators)
 
-# Machine → group mapping
+# Machine -> group mapping
 MACHINE_GROUP = _DEFAULT.machine_groups

@@ -8,8 +8,14 @@ from __future__ import annotations
 
 from backend.config.loader import _min_to_time
 from backend.config.types import FactoryConfig
-from backend.scheduler.types import Lot, Segment
-from backend.types import EngineData
+from backend.scheduler.types import SegmentoMoldit as Segment
+
+
+from backend.types import MolditEngineData as EngineData
+
+
+class Lot:  # noqa: D101
+    """Legacy stub — removed in Phase 2."""
 
 
 def _find_previous_tool(segments: list[Segment], machine_id: str, day_idx: int) -> str | None:

@@ -1,4 +1,4 @@
-"""Factory configuration types — Spec 09."""
+"""Factory configuration types — Moldit Planner."""
 
 from __future__ import annotations
 
@@ -29,7 +29,10 @@ class MachineConfig:
     id: str
     group: str
     active: bool = True
-    day_capacity_min: int | None = None  # per-machine override
+    regime_h: int = 16
+    setup_h: float = 1.0
+    e_externo: bool = False
+    dedicacao: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -41,9 +44,9 @@ class FactoryConfig:
     site: str = ""
     timezone: str = "Europe/Lisbon"
 
-    # Shifts (defaults = Incompol: A 07:00-15:30, B 15:30-00:00)
+    # Shifts (defaults = Moldit: A 07:00-15:30, B 15:30-00:00)
     shifts: list[ShiftConfig] = field(default_factory=lambda: [
-        ShiftConfig("A", 420, 930, "Manhã"),
+        ShiftConfig("A", 420, 930, "Manha"),
         ShiftConfig("B", 930, 1440, "Tarde"),
     ])
 
@@ -77,38 +80,25 @@ class FactoryConfig:
     tools: dict[str, dict] = field(default_factory=dict)
     default_setup_hours: float = 0.5
 
-    # Twins
-    twins: dict[str, list[str]] = field(default_factory=dict)
-
-    # Operators: (group, shift) → count
+    # Operators: (group, shift) -> count
     operators: dict[tuple[str, str], int] = field(default_factory=dict)
-
-    # Setup crews
-    setup_crews: int = 1
 
     # Holidays (ISO date strings)
     holidays: list[str] = field(default_factory=list)
 
-    # Production
-    oee_default: float = 0.66
-    min_prod_min: float = 1.0
-    eco_lot_mode: str = "hard"
+    # Moldit-specific
+    electrodos_default_h: float = 4.0
+    bancada_dedicacao: dict = field(default_factory=dict)
+    compatibilidade: dict = field(default_factory=dict)
 
-    # Scheduler tunables (base values — SchedulerParams can override)
+    # Scheduler tunables
     max_run_days: int = 5
     max_edd_gap: int = 10
     max_edd_span: int = 30
     edd_swap_tolerance: int = 5
     edd_assign_threshold: int = 5
     lst_safety_buffer: int = 2
-    campaign_window: int = 15
     urgency_threshold: int = 5
-    interleave_enabled: bool = True
-    jit_enabled: bool = True
-    jit_buffer_pct: float = 0.05
-    jit_threshold: float = 95.0
-    jit_max_retries: int = 15
-    jit_earliness_target: float = 5.5
     auto_buffer: bool = True
 
     # VNS post-processing
@@ -116,12 +106,16 @@ class FactoryConfig:
     vns_max_iter: int = 150
 
     # Scoring weights
-    weight_earliness: float = 0.40
-    weight_setups: float = 0.30
-    weight_balance: float = 0.30
+    weight_makespan: float = 0.35
+    weight_deadline_compliance: float = 0.35
+    weight_setups: float = 0.15
+    weight_balance: float = 0.15
 
     # Risk parameters
     risk_oee_alpha: float = 10.6
     risk_oee_beta: float = 5.5
     risk_setup_cv: float = 0.20
     risk_processing_cv: float = 0.10
+
+    # Production defaults
+    oee_default: float = 0.66

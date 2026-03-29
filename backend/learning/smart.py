@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from backend.scheduler.types import ScheduleResult
-from backend.types import EngineData
+from backend.types import MolditEngineData as EngineData
 
 from .context import extract_context
 from .optimizer import OptunaTuner

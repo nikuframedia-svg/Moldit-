@@ -1,4 +1,4 @@
-"""Factory config loader — Spec 09."""
+"""Factory config loader — Moldit Planner."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ DEFAULT_CONFIG_PATH = "config/factory.yaml"
 
 
 def _parse_time(t: str) -> int:
-    """Parse HH:MM to minutes from midnight. '00:00' → 1440 (end of day)."""
+    """Parse HH:MM to minutes from midnight. '00:00' -> 1440 (end of day)."""
     h, m = t.split(":")
     mins = int(h) * 60 + int(m)
     return mins if mins > 0 else 1440
 
 
 def load_config(path: str = DEFAULT_CONFIG_PATH) -> FactoryConfig:
-    """Load factory YAML. Missing file or sections → defaults (Incompol)."""
+    """Load factory YAML. Missing file or sections -> defaults."""
     raw: dict = {}
     p = Path(path)
     if p.exists():
@@ -48,15 +48,32 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> FactoryConfig:
             for s in shifts_raw
         ]
 
-    # Machines
+    # Machines (new format: regime_h, setup_h)
     for mid, mdata in raw.get("machines", {}).items():
         if isinstance(mdata, dict):
+            regime_h = mdata.get("regime_h", 16)
             config.machines[mid] = MachineConfig(
                 id=mid,
-                group=mdata.get("group", "Grandes"),
+                group=mdata.get("group", "Outros"),
                 active=mdata.get("active", True),
-                day_capacity_min=mdata.get("day_capacity_min"),
+                regime_h=regime_h,
+                setup_h=mdata.get("setup_h", 1.0),
+                e_externo=(regime_h == 0),
             )
+
+    # Bancada dedicacao
+    bancada_raw = raw.get("bancada_dedicacao", {})
+    if bancada_raw:
+        config.bancada_dedicacao = bancada_raw
+        # Also inject into per-machine dedicacao
+        for maq_id, ded_map in bancada_raw.items():
+            if maq_id in config.machines:
+                config.machines[maq_id].dedicacao = ded_map
+
+    # Electrodos default
+    config.electrodos_default_h = raw.get(
+        "electrodos_default_h", config.electrodos_default_h,
+    )
 
     # Tools (merge alt_machines + setup_hours format)
     tools_raw = raw.get("tools", {})
@@ -70,11 +87,6 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> FactoryConfig:
             continue
         config.tools[tid] = tdata
 
-    # Twins
-    twins_raw = raw.get("twins", {})
-    if twins_raw:
-        config.twins = twins_raw
-
     # Operators
     operators_raw = raw.get("operators", {})
     if operators_raw:
@@ -86,48 +98,26 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> FactoryConfig:
         if ops:
             config.operators = ops
 
-    # Setup crews
-    config.setup_crews = raw.get("setup_crews", config.setup_crews)
-
     # Holidays
     holidays_raw = raw.get("holidays", [])
     if holidays_raw:
         config.holidays = holidays_raw
 
-    # Production
-    prod = raw.get("production", {})
-    if prod:
-        config.oee_default = prod.get("oee_default", config.oee_default)
-        config.min_prod_min = prod.get("min_prod_min", config.min_prod_min)
-        config.eco_lot_mode = prod.get("eco_lot_mode", config.eco_lot_mode)
-
-    # Scheduler
-    sched = raw.get("scheduler", {})
-    if sched:
-        config.max_run_days = sched.get("max_run_days", config.max_run_days)
-        config.max_edd_gap = sched.get("max_edd_gap", config.max_edd_gap)
-        config.edd_swap_tolerance = sched.get("edd_swap_tolerance", config.edd_swap_tolerance)
-        config.lst_safety_buffer = sched.get("lst_safety_buffer", config.lst_safety_buffer)
-        config.campaign_window = sched.get("campaign_window", config.campaign_window)
-        config.urgency_threshold = sched.get("urgency_threshold", config.urgency_threshold)
-        config.interleave_enabled = sched.get("interleave_enabled", config.interleave_enabled)
-        config.auto_buffer = sched.get("auto_buffer", config.auto_buffer)
-
-        jit = sched.get("jit", {})
-        if jit:
-            config.jit_enabled = jit.get("enabled", config.jit_enabled)
-            config.jit_buffer_pct = jit.get("buffer_pct", config.jit_buffer_pct)
-            config.jit_threshold = jit.get("threshold", config.jit_threshold)
-            config.jit_earliness_target = jit.get("earliness_target", config.jit_earliness_target)
-
     # Scoring
     scoring = raw.get("scoring", {})
     if scoring:
-        weights = scoring.get("weights", {})
-        if weights:
-            config.weight_earliness = weights.get("earliness", config.weight_earliness)
-            config.weight_setups = weights.get("setups", config.weight_setups)
-            config.weight_balance = weights.get("utilization_balance", config.weight_balance)
+        config.weight_makespan = scoring.get(
+            "weight_makespan", config.weight_makespan,
+        )
+        config.weight_deadline_compliance = scoring.get(
+            "weight_deadline_compliance", config.weight_deadline_compliance,
+        )
+        config.weight_setups = scoring.get(
+            "weight_setups", config.weight_setups,
+        )
+        config.weight_balance = scoring.get(
+            "weight_utilization_balance", config.weight_balance,
+        )
 
     # Risk
     risk = raw.get("risk", {})
@@ -139,11 +129,16 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> FactoryConfig:
         config.risk_setup_cv = risk.get("setup_cv", config.risk_setup_cv)
         config.risk_processing_cv = risk.get("processing_cv", config.risk_processing_cv)
 
+    # Compatibilidade (if provided in YAML)
+    compat_raw = raw.get("compatibilidade", {})
+    if compat_raw:
+        config.compatibilidade = compat_raw
+
     return config
 
 
 def _min_to_time(mins: int) -> str:
-    """Convert minutes from midnight to HH:MM string. 420 → '07:00', 1440 → '00:00'."""
+    """Convert minutes from midnight to HH:MM string. 420 -> '07:00', 1440 -> '00:00'."""
     if mins >= 1440:
         mins = 0
     return f"{mins // 60:02d}:{mins % 60:02d}"
@@ -151,54 +146,25 @@ def _min_to_time(mins: int) -> str:
 
 def save_config(config: FactoryConfig, path: str = DEFAULT_CONFIG_PATH) -> None:
     """Serialize FactoryConfig back to YAML."""
+    machines_data = {}
+    for mid, m in config.machines.items():
+        machines_data[mid] = {
+            "group": m.group,
+            "regime_h": m.regime_h,
+            "setup_h": m.setup_h,
+        }
+
     data = {
         "factory": {"name": config.name, "site": config.site, "timezone": config.timezone},
-        "shifts": [
-            {"id": s.id, "start": _min_to_time(s.start_min),
-             "end": _min_to_time(s.end_min), "label": s.label}
-            for s in config.shifts
-        ],
-        "machines": {
-            mid: {"group": m.group, "active": m.active,
-                  "day_capacity_min": m.day_capacity_min}
-            for mid, m in config.machines.items()
-        },
-        "tools": {"_default": {"setup_hours": config.default_setup_hours},
-                  **config.tools},
-        "twins": config.twins,
-        "operators": {
-            group: {shift: count for (g, shift), count in config.operators.items() if g == group}
-            for group in sorted(set(g for g, _ in config.operators))
-        },
-        "setup_crews": config.setup_crews,
+        "machines": machines_data,
+        "bancada_dedicacao": config.bancada_dedicacao,
+        "electrodos_default_h": config.electrodos_default_h,
         "holidays": config.holidays,
-        "production": {
-            "oee_default": config.oee_default,
-            "eco_lot_mode": config.eco_lot_mode,
-            "min_prod_min": config.min_prod_min,
-        },
-        "scheduler": {
-            "max_run_days": config.max_run_days,
-            "max_edd_gap": config.max_edd_gap,
-            "edd_swap_tolerance": config.edd_swap_tolerance,
-            "lst_safety_buffer": config.lst_safety_buffer,
-            "campaign_window": config.campaign_window,
-            "urgency_threshold": config.urgency_threshold,
-            "interleave_enabled": config.interleave_enabled,
-            "auto_buffer": config.auto_buffer,
-            "jit": {
-                "enabled": config.jit_enabled,
-                "buffer_pct": config.jit_buffer_pct,
-                "threshold": config.jit_threshold,
-                "earliness_target": config.jit_earliness_target,
-            },
-        },
         "scoring": {
-            "weights": {
-                "earliness": config.weight_earliness,
-                "setups": config.weight_setups,
-                "utilization_balance": config.weight_balance,
-            },
+            "weight_makespan": config.weight_makespan,
+            "weight_deadline_compliance": config.weight_deadline_compliance,
+            "weight_setups": config.weight_setups,
+            "weight_utilization_balance": config.weight_balance,
         },
         "risk": {
             "oee_distribution": {
@@ -228,34 +194,16 @@ def validate_config(config: FactoryConfig) -> list[str]:
     if config.machines:
         active = [m for m in config.machines.values() if m.active]
         if not active:
-            errors.append("Nenhuma máquina activa")
-
-    # Tools: primary machine must exist
-    if config.machines and config.tools:
-        for tid, tdata in config.tools.items():
-            primary = tdata.get("primary", "")
-            if primary and primary not in config.machines:
-                errors.append(f"Ferramenta {tid}: máquina primária {primary} não existe")
-            alt = tdata.get("alt")
-            if alt and alt not in config.machines:
-                errors.append(f"Ferramenta {tid}: máquina alternativa {alt} não existe")
-
-    # Twins must be pairs
-    for tid, skus in config.twins.items():
-        if len(skus) != 2:
-            errors.append(f"Twin {tid}: deve ter 2 SKUs, tem {len(skus)}")
+            errors.append("Nenhuma maquina activa")
 
     # Scoring weights should sum to ~1.0
-    w_sum = config.weight_earliness + config.weight_setups + config.weight_balance
+    w_sum = (config.weight_makespan + config.weight_deadline_compliance
+             + config.weight_setups + config.weight_balance)
     if abs(w_sum - 1.0) > 0.01:
         errors.append(f"Scoring weights somam {w_sum:.2f}, deviam somar 1.0")
 
     # OEE range
     if not 0.1 <= config.oee_default <= 1.0:
         errors.append(f"OEE default {config.oee_default} fora do range 0.1-1.0")
-
-    # Setup crews
-    if config.setup_crews < 1:
-        errors.append(f"Setup crews = {config.setup_crews} (mínimo 1)")
 
     return errors

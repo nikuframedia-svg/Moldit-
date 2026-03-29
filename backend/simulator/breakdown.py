@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.config.types import FactoryConfig
-from backend.types import EngineData
+from backend.types import MolditEngineData as EngineData
 
 from .simulator import DeltaReport, Mutation, SimulateResponse, simulate
 

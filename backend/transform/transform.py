@@ -1,87 +1,134 @@
-"""Transform orchestrator — Spec 01 §3.
+"""Transform orchestrator — Moldit Planner.
 
-Converts RawRows → EngineData via merge, twin detection, and enrichment.
+Parses MPP file, enriches with factory config, validates DAG, applies progress.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any
+from collections import deque
 
-from backend.types import EngineData, EOp, MachineInfo, RawRow
+from backend.config.types import FactoryConfig
+from backend.types import MolditEngineData
 
 logger = logging.getLogger(__name__)
 
-# Fallback values when no master_data is provided
-_DEFAULT_GROUP = "Grandes"
-_DEFAULT_DAY_CAPACITY = 1020
-
 
 def transform(
-    rows: list[RawRow],
-    workdays: list[str],
-    has_twin_col: bool,
-    master_data: dict[str, Any] | None,
-) -> EngineData:
-    """Transform raw project plan rows into EngineData."""
-    raise NotImplementedError("Moldit transform — Phase 2")
+    filepath: str,
+    config: FactoryConfig | None = None,
+) -> MolditEngineData:
+    """Parse MPP file and return enriched MolditEngineData."""
+    from backend.parser.mpp_reader import parse_mpp
+
+    if config is None:
+        from backend.config.loader import load_config
+        config = load_config()
+
+    data = parse_mpp(filepath)
+    data = _enrich_from_config(data, config)
+    _validate_dag(data.dag)
+    data = _apply_progress(data)
+    data = _fix_electrodes(data, config)
+    data.feriados = _resolve_holidays(config)
+    return data
 
 
-def _raw_to_eop(raw: RawRow, master_data: dict[str, Any] | None) -> EOp:
-    """Convert a single RawRow to EOp with master data enrichment."""
-    raise NotImplementedError("Moldit _raw_to_eop — Phase 2")
+def _enrich_from_config(
+    data: MolditEngineData, config: FactoryConfig,
+) -> MolditEngineData:
+    """Apply regime_h, setup_h from factory config to machines.
 
-
-def _resolve_holidays(
-    workdays: list[str], master_data: dict[str, Any] | None
-) -> list[int]:
-    """Convert holiday date strings from YAML to workday indices.
-
-    Also auto-detects weekends (Saturday=5, Sunday=6) as holidays.
+    Also merge compatibility from config if present.
     """
-    from datetime import date as dt_date
+    machine_configs = config.machines
+    for maq in data.maquinas:
+        if maq.id in machine_configs:
+            mc = machine_configs[maq.id]
+            maq.regime_h = mc.regime_h
+            maq.setup_h = mc.setup_h
+            maq.e_externo = mc.e_externo
+            maq.grupo = mc.group
 
-    indices_set: set[int] = set()
+    # Merge compatibility from config (additive)
+    if config.compatibilidade:
+        for code, machines in config.compatibilidade.items():
+            existing = data.compatibilidade.get(code, [])
+            for m in machines:
+                if m not in existing:
+                    existing.append(m)
+            data.compatibilidade[code] = existing
 
-    # Auto-detect weekends
-    for i, d in enumerate(workdays):
-        try:
-            if dt_date.fromisoformat(d).weekday() >= 5:
-                indices_set.add(i)
-        except ValueError:
-            pass
-
-    # Explicit holidays from YAML
-    if master_data:
-        holiday_dates = master_data.get("holidays", [])
-        workday_set = {d: i for i, d in enumerate(workdays)}
-        for h in holiday_dates:
-            date_str = str(h)
-            if date_str in workday_set:
-                indices_set.add(workday_set[date_str])
-
-    return sorted(indices_set)
+    return data
 
 
-def _build_machines(
-    ops: list[EOp], master_data: dict[str, Any] | None
-) -> list[MachineInfo]:
-    """Build machine list from ops + YAML machine config."""
-    machine_config: dict[str, dict[str, Any]] = {}
-    if master_data:
-        machine_config = master_data.get("machines", {})
+def _validate_dag(dag: dict[int, list[int]]) -> None:
+    """Validate DAG is acyclic using topological sort (Kahn's algorithm).
 
-    seen: set[str] = set()
-    machines: list[MachineInfo] = []
+    Raises ValueError on cycle detection.
+    """
+    # Collect all nodes
+    all_nodes: set[int] = set()
+    in_degree: dict[int, int] = {}
+    for node, succs in dag.items():
+        all_nodes.add(node)
+        for s in succs:
+            all_nodes.add(s)
 
-    for op in ops:
-        if op.m not in seen:
-            seen.add(op.m)
-            cfg = machine_config.get(op.m, {})
-            group = cfg.get("group", _DEFAULT_GROUP)
-            capacity = cfg.get("day_capacity_min", _DEFAULT_DAY_CAPACITY)
-            machines.append(
-                MachineInfo(id=op.m, group=group, day_capacity=capacity)
-            )
+    for node in all_nodes:
+        in_degree[node] = 0
+    for node, succs in dag.items():
+        for s in succs:
+            in_degree[s] = in_degree.get(s, 0) + 1
 
-    return machines
+    queue = deque(n for n, deg in in_degree.items() if deg == 0)
+    count = 0
+    while queue:
+        node = queue.popleft()
+        count += 1
+        for succ in dag.get(node, []):
+            in_degree[succ] -= 1
+            if in_degree[succ] == 0:
+                queue.append(succ)
+
+    if count != len(all_nodes):
+        raise ValueError(
+            f"DAG contains a cycle: processed {count}/{len(all_nodes)} nodes"
+        )
+
+
+def _apply_progress(data: MolditEngineData) -> MolditEngineData:
+    """Recalculate work_restante_h based on progress percentage."""
+    for op in data.operacoes:
+        if op.progresso >= 100.0:
+            op.work_restante_h = 0.0
+        else:
+            op.work_restante_h = op.work_h * (1.0 - op.progresso / 100.0)
+    return data
+
+
+def _fix_electrodes(
+    data: MolditEngineData, config: FactoryConfig,
+) -> MolditEngineData:
+    """Fix electrode operations with 0h work — apply default duration.
+
+    Electrode codes: EL001, EL005 (fabricacao e acabamento de electrodos).
+    """
+    default_h = config.electrodos_default_h
+    fixed = 0
+    for op in data.operacoes:
+        if op.codigo in ("EL001", "EL005") and op.work_h <= 0.0:
+            op.work_h = default_h
+            op.duracao_h = default_h
+            op.work_restante_h = default_h * (1.0 - op.progresso / 100.0)
+            fixed += 1
+
+    if fixed:
+        logger.info("Fixed %d electrode ops with default %gh", fixed, default_h)
+
+    return data
+
+
+def _resolve_holidays(config: FactoryConfig) -> list[str]:
+    """Return holiday date strings from config."""
+    return list(config.holidays)

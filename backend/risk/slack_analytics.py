@@ -12,10 +12,16 @@ from backend.config.types import FactoryConfig
 from backend.scheduler.constants import DAY_CAP
 from backend.scheduler.scoring import compute_score
 from backend.cpo import optimize
-from backend.scheduler.types import Lot, Segment
-from backend.types import EngineData
+from backend.scheduler.types import SegmentoMoldit as Segment
+
+
+from backend.types import MolditEngineData as EngineData
 
 from .types import LotRisk, MachineRisk
+
+
+class Lot:  # noqa: D101
+    """Legacy stub — removed in Phase 2."""
 
 # Risk thresholds (days of slack)
 SLACK_CRITICAL = 0

@@ -8,8 +8,8 @@ Three tiers:
 
 from __future__ import annotations
 
-from backend.scheduler.types import Lot, Segment
-from backend.types import EngineData
+from backend.scheduler.types import SegmentoMoldit as Segment
+from backend.types import MolditEngineData as EngineData
 
 from .heatmap import compute_heatmap
 from .slack_analytics import (
@@ -19,6 +19,9 @@ from .slack_analytics import (
 )
 from .surrogate import extract_features, predict_risk
 from .types import RiskResult
+
+
+class Lot: pass  # noqa: E302
 
 __all__ = [
     "compute_risk",

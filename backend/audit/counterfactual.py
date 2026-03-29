@@ -10,7 +10,7 @@ import copy
 import time
 
 from backend.cpo import optimize
-from backend.types import EngineData
+from backend.types import MolditEngineData as EngineData
 
 from .types import CounterfactualResult
 

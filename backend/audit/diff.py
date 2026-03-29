@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from backend.scheduler.types import Segment
+from backend.scheduler.types import SegmentoMoldit as Segment
 
 from .types import DiffEntry, ScheduleDiff
 
