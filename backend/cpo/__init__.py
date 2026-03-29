@@ -1,4 +1,4 @@
-"""CPO v3.0 — Cascading Pipeline Optimizer.
+"""CPO v3.0 -- Cascading Pipeline Optimizer.
 
 Primary scheduling interface. Wraps the greedy pipeline in a Genetic Algorithm.
 """

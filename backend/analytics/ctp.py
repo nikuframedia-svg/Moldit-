@@ -1,115 +1,118 @@
-"""CTP — Capable to Promise — Spec 03 §2.
+"""CTP -- Capable to Promise -- Moldit Planner (Phase 4).
 
-"Can we fit N more pieces of SKU X by day D?"
-Uses REAL capacity (DAY_CAP - minutes already used in segments).
+"Can molde X be delivered by week W?"
+
+Uses REAL capacity from schedule segments to compute feasibility and slack.
 """
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
 
 from backend.config.types import FactoryConfig
-from backend.scheduler.constants import DAY_CAP, DEFAULT_OEE
-from backend.scheduler.types import SegmentoMoldit as Segment
-from backend.types import MolditEngineData as EngineData
+from backend.scheduler.types import SegmentoMoldit
+from backend.types import MolditEngineData
 
 
 @dataclass(slots=True)
 class CTPResult:
     feasible: bool
-    sku: str
-    qty_requested: int
-    latest_day: int | None  # latest day to start (JIT)
-    machine: str | None
-    confidence: str  # "high" | "medium" | "low"
-    slack_min: float
+    molde_id: str
+    target_week: str
+    slack_dias: float
+    dias_extra: float
     reason: str | None
 
 
-def compute_ctp(
-    sku: str,
-    qty: int,
-    deadline_day: int,
-    segments: list[Segment],
-    engine_data: EngineData,
+def _week_to_days(week_str: str) -> int | None:
+    """Parse 'S15' -> ~75 working days (15*5). Returns None if invalid."""
+    if not week_str:
+        return None
+    w = week_str.strip().upper()
+    if w.startswith("S") and w[1:].isdigit():
+        return int(w[1:]) * 5
+    return None
+
+
+def compute_ctp_molde(
+    molde_id: str,
+    target_week: str,
+    segmentos: list[SegmentoMoldit],
+    data: MolditEngineData,
     config: FactoryConfig | None = None,
 ) -> CTPResult:
-    """CTP based on REAL free capacity from schedule segments."""
-    day_cap = config.day_capacity_min if config else DAY_CAP
-    oee_default = config.oee_default if config else DEFAULT_OEE
+    """CTP for a specific mold: can it be delivered by target_week?
 
-    # Find op for SKU
-    op = next((o for o in engine_data.ops if o.sku == sku), None)
-    if op is None:
+    Compares the latest scheduled day for the molde against the target
+    deadline, using actual schedule data.
+    """
+    target_day = _week_to_days(target_week)
+    if target_day is None:
         return CTPResult(
-            feasible=False, sku=sku, qty_requested=qty,
-            latest_day=None, machine=None, confidence="low",
-            slack_min=0, reason=f"SKU {sku} não encontrado",
+            feasible=False, molde_id=molde_id, target_week=target_week,
+            slack_dias=0.0, dias_extra=0.0,
+            reason=f"Formato de semana invalido: {target_week}",
         )
 
-    if op.pH <= 0:
+    # Find the molde
+    molde = next((m for m in data.moldes if m.id == molde_id), None)
+    if molde is None:
         return CTPResult(
-            feasible=False, sku=sku, qty_requested=qty,
-            latest_day=None, machine=op.m, confidence="low",
-            slack_min=0, reason="pH = 0, cadência desconhecida",
+            feasible=False, molde_id=molde_id, target_week=target_week,
+            slack_dias=0.0, dias_extra=0.0,
+            reason=f"Molde {molde_id} nao encontrado",
         )
 
-    oee = op.oee or oee_default
-    required_min = op.sH * 60 + (qty / op.pH) * 60 / oee
-
-    # Build used capacity per (machine, day) from segments
-    cap_used: dict[str, dict[int, float]] = defaultdict(lambda: defaultdict(float))
-    for seg in segments:
-        cap_used[seg.machine_id][seg.day_idx] += seg.prod_min + seg.setup_min
-
-    n_days = engine_data.n_days
-    holidays = set(engine_data.holidays)
-
-    def _find_slot(machine_id: str) -> int | None:
-        """Scan backwards from deadline, accumulate free capacity (JIT)."""
-        accumulated = 0.0
-        for d in range(min(deadline_day, n_days - 1), -1, -1):
-            if d in holidays:
-                continue
-            used = cap_used.get(machine_id, {}).get(d, 0)
-            free = max(0, day_cap - used)
-            accumulated += free
-            if accumulated >= required_min:
-                return d
-        return None
-
-    # Try primary machine
-    machines = [op.m]
-    if op.alt:
-        machines.append(op.alt)
-
-    for machine in machines:
-        day = _find_slot(machine)
-        if day is not None and day <= deadline_day:
-            # Total free capacity from slot start to deadline
-            total_free = 0.0
-            for d in range(day, min(deadline_day + 1, n_days)):
-                if d in holidays:
-                    continue
-                used = cap_used.get(machine, {}).get(d, 0)
-                total_free += max(0, day_cap - used)
-            slack = total_free - required_min
-            confidence = (
-                "high" if slack > day_cap * 0.3
-                else "medium" if slack > day_cap * 0.1
-                else "low"
-            )
+    # Find all segments for this molde
+    molde_segs = [s for s in segmentos if s.molde == molde_id]
+    if not molde_segs:
+        # No segments: either all ops are done or none scheduled
+        ops = [op for op in data.operacoes if op.molde == molde_id]
+        remaining = sum(op.work_restante_h for op in ops)
+        if remaining <= 0:
             return CTPResult(
-                feasible=True, sku=sku, qty_requested=qty,
-                latest_day=day, machine=machine,
-                confidence=confidence, slack_min=max(0, slack),
-                reason=None,
+                feasible=True, molde_id=molde_id, target_week=target_week,
+                slack_dias=float(target_day), dias_extra=0.0,
+                reason="Todas as operacoes concluidas",
             )
+        return CTPResult(
+            feasible=False, molde_id=molde_id, target_week=target_week,
+            slack_dias=0.0, dias_extra=0.0,
+            reason=f"Molde {molde_id} sem segmentos agendados ({remaining:.0f}h restantes)",
+        )
 
-    return CTPResult(
-        feasible=False, sku=sku, qty_requested=qty,
-        latest_day=None, machine=None, confidence="low",
-        slack_min=0,
-        reason=f"Sem capacidade em {' ou '.join(machines)} até dia {deadline_day}",
-    )
+    # Latest completion day for this molde
+    completion_day = max(s.dia for s in molde_segs)
+
+    slack = target_day - completion_day
+
+    if slack >= 0:
+        return CTPResult(
+            feasible=True, molde_id=molde_id, target_week=target_week,
+            slack_dias=float(slack), dias_extra=0.0,
+            reason=None,
+        )
+    else:
+        # How many extra days needed
+        # Estimate remaining capacity needed
+        total_remaining_h = sum(s.duracao_h for s in molde_segs if s.dia > target_day)
+
+        # Find machines used by this molde
+        machines_used = {s.maquina_id for s in molde_segs}
+        machine_regime: dict[str, int] = {}
+        for m in data.maquinas:
+            if m.id in machines_used:
+                machine_regime[m.id] = m.regime_h
+
+        # Capacity per day from those machines
+        cap_per_day = sum(machine_regime.get(m, 16) for m in machines_used)
+        dias_extra = total_remaining_h / max(cap_per_day, 1)
+
+        return CTPResult(
+            feasible=False, molde_id=molde_id, target_week=target_week,
+            slack_dias=float(slack), dias_extra=round(dias_extra, 1),
+            reason=(
+                f"Molde termina dia {completion_day}, target dia {target_day} "
+                f"({abs(slack)} dias atrasado)"
+            ),
+        )

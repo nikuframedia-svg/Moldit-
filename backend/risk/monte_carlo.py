@@ -1,6 +1,6 @@
-"""Tier 3 — Monte Carlo Risk: Spec 06 §4.
+"""Tier 3 -- Monte Carlo Risk: Moldit Planner (Phase 4).
 
-Latin Hypercube Sampling with perturbation of OEE and setup times.
+Latin Hypercube Sampling with perturbation of work_h and setup_h.
 Requires scipy and numpy (optional dependencies).
 """
 
@@ -8,26 +8,26 @@ from __future__ import annotations
 
 import copy
 import math
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-from backend.types import MolditEngineData as EngineData
+from backend.types import MolditEngineData
 
-# Distribution parameters for Incompol (metal stamping)
-OEE_ALPHA = 10.6          # Beta(10.6, 5.5) → mean ≈ 0.66
-OEE_BETA = 5.5
-SETUP_CV = 0.20           # Lognormal CV 20%
+# Distribution parameters for Moldit (mold production)
+WORK_CV = 0.20    # Lognormal CV 20% for work_h
+SETUP_CV = 0.30   # Lognormal CV 30% for setup_h
 
 
 def monte_carlo_risk(
-    engine_data: EngineData,
-    schedule_fn: Callable[[EngineData], Any],
+    engine_data: MolditEngineData,
+    schedule_fn: Callable[[MolditEngineData], Any],
     n_samples: int = 500,
     seed: int = 42,
 ) -> dict:
     """Run Monte Carlo risk simulation via Latin Hypercube Sampling.
 
-    Each sample perturbs OEE (Beta distribution) and setup times (Lognormal).
-    500 samples ≈ 2000-5000 equivalent random samples.
+    Each sample perturbs work_h (Lognormal CV=20%) and setup_h (Lognormal CV=30%).
+    work_restante_h is recalculated from perturbed work_h and progresso.
 
     Args:
         engine_data: Base schedule input.
@@ -36,14 +36,14 @@ def monte_carlo_risk(
         seed: Random seed for reproducibility.
 
     Returns:
-        Dict with percentile statistics for OTD and tardiness.
+        Dict with percentile statistics for makespan and compliance.
 
     Raises:
         ImportError: If scipy/numpy are not installed.
     """
     try:
         import numpy as np
-        from scipy.stats import beta as beta_dist, lognorm
+        from scipy.stats import lognorm
         from scipy.stats.qmc import LatinHypercube
     except ImportError as exc:
         raise ImportError(
@@ -51,50 +51,60 @@ def monte_carlo_risk(
             "pip install scipy numpy"
         ) from exc
 
-    tools = sorted({op.t for op in engine_data.ops})
-    n_dims = 1 + len(tools)  # OEE global + setup per tool
+    # Dimensions: 1 for global work_h factor + 1 per machine group for setup_h
+    groups = sorted({m.grupo for m in engine_data.maquinas})
+    n_dims = 1 + len(groups)  # work_h global + setup per group
 
-    sampler = LatinHypercube(d=n_dims, seed=seed)
+    sampler = LatinHypercube(d=max(n_dims, 1), seed=seed)
     samples = sampler.random(n=n_samples)
 
-    otd_results: list[float] = []
-    tardy_results: list[int] = []
+    makespan_results: list[int] = []
+    compliance_results: list[float] = []
 
-    sigma_log = math.sqrt(math.log(1 + SETUP_CV**2))
+    sigma_work = math.sqrt(math.log(1 + WORK_CV**2))
+    sigma_setup = math.sqrt(math.log(1 + SETUP_CV**2))
+
+    machines_by_group: dict[str, set[str]] = {}
+    for m in engine_data.maquinas:
+        machines_by_group.setdefault(m.grupo, set()).add(m.id)
 
     for i in range(n_samples):
         mutated = copy.deepcopy(engine_data)
 
-        # Perturb OEE (column 0)
-        oee_sample = float(beta_dist.ppf(samples[i, 0], OEE_ALPHA, OEE_BETA))
-        for op in mutated.ops:
-            op.oee = oee_sample
+        # Perturb work_h (column 0)
+        work_factor = float(lognorm.ppf(max(samples[i, 0], 0.001), s=sigma_work))
+        for op in mutated.operacoes:
+            op.work_h *= work_factor
+            op.work_restante_h = op.work_h * (1.0 - op.progresso / 100.0)
 
-        # Perturb setup times (columns 1..n_tools)
-        for j, tool in enumerate(tools):
-            if j + 1 < n_dims:
-                factor = float(lognorm.ppf(samples[i, j + 1], s=sigma_log))
-                for op in mutated.ops:
-                    if op.t == tool:
-                        op.sH *= factor
+        # Perturb setup_h per machine group (columns 1..n_groups)
+        for j, group in enumerate(groups):
+            col = j + 1
+            if col < n_dims:
+                setup_factor = float(lognorm.ppf(max(samples[i, col], 0.001), s=sigma_setup))
+                group_machines = machines_by_group.get(group, set())
+                for m in mutated.maquinas:
+                    if m.id in group_machines:
+                        m.setup_h *= setup_factor
 
         try:
             result = schedule_fn(mutated)
-            otd_results.append(result.score.get("otd", 100.0))
-            tardy_results.append(result.score.get("tardy_count", 0))
+            makespan_results.append(result.score.get("makespan_total_dias", 999))
+            compliance_results.append(result.score.get("deadline_compliance", 0.0))
         except Exception:
-            otd_results.append(0.0)
-            tardy_results.append(999)
+            makespan_results.append(999)
+            compliance_results.append(0.0)
 
-    otd_arr = np.array(otd_results)
-    tardy_arr = np.array(tardy_results)
+    mk_arr = np.array(makespan_results)
+    comp_arr = np.array(compliance_results)
 
     return {
-        "otd_p50": round(float(np.percentile(otd_arr, 50)), 1),
-        "otd_p80": round(float(np.percentile(otd_arr, 20)), 1),
-        "otd_p95": round(float(np.percentile(otd_arr, 5)), 1),
-        "tardy_mean": round(float(np.mean(tardy_arr)), 1),
-        "tardy_p95": round(float(np.percentile(tardy_arr, 95)), 1),
-        "otd_100_pct": round(float(np.mean(otd_arr >= 100) * 100), 1),
+        "makespan_p50": round(float(np.percentile(mk_arr, 50)), 1),
+        "makespan_p80": round(float(np.percentile(mk_arr, 80)), 1),
+        "makespan_p95": round(float(np.percentile(mk_arr, 95)), 1),
+        "compliance_p50": round(float(np.percentile(comp_arr, 50)), 4),
+        "compliance_p80": round(float(np.percentile(comp_arr, 20)), 4),
+        "compliance_p95": round(float(np.percentile(comp_arr, 5)), 4),
+        "compliance_mean": round(float(np.mean(comp_arr)), 4),
         "n_samples": n_samples,
     }

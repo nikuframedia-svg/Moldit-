@@ -16,7 +16,6 @@ from dataclasses import dataclass
 
 from backend.cpo.chromosome import Chromosome
 
-
 # ─── FRRMAB ────────────────────────────────────────────────────────────
 
 

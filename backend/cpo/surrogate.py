@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from backend.cpo.chromosome import Chromosome
+from backend.cpo.chromosome import MolditChromosome
 
 logger = logging.getLogger(__name__)
 
@@ -36,13 +36,13 @@ class SurrogateModel:
             self._sklearn_available = False
         return self._sklearn_available
 
-    def _encode(self, chrom: Chromosome) -> list[float]:
-        """Encode chromosome as feature vector."""
-        # Machine choice summary
-        n_alt = sum(chrom.machine_choice.values()) if chrom.machine_choice else 0
+    def _encode(self, chrom: MolditChromosome) -> list[float]:
+        """Encode 4 Moldit genes as feature vector."""
+        # G1: machine choice summary
+        n_nonzero = sum(1 for v in chrom.machine_choice.values() if v > 0)
         n_total = max(len(chrom.machine_choice), 1)
 
-        # Sequence disorder (sum of key deltas from sorted order)
+        # G2: sequence disorder (sum of key deltas from sorted order)
         disorder = 0.0
         for keys in chrom.sequence_keys.values():
             if len(keys) >= 2:
@@ -50,16 +50,21 @@ class SurrogateModel:
                 for k, s in zip(keys, sorted_keys):
                     disorder += abs(k - s)
 
+        # G3: mold priority stats
+        priorities = list(chrom.mold_priority.values()) if chrom.mold_priority else [1.0]
+        priority_mean = sum(priorities) / len(priorities)
+        priority_spread = max(priorities) - min(priorities)
+
+        # G4: setup aversion
         return [
-            float(chrom.edd_gap),
-            float(chrom.max_edd_span),
-            float(n_alt) / float(n_total),
+            float(n_nonzero) / float(n_total),
             disorder,
-            chrom.buffer_pct,
-            float(chrom.campaign_window),
+            priority_mean,
+            priority_spread,
+            chrom.setup_aversion,
         ]
 
-    def add_sample(self, chrom: Chromosome, cost: float) -> None:
+    def add_sample(self, chrom: MolditChromosome, cost: float) -> None:
         self.X.append(self._encode(chrom))
         self.y.append(cost)
 
@@ -80,22 +85,20 @@ class SurrogateModel:
         self.is_trained = True
         return True
 
-    def predict(self, chrom: Chromosome) -> float:
+    def predict(self, chrom: MolditChromosome) -> float:
         if not self.is_trained or self.model is None:
             return float("inf")
         features = self._encode(chrom)
         return float(self.model.predict([features])[0])
 
-    def should_evaluate(self, chrom: Chromosome, best_cost: float, threshold: float = 1.3) -> bool:
-        """Return True if chromosome is worth full evaluation.
-
-        Threshold adapts based on training data size: wider early (fewer samples,
-        less confident), tighter later (more data, more confident).
-        """
+    def should_evaluate(
+        self, chrom: MolditChromosome, best_cost: float, threshold: float = 1.3,
+    ) -> bool:
+        """Return True if chromosome is worth full evaluation."""
         if not self.is_trained:
             return True
-        # Adaptive: relax threshold when few samples, tighten with more data
         n = len(self.X)
-        adaptive_threshold = threshold + max(0, (self.min_samples * 2 - n) / (self.min_samples * 2)) * 0.5
+        ratio = max(0, (self.min_samples * 2 - n) / (self.min_samples * 2))
+        adaptive_threshold = threshold + ratio * 0.5
         predicted = self.predict(chrom)
         return predicted < best_cost * adaptive_threshold

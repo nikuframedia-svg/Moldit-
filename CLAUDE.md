@@ -3,11 +3,12 @@
 Scheduler de produção para fábricas de moldes de injeção.
 Forked de INCOMPOLINHO (APS stamping factory scheduler).
 
-## Status: Phase 3 (Greedy Scheduler)
+## Status: Phase 4 (CPO Optimizer + Analytics)
 
 Phase 1: Fork & cleanup (Incompol modules removed).
 Phase 2: Moldit types, transform, guardian, config.
 Phase 3: Greedy forward scheduler (dispatch, scoring, pipeline).
+Phase 4: CPO optimizer, VNS, simulator, risk, analytics (CTP, late delivery, replan).
 
 ## Architecture
 
@@ -31,11 +32,21 @@ Python 3.12+, FastAPI, OR-Tools (CP-SAT), openpyxl, jpype1/mpxj (MPP parser), Re
 - `backend/transform/transform.py` — MPP parser + enrichment
 - `backend/config/` — Factory YAML loader + types
 
-## Stubbed Modules (Phase 4+)
+## Working Modules (Phase 4)
 
-- `backend/cpo/optimizer.py` — optimize() → NotImplementedError
-- `backend/scheduler/vns.py` — vns_polish() → NotImplementedError
-- `backend/simulator/` — What-if simulation (stubbed pending optimizer)
+- `backend/cpo/chromosome.py` — MolditChromosome (4 genes: machine_choice, sequence_keys, mold_priority, setup_aversion)
+- `backend/cpo/optimizer.py` — optimize() with GA loop (quick/normal/deep/max modes)
+- `backend/cpo/cached_pipeline.py` — CachedPipeline (hash-based eval caching)
+- `backend/cpo/population.py` — FRRMAB, MAPElites, OneFifthRule, tournament_select
+- `backend/cpo/surrogate.py` — SurrogateModel (RandomForest pre-screening)
+- `backend/cpo/cpsat_polish.py` — cpsat_polish() pass-through stub
+- `backend/scheduler/vns.py` — VNS post-processing (4 neighbourhoods)
+- `backend/simulator/mutations.py` — 8 mutation handlers (machine_down, overtime, deadline_change, priority_boost, add/remove_holiday, force_machine, op_done)
+- `backend/simulator/simulator.py` — simulate() what-if with DeltaReport
+- `backend/risk/monte_carlo.py` — Monte Carlo risk (LHS, work_h + setup_h perturbation)
+- `backend/analytics/ctp.py` — CTP per molde (compute_ctp_molde)
+- `backend/analytics/late_delivery.py` — Late delivery root cause analysis
+- `backend/analytics/replan_proposals.py` — Replan proposals (move_to_alt, extend_regime, resequence)
 
 ## Commands
 

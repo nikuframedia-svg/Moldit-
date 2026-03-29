@@ -1,6 +1,6 @@
-"""Simulator — Spec 04: What-If.
+"""Simulator -- Moldit Planner (Phase 4): What-If.
 
-simulate() deepcopies EngineData, applies mutations, re-runs schedule_all(),
+simulate() deepcopies MolditEngineData, applies mutations, re-runs schedule_all(),
 and compares BEFORE vs AFTER KPIs.
 """
 
@@ -10,14 +10,11 @@ import copy
 import time
 from dataclasses import dataclass
 
-from backend.cpo import optimize
-from backend.scheduler.types import SegmentoMoldit as Segment
-from backend.types import MolditEngineData as EngineData
+from backend.scheduler.scheduler import schedule_all
+from backend.scheduler.types import SegmentoMoldit
+from backend.types import MolditEngineData
 
 from .mutations import apply_mutation
-
-
-class Lot: pass  # noqa: E302
 
 
 @dataclass(slots=True)
@@ -28,22 +25,19 @@ class Mutation:
 
 @dataclass(slots=True)
 class DeltaReport:
-    otd_before: float
-    otd_after: float
-    otd_d_before: float
-    otd_d_after: float
+    makespan_before: int
+    makespan_after: int
+    compliance_before: float
+    compliance_after: float
     setups_before: int
     setups_after: int
-    earliness_before: float
-    earliness_after: float
-    tardy_before: int
-    tardy_after: int
+    balance_before: float
+    balance_after: float
 
 
 @dataclass(slots=True)
 class SimulateResponse:
-    segments: list[Segment]
-    lots: list[Lot]
+    segments: list[SegmentoMoldit]
     score: dict
     delta: DeltaReport
     time_ms: float
@@ -51,7 +45,7 @@ class SimulateResponse:
 
 
 def simulate(
-    engine_data: EngineData,
+    engine_data: MolditEngineData,
     baseline_score: dict,
     mutations: list[Mutation],
     config=None,
@@ -66,46 +60,47 @@ def simulate(
     """
     t0 = time.perf_counter()
 
-    # 1. Deep copy data AND config (mutations may modify config.shifts)
+    # 1. Deep copy data AND config (mutations may modify config)
     mutated = copy.deepcopy(engine_data)
     sim_config = copy.deepcopy(config) if config else None
 
-    # 2. Apply mutations (pass config so third_shift/overtime can modify shifts)
+    # 2. Apply mutations
     summaries: list[str] = []
     for mut in mutations:
         msg = apply_mutation(mutated, mut.type, mut.params, config=sim_config)
         summaries.append(msg)
 
-    # 3. Re-schedule with (possibly modified) config
+    # 3. Re-schedule
     try:
-        result = optimize(mutated, mode="quick", config=sim_config)
+        result = schedule_all(mutated, config=sim_config)
     except Exception as exc:
         elapsed = (time.perf_counter() - t0) * 1000
         summaries.append(f"ERRO no scheduler: {exc}")
         empty_delta = DeltaReport(
-            otd_before=baseline_score.get("otd", 0.0), otd_after=0.0,
-            otd_d_before=baseline_score.get("otd_d", 0.0), otd_d_after=0.0,
-            setups_before=baseline_score.get("setups", 0), setups_after=0,
-            earliness_before=baseline_score.get("earliness_avg_days", 0.0), earliness_after=0.0,
-            tardy_before=baseline_score.get("tardy_count", 0), tardy_after=0,
+            makespan_before=baseline_score.get("makespan_total_dias", 0),
+            makespan_after=0,
+            compliance_before=baseline_score.get("deadline_compliance", 0.0),
+            compliance_after=0.0,
+            setups_before=baseline_score.get("total_setups", 0),
+            setups_after=0,
+            balance_before=baseline_score.get("utilization_balance", 0.0),
+            balance_after=0.0,
         )
         return SimulateResponse(
-            segments=[], lots=[], score={},
+            segments=[], score={},
             delta=empty_delta, time_ms=round(elapsed, 1), summary=summaries,
         )
 
     # 4. Delta report
     delta = DeltaReport(
-        otd_before=baseline_score.get("otd", 0.0),
-        otd_after=result.score.get("otd", 0.0),
-        otd_d_before=baseline_score.get("otd_d", 0.0),
-        otd_d_after=result.score.get("otd_d", 0.0),
-        setups_before=baseline_score.get("setups", 0),
-        setups_after=result.score.get("setups", 0),
-        earliness_before=baseline_score.get("earliness_avg_days", 0.0),
-        earliness_after=result.score.get("earliness_avg_days", 0.0),
-        tardy_before=baseline_score.get("tardy_count", 0),
-        tardy_after=result.score.get("tardy_count", 0),
+        makespan_before=baseline_score.get("makespan_total_dias", 0),
+        makespan_after=result.score.get("makespan_total_dias", 0),
+        compliance_before=baseline_score.get("deadline_compliance", 0.0),
+        compliance_after=result.score.get("deadline_compliance", 0.0),
+        setups_before=baseline_score.get("total_setups", 0),
+        setups_after=result.score.get("total_setups", 0),
+        balance_before=baseline_score.get("utilization_balance", 0.0),
+        balance_after=result.score.get("utilization_balance", 0.0),
     )
 
     # 5. Summary
@@ -114,8 +109,7 @@ def simulate(
     elapsed = (time.perf_counter() - t0) * 1000
 
     return SimulateResponse(
-        segments=result.segments,
-        lots=result.lots,
+        segments=result.segmentos,
         score=result.score,
         delta=delta,
         time_ms=round(elapsed, 1),
@@ -127,27 +121,36 @@ def _delta_summary(delta: DeltaReport) -> str:
     """Generate Portuguese summary of KPI changes."""
     parts: list[str] = []
 
-    otd_diff = delta.otd_after - delta.otd_before
-    if abs(otd_diff) > 0.05:
-        direction = "subiu" if otd_diff > 0 else "desceu"
-        parts.append(f"OTD {direction} {abs(otd_diff):.1f}% ({delta.otd_before:.1f}% → {delta.otd_after:.1f}%)")
+    mk_diff = delta.makespan_after - delta.makespan_before
+    if mk_diff != 0:
+        direction = "aumentou" if mk_diff > 0 else "reduziu"
+        parts.append(
+            f"Makespan {direction} {abs(mk_diff)} dia(s) "
+            f"({delta.makespan_before} -> {delta.makespan_after})"
+        )
 
-    otd_d_diff = delta.otd_d_after - delta.otd_d_before
-    if abs(otd_d_diff) > 0.05:
-        direction = "subiu" if otd_d_diff > 0 else "desceu"
-        parts.append(f"OTD-D {direction} {abs(otd_d_diff):.1f}%")
+    comp_diff = delta.compliance_after - delta.compliance_before
+    if abs(comp_diff) > 0.005:
+        direction = "subiu" if comp_diff > 0 else "desceu"
+        parts.append(
+            f"Cumprimento {direction} "
+            f"({delta.compliance_before:.1%} -> {delta.compliance_after:.1%})"
+        )
 
     setup_diff = delta.setups_after - delta.setups_before
     if setup_diff != 0:
-        direction = "+" if setup_diff > 0 else ""
-        parts.append(f"Setups: {direction}{setup_diff} ({delta.setups_before} → {delta.setups_after})")
+        sign = "+" if setup_diff > 0 else ""
+        parts.append(f"Setups: {sign}{setup_diff} ({delta.setups_before} -> {delta.setups_after})")
 
-    tardy_diff = delta.tardy_after - delta.tardy_before
-    if tardy_diff != 0:
-        direction = "+" if tardy_diff > 0 else ""
-        parts.append(f"Atrasos: {direction}{tardy_diff} ({delta.tardy_before} → {delta.tardy_after})")
+    bal_diff = delta.balance_after - delta.balance_before
+    if abs(bal_diff) > 0.01:
+        direction = "melhorou" if bal_diff > 0 else "piorou"
+        parts.append(
+            f"Balanceamento {direction} "
+            f"({delta.balance_before:.2f} -> {delta.balance_after:.2f})"
+        )
 
     if not parts:
-        return "Sem alterações significativas nos KPIs."
+        return "Sem alteracoes significativas nos KPIs."
 
     return "Resumo: " + "; ".join(parts) + "."
