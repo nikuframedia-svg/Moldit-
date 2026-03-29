@@ -1,100 +1,57 @@
-# ProdPlan PP1 — Industrial APS Scheduler
+# Moldit Planner — Mold Production Scheduler
 
-Scheduler de produção para fábricas de estampagem.
-Fábrica: Incompol (5 prensas, 59 ferramentas, ~94 SKUs, 14 clientes).
-Empresa: NIKUFRA.AI (Portugal).
+Scheduler de produção para fábricas de moldes de injeção.
+Forked de INCOMPOLINHO (APS stamping factory scheduler).
 
-## Arquitectura
+## Status: Phase 1 (Fork & Cleanup)
 
-Python puro. Sem frontend. Sem monorepo.
-- `backend/` — Scheduler + Analytics + Simulator + Parser + Transform
-- `config/incompol.yaml` — Master data (máquinas, setups, twins, holidays)
-- `tests/` — 86+ testes
+Incompol-specific modules removed (lot_sizing, tool_grouping, jit, ISOP parser).
+Core scheduling infrastructure preserved but stubbed with NotImplementedError.
+Moldit-specific logic to be implemented in Phase 2.
 
-## Comandos
+## Architecture
+
+- `backend/` — Python backend (scheduler, optimizer, analytics, simulator, API)
+- `frontend/` — React + TypeScript + Vite
+- `config/factory.yaml` — Factory configuration (empty template)
+- `tests/` — pytest suite
+
+## Stack
+
+Python 3.12+, FastAPI, OR-Tools (CP-SAT), openpyxl, jpype1/mpxj (MPP parser), React 19, TypeScript, Vite, Zustand
+
+## Working Modules (Phase 1)
+
+- `backend/scheduler/dispatch.py` — Machine assignment + sequencing
+- `backend/scheduler/scoring.py` — KPI computation
+- `backend/scheduler/types.py` — Data structures (Lot, Segment, ToolRun, ScheduleResult)
+- `backend/guardian/` — Input/output validation
+- `backend/simulator/` — What-if simulation (stubbed pending scheduler)
+- `backend/cpo/population.py` — GA population management (MAP-Elites)
+- `backend/cpo/surrogate.py` — Fast fitness approximation
+- `backend/journal/` — Event journal
+- `backend/audit/` — Audit logging
+- `backend/risk/` — Monte Carlo simulation
+
+## Stubbed Modules (Phase 2)
+
+- `backend/scheduler/scheduler.py` — schedule_all() → NotImplementedError
+- `backend/cpo/optimizer.py` — optimize() → NotImplementedError
+- `backend/transform/transform.py` — transform() → NotImplementedError
+- `backend/scheduler/vns.py` — vns_polish() → NotImplementedError
+
+## Commands
+
 ```bash
-python -m pytest tests/ -v
+python -m pytest tests/ -v --tb=short
+ruff check backend/ tests/ scripts/
 ```
 
-## Pipeline
+## Moldit Domain (Reference)
 
-```
-ISOP Excel (.xlsx)
-  ↓ read_isop()                [backend/parser/isop_reader.py]
-RawRow[]
-  ↓ transform()                [backend/transform/transform.py]
-EngineData
-  ↓ optimize()                 [backend/cpo/optimizer.py]
-ScheduleResult { segments, lots, score, warnings, operator_alerts }
-```
-
-## ═══ CPO v3.0 — Cascading Pipeline Optimizer ═══
-
-Entry point: `from backend.cpo import optimize`
-Modos: quick (greedy passthrough), normal (GA 20×30 + CP-SAT), deep (GA 40×100 + surrogate), max (GA 60×300)
-
-- `optimize(data, mode="quick")` — mesmo que schedule_all(), <500ms
-- `optimize(data, mode="normal")` — GA optimiza 7 genes sobre o greedy, ~5-15s
-- `schedule_all()` — pipeline greedy interno (5 fases), chamado pelo CPO internamente
-
-Todos os callers externos usam `optimize()`. `schedule_all()` é interno.
-
-## ═══ PRIORIDADE Nº1 ═══
-ENTREGAR TUDO A TEMPO. Sem excepção.
-
-## ═══ OTD-DELIVERY = 100% (OBRIGATÓRIO) ═══
-
-- **OTD** (global) = total produzido >= total procura → 100%
-- **OTD-D** (por dia) = em CADA dia com procura, produção acumulada >= procura acumulada → 100%
-- Qualquer regressão abaixo de 100% é um BUG
-
-## ═══ DADOS ISOP ═══
-
-Colunas: A(Cliente) B(Nome) C(SKU) D(Designação) E(Lote Eco—HARD)
-G(Máquina) H(Ferramenta) I(Peças/H) J(Pessoas) L(WIP) M(Gémea) N(Atraso)
-O+(Datas ~80 dias—FONTE PRINCIPAL)
-
-IGNORAR SEMPRE: F(Prz.Fabrico) e K(STOCK-A)
-
-Valores NP nas datas:
-- Positivo (preto) = STOCK REAL disponível
-- Negativo (vermelho) = ENCOMENDA INDEPENDENTE (NÃO cumulativo)
-  |valor| = qtd a produzir, data coluna = deadline
-- Vazio = sem dados
-
-Stock real = último positivo antes do primeiro negativo.
-Lote económico: HARD — arredonda sempre para cima ao eco lot.
-
-## ═══ PEÇAS GÉMEAS ═══
-Mesma ferramenta + máquina, produção SIMULTÂNEA.
-Quantidade por SKU = exactamente o que precisa (eco lot per-SKU).
-Tempo = UMA execução (max(time_A, time_B), não dobro).
-Surplus carry-forward independente por SKU.
-
-## ═══ MÁQUINAS ═══
-PRM019(Grandes,21SKUs) PRM031(Grandes,20,Faurecia) PRM039(Grandes,28,+variedade)
-PRM042(Médias,11,SEM ALTERNATIVA) PRM043(Grandes,14)
-PRM020 — FORA DE USO. IGNORAR.
-
-## ═══ TURNOS ═══
-Turno A: 07:00-15:30 (510 min) | Turno B: 15:30-00:00 (510 min)
-DAY_CAP = 1020 min. Noite: SÓ EMERGÊNCIA.
-
-## ═══ SCHEDULER — 5 FASES ═══
-
-1. **Lot Sizing** (lot_sizing.py): EOps → Lots. Eco lot HARD + carry-forward + twins.
-2. **Tool Grouping** (tool_grouping.py): Lots → ToolRuns. Split por EDD gap e infeasibilidade.
-3. **Dispatch** (dispatch.py): Assign machines (EDD-aware) + Sequence (campaign + interleave urgent + 2-opt) + Allocate segments.
-4. **JIT** (jit.py): Backward scheduling. Produzir o mais tarde possível (2-5 dias antes EDD). Safety net: fallback se tardy piora.
-5. **Scoring** (scoring.py): OTD, OTD-D, earliness, setups, utilisation.
-
-## ═══ CONSTANTES ═══
-DAY_CAP=1020 | SHIFT_A=420-930 | SHIFT_B=930-1440
-DEFAULT_OEE=0.66 | DEFAULT_SETUP=0.5h | MIN_PROD_MIN=1.0
-MAX_RUN_DAYS=5 | MAX_EDD_GAP=10 | LST_SAFETY_BUFFER=2
-EDD_SWAP_TOLERANCE=5
-
-## ═══ RESULTADOS VALIDADOS ═══
-ISOP 27/02: OTD=100%, OTD-D=100%, 0 tardy, earliness=5.6d, 125 setups
-ISOP 17/03: OTD=100%, OTD-D=100%, 0 tardy, earliness=5.9d, 136 setups
-346 testes passam. Pipeline determinístico. <500ms para ~60 ops.
+- 7 moldes, 548 operações reais, 7.501h work total
+- 443 dependências FS (1 cross-mold), 124 pares compatibilidade
+- 30+ máquinas em 7 grupos (CNC, EDM, Furação, Bancada, Polimento, Tapagem, Externo)
+- Regimes: CNC 16h/24h, Manual 8h, Externo lead-time
+- 2ª Placa (//): paralelismo na mesma máquina CNC
+- Input: .mpp via MPXJ (Java bridge)

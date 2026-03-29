@@ -21,7 +21,7 @@ def _dumps(obj: object) -> str:
 def _guard() -> str | None:
     """Return error JSON if state is not initialized, else None."""
     if state.engine_data is None:
-        return _dumps({"error": "Sem dados carregados. Carrega um ISOP primeiro."})
+        return _dumps({"error": "Sem dados carregados."})
     return None
 
 
@@ -274,13 +274,10 @@ _LOGIC_EXPLANATIONS = {
         "para reduzir o número total de setups, respeitando a tolerância EDD."
     ),
     "lot_sizing": (
-        "Lot sizing (Phase 1): converte EOps em Lots. Para cada demand > 0 num dia, "
-        "cria um lot com qty = max(demand - surplus, eco_lot arredondado). "
-        "Twins geram super-ops com twin_outputs."
+        "Lot sizing: not yet available in Moldit. Will be implemented in Phase 2."
     ),
     "tool_grouping": (
-        "Tool grouping (Phase 2): agrupa Lots por ferramenta+máquina em ToolRuns. "
-        "Split se gap EDD > 10 dias ou se produção excede capacidade até EDD."
+        "Tool grouping: not yet available in Moldit. Will be implemented in Phase 2."
     ),
 }
 
@@ -302,38 +299,7 @@ def exec_ver_encomendas(args: dict) -> str:
     if (err := _guard()):
         return err
 
-    from backend.analytics.order_tracking import compute_order_tracking
-
-    client_orders = state.order_tracking or compute_order_tracking(
-        state.segments, state.lots, state.engine_data,
-    )
-
-    cliente_filter = args.get("cliente")
-    if cliente_filter:
-        client_orders = [co for co in client_orders if cliente_filter.lower() in co.client.lower()]
-
-    result = []
-    for co in client_orders:
-        orders = []
-        for o in co.orders[:50]:  # limit per client
-            orders.append({
-                "sku": o.sku,
-                "qty": o.order_qty,
-                "dia_entrega": o.delivery_day,
-                "data_entrega": o.delivery_date,
-                "status": o.status,
-                "maquina": o.production_machine,
-                "dias_antecipacao": o.days_early,
-                "razao": o.reason,
-            })
-        result.append({
-            "cliente": co.client,
-            "total_encomendas": co.total_orders,
-            "total_prontas": co.total_ready,
-            "encomendas": orders,
-        })
-
-    return _dumps({"clientes": result})
+    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
 
 
 # ─── 10. ver_historico ───────────────────────────────────────────────────

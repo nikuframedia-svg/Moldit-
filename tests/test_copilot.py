@@ -10,13 +10,12 @@ from unittest.mock import patch
 import pytest
 
 from backend.config.loader import _min_to_time, load_config, save_config
-from backend.config.types import FactoryConfig, MachineConfig, ShiftConfig
+from backend.config.types import FactoryConfig, MachineConfig
 from backend.copilot.engine import EXECUTORS, WIDGET_TOOLS, execute_tool
 from backend.copilot.state import CopilotState, state
 from backend.copilot.tools import TOOLS
 from backend.scheduler.constants import DAY_CAP
 from backend.scheduler.scheduler import schedule_all
-from backend.scheduler.types import Lot, Segment
 from backend.types import EngineData, EOp, MachineInfo, TwinGroup
 
 
@@ -140,6 +139,7 @@ class TestToolSchemas:
 
 # ─── TestQueryExecutors ───────────────────────────────────────────────────
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestQueryExecutors:
     def setup_method(self):
         _setup_state()
@@ -200,6 +200,7 @@ class TestQueryExecutors:
 
 # ─── TestActionExecutors ──────────────────────────────────────────────────
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestActionExecutors:
     def setup_method(self):
         _setup_state()
@@ -251,6 +252,7 @@ class TestActionExecutors:
 
 # ─── TestMasterExecutors ─────────────────────────────────────────────────
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestMasterExecutors:
     def setup_method(self):
         _setup_state()
@@ -347,6 +349,7 @@ class TestMasterExecutors:
 
 # ─── TestVizExecutors ─────────────────────────────────────────────────────
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestVizExecutors:
     def setup_method(self):
         _setup_state()
@@ -397,6 +400,7 @@ class TestVizExecutors:
 
 # ─── TestEngine ───────────────────────────────────────────────────────────
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestEngine:
     def test_unknown_tool(self):
         result, is_widget = execute_tool("tool_inexistente", "{}")
@@ -418,6 +422,7 @@ class TestEngine:
 
 # ─── TestState ────────────────────────────────────────────────────────────
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestState:
     def test_update_schedule_saves_audit(self):
         engine = _engine()
@@ -452,7 +457,7 @@ class TestProviderFactory:
     def test_default_openai(self):
         from backend.copilot.llm_provider import OpenAIProvider, get_provider
 
-        os.environ.pop("PP1_LLM_BACKEND", None)
+        os.environ.pop("MOLDIT_LLM_BACKEND", None)
         # get_provider() will try to import openai — skip if not installed
         try:
             provider = get_provider()
@@ -463,18 +468,19 @@ class TestProviderFactory:
     def test_ollama_backend(self):
         from backend.copilot.llm_provider import OllamaProvider, get_provider
 
-        os.environ["PP1_LLM_BACKEND"] = "ollama"
+        os.environ["MOLDIT_LLM_BACKEND"] = "ollama"
         try:
             provider = get_provider()
             assert isinstance(provider, OllamaProvider)
         except ImportError:
             pytest.skip("httpx not installed")
         finally:
-            os.environ.pop("PP1_LLM_BACKEND", None)
+            os.environ.pop("MOLDIT_LLM_BACKEND", None)
 
 
 # ─── TestPrompts ──────────────────────────────────────────────────────────
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestPrompts:
     def test_build_system_prompt(self):
         from backend.copilot.prompts import build_system_prompt

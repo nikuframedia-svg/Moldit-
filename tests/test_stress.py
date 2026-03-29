@@ -1,6 +1,6 @@
 """Tests for backend/scheduler/stress.py — stress map + summary."""
 
-from backend.scheduler.stress import compute_stress_map, stress_summary, SegmentStress
+from backend.scheduler.stress import compute_stress_map, stress_summary
 from backend.scheduler.types import Lot, Segment
 
 

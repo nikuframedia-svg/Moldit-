@@ -10,7 +10,7 @@ import json
 import logging
 
 from backend.config.loader import _parse_time, save_config
-from backend.config.types import FactoryConfig, MachineConfig, ShiftConfig
+from backend.config.types import MachineConfig, ShiftConfig
 from backend.copilot.state import state
 from backend.types import MachineInfo, TwinGroup
 
@@ -23,7 +23,7 @@ def _dumps(obj: object) -> str:
 
 def _guard() -> str | None:
     if state.engine_data is None:
-        return _dumps({"error": "Sem dados carregados. Carrega um ISOP primeiro."})
+        return _dumps({"error": "Sem dados carregados."})
     if state.config is None:
         return _dumps({"error": "Configuração não carregada."})
     return None

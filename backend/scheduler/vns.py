@@ -11,14 +11,11 @@ Three neighborhoods:
 
 from __future__ import annotations
 
-import copy
 import logging
 from collections import defaultdict
 
 from backend.config.types import FactoryConfig
-from backend.scheduler.constants import DAY_CAP
 from backend.scheduler.dispatch import per_machine_dispatch
-from backend.scheduler.jit import _backward_stack_gates, _max_gate
 from backend.scheduler.scoring import compute_score
 from backend.scheduler.types import Lot, Segment, ToolRun
 from backend.types import EngineData
@@ -87,18 +84,7 @@ def _recompute_machine_gates(
     config: FactoryConfig,
 ) -> dict[str, float]:
     """Recompute gates for affected machines, keep others unchanged."""
-    holiday_set = set(getattr(engine_data, "holidays", []))
-    new_gates = dict(old_gates)
-
-    # Only recompute affected machines
-    affected_runs = {m_id: runs for m_id, runs in machine_runs.items() if m_id in affected_machines}
-    if affected_runs:
-        recomputed = _backward_stack_gates(
-            affected_runs, holiday_set, engine_data.n_days, config=config,
-        )
-        new_gates.update(recomputed)
-
-    return new_gates
+    raise NotImplementedError("Moldit gate recomputation — Phase 2")
 
 
 # ─── Neighborhood generators ──────────────────────────────────────────
@@ -298,65 +284,4 @@ def vns_polish(
 
     Returns (segments, lots, score, warnings).
     """
-    max_iter = config.vns_max_iter if config else 50
-    generators = [_generate_n1_moves, _generate_n2_moves, _generate_n3_moves]
-    neighborhood_names = ["N1_swap", "N2_relocate", "N3_cross_machine"]
-
-    current_runs = _deep_copy_runs(machine_runs)
-    current_gates = dict(gates)
-    improvements: list[str] = []
-    total_evals = 0
-
-    initial_setups = best_score["setups"]
-    initial_earliness = best_score["earliness_avg_days"]
-
-    k = 0  # neighbourhood index
-    while k < len(generators) and total_evals < max_iter:
-        improved = False
-
-        for move in generators[k](current_runs, config):
-            total_evals += 1
-            if total_evals >= max_iter:
-                break
-
-            candidate_runs, affected = _apply_move(move, current_runs)
-            candidate_gates = _recompute_machine_gates(
-                candidate_runs, current_gates, affected, engine_data, config,
-            )
-            cand_segs, cand_lots, cand_score = _dispatch_and_score(
-                candidate_runs, candidate_gates, engine_data, config,
-            )
-
-            if _is_better(cand_score, best_score, config):
-                current_runs = candidate_runs
-                current_gates = candidate_gates
-                best_segs = cand_segs
-                best_lots = cand_lots
-                best_score = cand_score
-                improvements.append(
-                    f"{neighborhood_names[k]}: setups={cand_score['setups']}, "
-                    f"earliness={cand_score['earliness_avg_days']:.1f}d"
-                )
-                improved = True
-                break  # restart from N1
-
-        if improved:
-            k = 0  # restart from first neighbourhood
-        else:
-            k += 1  # try next neighbourhood
-
-    # Build summary warnings
-    warnings: list[str] = []
-    if improvements:
-        warnings.append(
-            f"VNS: {initial_setups}→{best_score['setups']} setups, "
-            f"{initial_earliness:.1f}→{best_score['earliness_avg_days']:.1f}d earliness "
-            f"({len(improvements)} improvements, {total_evals} evals)"
-        )
-        for imp in improvements:
-            logger.info("VNS improvement: %s", imp)
-    else:
-        warnings.append(f"VNS: no improvement found ({total_evals} evals)")
-        logger.info("VNS: no improvement found after %d evaluations", total_evals)
-
-    return best_segs, best_lots, best_score, warnings
+    raise NotImplementedError("Moldit VNS — Phase 2")

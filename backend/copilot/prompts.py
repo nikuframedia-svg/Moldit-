@@ -18,7 +18,7 @@ REGRAS:
 4. Quando pede para mudar algo, usa a tool de acção/master data.
 5. Quando pede para simular, usa simular_cenario ou simular_overtime.
 6. Explica as decisões do scheduler usando explicar_decisao (precisa de recalcular_plano primeiro).
-7. Se não tiveres dados carregados, diz ao Francisco para carregar o ISOP primeiro.
+7. Se não tiveres dados carregados, diz ao utilizador para carregar um ficheiro primeiro.
 
 FERRAMENTAS DISPONÍVEIS:
 - Consulta: ver_producao_dia, ver_carga_maquinas, ver_alertas, ver_score, ver_config, explicar_referencia, explicar_decisao, explicar_logica, ver_encomendas, ver_historico, ver_stress, e_se
@@ -33,7 +33,7 @@ def build_system_prompt(state: CopilotState) -> str:
     parts = [SYSTEM_BASE]
 
     if state.engine_data is not None:
-        parts.append(f"\nESTADO ACTUAL:")
+        parts.append("\nESTADO ACTUAL:")
         parts.append(f"- {len(state.engine_data.ops)} operações carregadas")
         parts.append(f"- {len(state.segments)} segmentos planeados")
         parts.append(f"- {len(state.lots)} lots")
@@ -63,7 +63,7 @@ def build_system_prompt(state: CopilotState) -> str:
         elif state.warnings:
             parts.append(f"- {len(state.warnings)} warnings")
     else:
-        parts.append("\nSEM DADOS CARREGADOS. Pede ao Francisco para carregar o ISOP.")
+        parts.append("\nSEM DADOS CARREGADOS. Pede ao utilizador para carregar um ficheiro.")
 
     if state.rules:
         parts.append(f"\nREGRAS ACTIVAS ({len(state.rules)}):")

@@ -1,7 +1,7 @@
-"""Copilot FastAPI endpoint — Spec 10.
+"""Copilot FastAPI endpoint.
 
 POST /api/copilot/chat  — LLM chat with function calling
-POST /api/copilot/load  — Load ISOP and initialize state
+POST /api/copilot/load  — Load project plan and initialize state
 """
 
 from __future__ import annotations
@@ -13,27 +13,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-import yaml
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from backend.config.loader import load_config
-from backend.copilot.engine import WIDGET_TOOLS, execute_tool
+from backend.copilot.engine import execute_tool
 from backend.copilot.llm_provider import get_provider
 from backend.copilot.prompts import build_system_prompt
 from backend.copilot.state import state
 from backend.copilot.tools import TOOLS
-from backend.cpo import optimize
-from backend.parser.isop_reader import read_isop
-from backend.transform.transform import transform
 
 logger = logging.getLogger(__name__)
 
 from backend.api.console import router as console_router
 from backend.api.data import router as data_router
 
-app = FastAPI(title="PP1 Copilot", version="1.0.0")
+app = FastAPI(title="Moldit Copilot", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -55,9 +50,8 @@ class ChatRequest(BaseModel):
 
 
 class LoadRequest(BaseModel):
-    isop_path: str
+    project_path: str
     config_path: str = "config/factory.yaml"
-    master_path: str = "config/incompol.yaml"
 
 
 @app.post("/api/copilot/chat")
@@ -123,60 +117,9 @@ async def copilot_chat(request: ChatRequest):
 
 
 @app.post("/api/copilot/load")
-async def load_isop(request: LoadRequest):
-    """Load an ISOP file and initialize the copilot state."""
-    config = load_config(request.config_path)
-
-    with open(request.master_path) as f:
-        master = yaml.safe_load(f)
-
-    rows, workdays, has_twin = read_isop(request.isop_path)
-    engine_data = transform(rows, workdays, has_twin, master)
-    result = optimize(
-        engine_data,
-        mode="normal",
-        audit=True,
-        config=config,
-    )
-
-    state.engine_data = engine_data
-    state.config = config
-    state.update_schedule(result)
-    state._load_rules()
-
-    # DQA trust index
-    from backend.dqa import compute_trust_index
-
-    trust = compute_trust_index(engine_data, config)
-    state.trust_index = trust
-
-    # Journal summary
-    journal_summary = None
-    if result.journal:
-        journal_summary = {
-            "total": len(result.journal),
-            "warnings": len([e for e in result.journal if e.get("severity") in ("warn", "error")]),
-        }
-
-    learning_info = None
-    if result.study:
-        learning_info = {
-            "optimized": True,
-            "n_trials": result.study.n_trials,
-            "confidence": result.study.confidence,
-            "improvement": result.study.improvement,
-        }
-
-    return {
-        "status": "ok",
-        "n_ops": len(engine_data.ops),
-        "n_segments": len(result.segments),
-        "score": result.score,
-        "time_ms": result.time_ms,
-        "trust_index": {"score": trust.score, "gate": trust.gate},
-        "journal_summary": journal_summary,
-        "learning": learning_info,
-    }
+async def load_project(request: LoadRequest):
+    """Load a project plan file and initialize the copilot state."""
+    raise NotImplementedError("Moldit project loading — Phase 2")
 
 
 @app.get("/api/copilot/health")

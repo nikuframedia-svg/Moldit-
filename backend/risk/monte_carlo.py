@@ -10,7 +10,6 @@ import copy
 import math
 from typing import Any, Callable
 
-from backend.scheduler.types import Lot, Segment
 from backend.types import EngineData
 
 # Distribution parameters for Incompol (metal stamping)

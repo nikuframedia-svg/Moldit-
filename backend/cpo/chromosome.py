@@ -11,7 +11,6 @@ Gene groups:
 
 from __future__ import annotations
 
-import copy
 import hashlib
 import pickle
 import random

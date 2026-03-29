@@ -9,17 +9,11 @@ Modes:
 
 from __future__ import annotations
 
-import copy
 import logging
 import random
 import time
 
 from backend.config.types import FactoryConfig
-from backend.scheduler.dispatch import assign_machines
-from backend.scheduler.lot_sizing import create_lots
-from backend.scheduler.scheduler import schedule_all
-from backend.scheduler.scoring import compute_score
-from backend.scheduler.tool_grouping import create_tool_runs
 from backend.scheduler.types import ScheduleResult
 from backend.types import EngineData
 
@@ -81,106 +75,8 @@ def optimize(
     seed: int | None = 42,
     audit: bool = False,
 ) -> ScheduleResult:
-    """CPO v3.0 entry point.
-
-    Returns:
-        ScheduleResult with the best schedule found.
-        Always at least as good as the greedy baseline.
-    """
-    t0 = time.perf_counter()
-
-    if config is None:
-        config = FactoryConfig()
-
-    if mode not in MODE_CONFIG:
-        raise ValueError(f"Unknown mode: {mode}. Use: {list(MODE_CONFIG)}")
-
-    cfg = MODE_CONFIG[mode]
-
-    # Phase 0: Greedy baseline
-    baseline = schedule_all(engine_data, audit=audit, config=config)
-    baseline_score = baseline.score
-
-    if not baseline_score or not baseline.lots:
-        return baseline
-
-    logger.info(
-        "CPO Phase 0 (baseline): OTD=%.1f%%, setups=%d, earliness=%.1fd, tardy=%d",
-        baseline_score.get("otd", 0),
-        baseline_score.get("setups", 0),
-        baseline_score.get("earliness_avg_days", 0),
-        baseline_score.get("tardy_count", 0),
-    )
-
-    if mode == "quick" or cfg["pop_size"] == 0:
-        elapsed = (time.perf_counter() - t0) * 1000
-        baseline.time_ms = round(elapsed, 1)
-        return baseline
-
-    # GA optimization
-    rng = random.Random(seed)
-    pipeline = CachedPipeline(engine_data, config)
-
-    # Create baseline chromosome
-    lots = create_lots(engine_data, config=config)
-    runs = create_tool_runs(lots, config=config)
-    machine_runs = assign_machines(runs, engine_data, config=config)
-    baseline_chrom = Chromosome.from_baseline(runs, machine_runs)
-
-    best_result = _ga_search(
-        pipeline=pipeline,
-        baseline_chrom=baseline_chrom,
-        baseline_result=baseline,
-        pop_size=cfg["pop_size"],
-        max_gen=cfg["max_gen"],
-        time_budget=cfg["time_budget"],
-        use_surrogate=cfg["use_surrogate"],
-        use_archive=cfg["use_archive"],
-        rng=rng,
-    )
-
-    # CP-SAT polish on bottleneck machines
-    try:
-        from backend.cpo.cpsat_polish import cpsat_polish
-        time_per_machine = 2.0 if mode == "normal" else 10.0
-        polished_segs, polished_lots, polished_score = cpsat_polish(
-            best_result.segments, best_result.lots, machine_runs,
-            engine_data, config, time_limit_per_machine=time_per_machine,
-        )
-        if polished_score.get("tardy_count", 1) <= best_result.score.get("tardy_count", 0):
-            polished_score["buffer_days"] = best_result.score.get("buffer_days", 0)
-            best_result = ScheduleResult(
-                segments=polished_segs,
-                lots=polished_lots,
-                score=polished_score,
-                time_ms=0.0,
-                warnings=best_result.warnings,
-                operator_alerts=best_result.operator_alerts,
-            )
-    except Exception as e:
-        logger.debug("CP-SAT polish skipped: %s", e)
-
-    # Safety: never return worse than baseline
-    best_score = best_result.score
-    if (best_score.get("tardy_count", 1) > baseline_score.get("tardy_count", 0)
-            or best_score.get("otd_d", 0) < baseline_score.get("otd_d", 100)):
-        logger.warning("CPO result worse than baseline — reverting to baseline")
-        best_result = baseline
-
-    elapsed = (time.perf_counter() - t0) * 1000
-    best_result.time_ms = round(elapsed, 1)
-
-    logger.info(
-        "CPO %s: OTD=%.1f%%, setups=%d, earliness=%.1fd, tardy=%d (%.1fs)",
-        mode,
-        best_result.score.get("otd", 0),
-        best_result.score.get("setups", 0),
-        best_result.score.get("earliness_avg_days", 0),
-        best_result.score.get("tardy_count", 0),
-        elapsed / 1000,
-    )
-
-    return best_result
+    """CPO v3.0 entry point."""
+    raise NotImplementedError("Moldit CPO — Phase 2")
 
 
 def _fitness_cost(score: dict) -> float:

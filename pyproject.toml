@@ -1,7 +1,7 @@
 [project]
-name = "pp1-scheduler"
-version = "1.0.0"
-description = "ProdPlan PP1 — Industrial APS Scheduler"
+name = "moldit-planner"
+version = "0.1.0"
+description = "Moldit — Mold Production Planner"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]

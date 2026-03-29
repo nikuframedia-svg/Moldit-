@@ -1,7 +1,7 @@
 [project]
-name = "pp1-backend"
+name = "moldit-backend"
 version = "0.1.0"
-description = "PP1 ProdPlan ONE — APS backend"
+description = "Moldit Planner — backend"
 requires-python = ">=3.12"
 dependencies = [
     "openpyxl>=3.1.0",

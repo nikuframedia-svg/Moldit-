@@ -1,6 +1,6 @@
 """Audit Logger — Spec 07 §2.
 
-Constraint-waterfall recorder. Injected into dispatch/jit/tool_grouping.
+Constraint-waterfall recorder. Injected into dispatch pipeline.
 Each decision is recorded with WHY.
 """
 

@@ -1,22 +1,18 @@
-# PP1 — Industrial APS Scheduler
+# moldit-planner
 
-Production planning scheduler for stamping factories.
-Factory: Incompol (5 presses, 59 tools, ~94 SKUs, 14 clients).
+Mold production scheduler for injection mold factories.
 
-## Requirements
+## Status
 
-- **Python >= 3.10** (uses `dataclass(slots=True)` and `X | Y` union syntax)
-- Dependencies: `pip install -r requirements.txt`
+Phase 1: Fork and cleanup from INCOMPOLINHO. Moldit-specific scheduling logic in development (Phase 2).
 
-## Run
+## Quick Start
 
 ```bash
+pip install -r requirements.txt
 python -m pytest tests/ -v
 ```
 
-## Structure
+## Architecture
 
-- `backend/` — Scheduler, analytics, simulator, parser, transform
-- `config/` — Factory master data (`incompol.yaml`) + scheduler config (`factory.yaml`)
-- `frontend/` — React + TypeScript console UI
-- `tests/` — 410+ tests
+See [CLAUDE.md](CLAUDE.md) for full documentation.

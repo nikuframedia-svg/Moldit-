@@ -9,7 +9,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from backend.config.types import FactoryConfig
-from backend.scheduler.constants import DAY_CAP
 from backend.scheduler.types import Lot, Segment
 from backend.types import EngineData
 

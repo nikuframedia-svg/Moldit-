@@ -12,7 +12,7 @@ from backend.risk.slack_analytics import (
     compute_machine_risks,
 )
 from backend.risk.surrogate import extract_features, predict_risk
-from backend.risk.types import HeatmapCell, LotRisk, MachineRisk
+from backend.risk.types import LotRisk, MachineRisk
 from backend.scheduler.constants import DAY_CAP
 from backend.scheduler.types import Lot, Segment
 from backend.types import EngineData, EOp, MachineInfo

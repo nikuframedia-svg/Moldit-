@@ -6,14 +6,10 @@ All analytics are pre-computed in state._refresh_analytics().
 
 from __future__ import annotations
 
-import copy
 import json
 import logging
-import tempfile
 from dataclasses import asdict
-from pathlib import Path
 
-import yaml
 from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import BaseModel
 
@@ -33,9 +29,9 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 
 
 def _require_data():
-    """Raise 503 if no ISOP data loaded."""
+    """Raise 503 if no data loaded."""
     if state.engine_data is None:
-        raise HTTPException(503, "Sem dados carregados. Carrega um ISOP primeiro.")
+        raise HTTPException(503, "Sem dados carregados.")
 
 
 def _require_config():
@@ -245,12 +241,7 @@ async def get_late_deliveries():
 @router.get("/workforce")
 async def get_workforce(window: int = 10):
     """Workforce forecast (computed on-demand, not cached)."""
-    _require_data()
-    _require_config()
-    from backend.analytics.workforce_forecast import forecast_workforce
-
-    wf = forecast_workforce(state.segments, state.engine_data, state.config, window)
-    return asdict(wf)
+    raise HTTPException(501, detail="Not implemented for Moldit")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -508,78 +499,12 @@ async def recalculate():
 
 
 @router.post("/load")
-async def load_isop_upload(
+async def load_project_upload(
     file: UploadFile,
     config_path: str = "config/factory.yaml",
-    master_path: str = "config/incompol.yaml",
 ):
-    """Load ISOP from uploaded file (multipart/form-data)."""
-    from backend.config.loader import load_config
-    from backend.cpo import optimize
-    from backend.dqa import compute_trust_index
-    from backend.parser.isop_reader import read_isop
-    from backend.transform.transform import transform
-
-    # Save uploaded file to temp
-    suffix = Path(file.filename or "upload.xlsx").suffix
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = tmp.name
-
-    try:
-        config = load_config(config_path)
-        with open(master_path) as f:
-            master = yaml.safe_load(f)
-
-        rows, workdays, has_twin = read_isop(tmp_path)
-        engine_data = transform(rows, workdays, has_twin, master)
-        result = optimize(
-            engine_data,
-            mode="normal",
-            audit=True,
-            config=config,
-        )
-
-        state.engine_data = engine_data
-        state.config = config
-        state.update_schedule(result)
-        state._load_rules()
-
-        # DQA trust index
-        trust = compute_trust_index(engine_data, config)
-        state.trust_index = trust
-
-        # Journal summary
-        journal_summary = None
-        if result.journal:
-            journal_summary = {
-                "total": len(result.journal),
-                "warnings": len([
-                    e for e in result.journal
-                    if e.get("severity") in ("warn", "error")
-                ]),
-            }
-
-        learning_info = {
-            "optimized": True,
-            "mode": "normal",
-            "time_ms": result.time_ms,
-        }
-        state.learning_info = learning_info
-
-        return {
-            "status": "ok",
-            "n_ops": len(engine_data.ops),
-            "n_segments": len(result.segments),
-            "score": result.score,
-            "time_ms": result.time_ms,
-            "trust_index": {"score": trust.score, "gate": trust.gate},
-            "journal_summary": journal_summary,
-            "learning": learning_info,
-        }
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
+    """Load project plan from uploaded file (multipart/form-data)."""
+    raise HTTPException(501, detail="Not implemented for Moldit")
 
 
 # ═══════════════════════════════════════════════════════════════════════════

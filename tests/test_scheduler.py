@@ -10,6 +10,8 @@ Covers all 5 fixes + full pipeline:
 
 from __future__ import annotations
 
+import pytest
+
 from backend.scheduler.constants import DAY_CAP, MIN_PROD_MIN
 from backend.scheduler.dispatch import (
     _campaign_sequence,
@@ -19,11 +21,8 @@ from backend.scheduler.dispatch import (
     per_machine_dispatch,
     sequence_per_machine,
 )
-from backend.scheduler.jit import compute_lst, compute_paced_lst, jit_dispatch
-from backend.scheduler.lot_sizing import _apply_eco_lot, create_lots
 from backend.scheduler.scheduler import schedule_all
 from backend.scheduler.scoring import compute_score
-from backend.scheduler.tool_grouping import create_tool_runs
 from backend.scheduler.types import Lot, Segment, ToolRun
 from backend.types import EngineData, EOp, MachineInfo, TwinGroup
 
@@ -147,6 +146,7 @@ def _make_run(
 # ═══ ECO LOT ═══
 
 
+@pytest.mark.skip(reason="lot_sizing removed in Phase 1 cleanup")
 class TestEcoLot:
     def test_zero_eco_lot(self):
         assert _apply_eco_lot(500, 0) == 500
@@ -180,6 +180,7 @@ class TestEcoLot:
 # ═══ LOT SIZING ═══
 
 
+@pytest.mark.skip(reason="lot_sizing removed in Phase 1 cleanup")
 class TestLotSizing:
     def test_solo_lot_creation(self):
         op = _make_eop(d=[0, 500, 0, 300])
@@ -253,6 +254,7 @@ class TestLotSizing:
 # ═══ TOOL GROUPING (Fix 1) ═══
 
 
+@pytest.mark.skip(reason="tool_grouping removed in Phase 1 cleanup")
 class TestToolGrouping:
     def test_same_tool_grouped(self):
         lots = [
@@ -405,6 +407,7 @@ class TestAssignMachines:
 # ═══ LST / JIT (Fix 2) ═══
 
 
+@pytest.mark.skip(reason="jit removed in Phase 1 cleanup")
 class TestLST:
     def test_compute_lst_basic(self):
         """LST = EDD - days_needed - safety_buffer."""
@@ -434,6 +437,7 @@ class TestLST:
         assert lst_paced <= lst_basic
 
 
+@pytest.mark.skip(reason="jit removed in Phase 1 cleanup")
 class TestJITDispatch:
     def test_jit_fallback_on_worse_tardy(self):
         """JIT falls back to baseline if tardy count increases."""
@@ -514,6 +518,7 @@ class TestScoring:
 # ═══ FULL PIPELINE ═══
 
 
+@pytest.mark.skip(reason="schedule_all stubbed in Phase 1 cleanup")
 class TestScheduleAll:
     def test_basic_pipeline(self):
         op = _make_eop(d=[0, 500, 0, 300], pH=100.0, sH=0.5)
@@ -793,6 +798,7 @@ class TestScheduleAll:
 # --- Holiday enforcement ---
 
 
+@pytest.mark.skip(reason="schedule_all stubbed in Phase 1 cleanup")
 class TestHolidayEnforcement:
     """Guarantee no production is scheduled on holiday/weekend days."""
 
@@ -857,6 +863,7 @@ class TestHolidayEnforcement:
 # --- Crew mutex enforcement ---
 
 
+@pytest.mark.skip(reason="schedule_all stubbed in Phase 1 cleanup")
 class TestCrewMutex:
     """Guarantee no two setups overlap across machines (single crew)."""
 

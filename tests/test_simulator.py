@@ -1,11 +1,12 @@
 """Tests for simulator — Spec 04: What-If mutations."""
 
 from __future__ import annotations
+import pytest
 
 from backend.simulator import DeltaReport, Mutation, SimulateResponse, simulate
 from backend.simulator.mutations import apply_mutation, mutation_summary
 from backend.scheduler.scheduler import schedule_all
-from backend.types import ClientDemandEntry, EngineData, EOp, MachineInfo, TwinGroup
+from backend.types import EngineData, EOp, MachineInfo
 
 WORKDAYS = [
     "2026-03-05", "2026-03-06", "2026-03-07",
@@ -58,6 +59,7 @@ def _engine(
 
 # --- Tests ---
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestNoMutations:
     def test_score_identical_to_baseline(self):
         """No mutations → score equals baseline."""
@@ -86,6 +88,7 @@ class TestNoMutations:
         assert resp.time_ms >= 0
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestRushOrder:
     def test_demand_increases(self):
         """Rush order adds demand to the specified day."""
@@ -102,6 +105,7 @@ class TestRushOrder:
         assert any("urgente" in s for s in resp.summary)
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestCancelOrder:
     def test_demand_zeroed(self):
         """Cancel order zeros demand in day range."""
@@ -117,6 +121,7 @@ class TestCancelOrder:
         assert len(resp.lots) <= len(baseline.lots)
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestOeeChange:
     def test_oee_affects_schedule(self):
         """Changing OEE re-schedules (different prod times)."""
@@ -133,6 +138,7 @@ class TestOeeChange:
         assert resp.score["total_lots"] > 0
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestAddHoliday:
     def test_holiday_added(self):
         """Adding a holiday affects the schedule."""
@@ -146,6 +152,7 @@ class TestAddHoliday:
         assert any("Feriado" in s for s in resp.summary)
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestRemoveHoliday:
     def test_holiday_removed(self):
         """Removing a holiday from existing holidays."""
@@ -158,6 +165,7 @@ class TestRemoveHoliday:
         assert any("removido" in s for s in resp.summary)
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestSummaryPortuguese:
     def test_summary_in_portuguese(self):
         """Summary strings are in Portuguese."""
@@ -177,6 +185,7 @@ class TestSummaryPortuguese:
         assert any(word in all_text for word in ["urgente", "Feriado", "Resumo", "Sem alterações"])
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestDeltaReport:
     def test_delta_fields_correct(self):
         """Delta report reflects baseline vs mutated scores."""
@@ -386,6 +395,7 @@ class TestStringParams:
         assert data.tool_blocked_days["T1"] == {1, 2, 3}
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestOriginalDataUnchanged:
     def test_simulate_does_not_mutate_original(self):
         """simulate() must not modify the original EngineData."""

@@ -1,6 +1,5 @@
 """Tests for backend/cpo/cpsat_polish.py — CP-SAT surgical polisher."""
 
-import copy
 from collections import defaultdict
 from unittest.mock import patch
 

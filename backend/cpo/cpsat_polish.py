@@ -9,7 +9,6 @@ Graceful fallback: if ortools is not installed, returns original schedule.
 
 from __future__ import annotations
 
-import copy
 import logging
 from collections import defaultdict
 

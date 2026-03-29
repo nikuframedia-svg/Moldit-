@@ -1,15 +1,12 @@
 """Tests for VNS post-processing — Phase 4b."""
 
 from __future__ import annotations
+import pytest
 
 from backend.config.types import FactoryConfig
-from backend.scheduler.dispatch import per_machine_dispatch
-from backend.scheduler.jit import _backward_stack_gates
-from backend.scheduler.scoring import compute_score
 from backend.scheduler.types import Lot, ToolRun
 from backend.scheduler.vns import (
     _apply_move,
-    _deep_copy_runs,
     _dispatch_and_score,
     _generate_n1_moves,
     _generate_n2_moves,
@@ -257,6 +254,7 @@ class TestApplyMove:
         assert affected == {"M1", "M2"}
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestVNSPolish:
     """Test the main VNS function."""
 

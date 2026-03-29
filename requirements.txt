@@ -7,3 +7,5 @@ httpx>=0.27
 scikit-learn>=1.4
 fastapi>=0.111
 uvicorn>=0.29
+jpype1>=1.5
+mpxj>=12.0

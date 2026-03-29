@@ -1,4 +1,5 @@
-"""PP1 core types — Spec 01 §1."""
+# LEGACY INCOMPOL TYPES — DO NOT USE. Will be replaced in Phase 2 with Moldit types.
+"""Core types."""
 
 from __future__ import annotations
 
@@ -7,7 +8,7 @@ from dataclasses import dataclass, field
 
 @dataclass(slots=True)
 class RawRow:
-    """Raw row extracted from ISOP Excel."""
+    """Raw row extracted from project plan."""
 
     client_id: str  # "210020"
     client_name: str  # "FAURECIA"

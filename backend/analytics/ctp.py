@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any
 
 from backend.config.types import FactoryConfig
 from backend.scheduler.constants import DAY_CAP, DEFAULT_OEE

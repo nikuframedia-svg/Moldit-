@@ -43,9 +43,9 @@ export function Sidebar() {
     >
       <div style={{ padding: "20px 20px 24px" }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: T.primary, letterSpacing: "-0.02em" }}>
-          ProdPlan ONE
+          Moldit Planner
         </div>
-        <div style={{ fontSize: 11, color: T.tertiary, marginTop: 2 }}>Incompol</div>
+        <div style={{ fontSize: 11, color: T.tertiary, marginTop: 2 }}>Moldit</div>
       </div>
 
       <div style={{ flex: 1, padding: "0 8px", display: "flex", flexDirection: "column", gap: 1 }}>

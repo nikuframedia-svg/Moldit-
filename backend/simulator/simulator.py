@@ -14,7 +14,7 @@ from backend.cpo import optimize
 from backend.scheduler.types import Lot, Segment
 from backend.types import EngineData
 
-from .mutations import apply_mutation, mutation_summary
+from .mutations import apply_mutation
 
 
 @dataclass(slots=True)

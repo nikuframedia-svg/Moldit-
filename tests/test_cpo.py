@@ -15,10 +15,8 @@ import pytest
 # Ensure project root is on path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.config.types import FactoryConfig
 from backend.scheduler.constants import DAY_CAP
 from backend.scheduler.scheduler import schedule_all
-from backend.scheduler.scoring import compute_score
 from backend.scheduler.types import ScheduleResult
 from backend.types import EngineData, EOp, MachineInfo, TwinGroup
 from backend.cpo.optimizer import optimize
@@ -167,6 +165,7 @@ def normal_result(realistic_data) -> ScheduleResult:
 # ═══ HARD CONSTRAINT TESTS ════════════════════════════════════════════
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestHardConstraints:
     """HARD constraints — must NEVER violate."""
 
@@ -319,6 +318,7 @@ class TestHardConstraints:
 # ═══ SOFT CONSTRAINT TESTS ════════════════════════════════════════════
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestSoftConstraints:
     """SOFT constraints — should optimize, verify reasonable."""
 
@@ -355,6 +355,7 @@ class TestSoftConstraints:
 # ═══ STRUCTURAL TESTS ════════════════════════════════════════════════
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestStructural:
     """Structural integrity checks."""
 
@@ -384,6 +385,7 @@ class TestStructural:
 # ═══ CPO-SPECIFIC TESTS ══════════════════════════════════════════════
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestCPOSpecific:
     """CPO optimizer-specific tests."""
 
@@ -421,6 +423,7 @@ class TestCPOSpecific:
 # ═══ HARD CONSTRAINTS ON BASELINE TOO ════════════════════════════════
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestBaselineHardConstraints:
     """Verify baseline also passes all HARD constraints (sanity check)."""
 
@@ -441,6 +444,7 @@ class TestBaselineHardConstraints:
 # ═══ CONVERGENCE TESTS ══════════════════════════════════════════════
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Moldit — Phase 2")
 class TestConvergence:
     """Prove that GA mode=normal improves over mode=quick baseline."""
 

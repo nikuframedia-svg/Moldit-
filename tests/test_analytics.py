@@ -2,19 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 from backend.analytics import (
-    CTPResult,
-    ExpeditionKPIs,
-    StockProjection,
-    build_production_by_op,
     compute_ctp,
-    compute_expedition,
-    compute_order_tracking,
-    compute_stock_projections,
 )
 from backend.scheduler.constants import DAY_CAP
 from backend.scheduler.types import Lot, Segment
-from backend.types import ClientDemandEntry, EngineData, EOp, MachineInfo, TwinGroup
+from backend.types import ClientDemandEntry, EngineData, EOp, MachineInfo
 
 WORKDAYS = [
     "2026-03-05", "2026-03-06", "2026-03-07",
@@ -108,6 +103,7 @@ def _seg(
 
 # ═══ BUILD PRODUCTION BY OP ═══
 
+@pytest.mark.skip(reason="Module removed in Phase 1 cleanup")
 class TestBuildProductionByOp:
     def test_basic(self):
         lots = [_lot(op_id="op1")]
@@ -131,6 +127,7 @@ class TestBuildProductionByOp:
 
 # ═══ STOCK PROJECTION ═══
 
+@pytest.mark.skip(reason="Module removed in Phase 1 cleanup")
 class TestStockProjection:
     def test_basic(self):
         """Stock = produced - demand."""
@@ -292,6 +289,7 @@ class TestCTP:
 
 # ═══ EXPEDITION ═══
 
+@pytest.mark.skip(reason="Module removed in Phase 1 cleanup")
 class TestExpedition:
     def test_ready(self):
         """Production before demand day → ready."""
@@ -371,6 +369,7 @@ class TestExpedition:
 
 # ═══ ORDER TRACKING ═══
 
+@pytest.mark.skip(reason="Module removed in Phase 1 cleanup")
 class TestOrderTracking:
     def test_covers_all_demands(self):
         """Every ClientDemandEntry gets an OrderTracking."""

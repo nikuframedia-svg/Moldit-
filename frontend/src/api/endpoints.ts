@@ -116,7 +116,7 @@ export const recalculate = () =>
 
 // ── Upload ───────────────────────────────────────────────────
 
-export const uploadISOP = (file: File) =>
+export const uploadProject = (file: File) =>
   upload<LoadResponse>("/api/data/load", file);
 
 // ── Chat ─────────────────────────────────────────────────────

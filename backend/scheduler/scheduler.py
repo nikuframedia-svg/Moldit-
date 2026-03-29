@@ -1,33 +1,20 @@
-"""Scheduler entry point — Spec 02 v6 §9.
+"""Scheduler entry point.
 
-Pipeline:
-  Phase 1: lot_sizing      — EOps → Lots (eco lot + twins + min prod_min)
-  Phase 2: tool_grouping   — Lots → ToolRuns (group + split + EDD sort)
+Pipeline (stubbed — Phase 2 will implement Moldit-specific logic):
+  Phase 1: lot_sizing      — EOps → Lots
+  Phase 2: tool_grouping   — Lots → ToolRuns
   Phase 3: dispatch         — assign + sequence + allocate segments
-  Phase 4: jit              — LST-gated re-dispatch (safety: fallback)
-  Phase 5: scoring          — OTD, OTD-D, setups, earliness, utilisation
+  Phase 4: jit              — LST-gated re-dispatch
+  Phase 5: scoring          — KPI computation
 """
 
 from __future__ import annotations
 
 import logging
-import time
 from collections import defaultdict
 
 from backend.scheduler.constants import DAY_CAP
 from backend.config.types import FactoryConfig
-from backend.guardian.guardian import validate_input, validate_output
-from backend.journal.journal import Journal
-from backend.scheduler.dispatch import (
-    assign_machines,
-    per_machine_dispatch,
-    sequence_per_machine,
-)
-from backend.scheduler.jit import jit_dispatch
-from backend.scheduler.lot_sizing import create_lots
-from backend.scheduler.operators import compute_operator_alerts
-from backend.scheduler.scoring import compute_score
-from backend.scheduler.tool_grouping import create_tool_runs
 from backend.scheduler.types import Lot, ScheduleResult, Segment, ToolRun
 from backend.types import EngineData
 
@@ -548,216 +535,4 @@ def _serialize_crew_safe(
 
 def schedule_all(data: EngineData, audit: bool = False, config: FactoryConfig | None = None, crew_priority: list[str] | None = None) -> ScheduleResult:
     """Run the full scheduling pipeline."""
-    t0 = time.perf_counter()
-
-    if config is None:
-        config = FactoryConfig()
-
-    journal = Journal()
-
-    audit_logger = None
-    if audit:
-        from backend.audit.logger import AuditLogger
-        audit_logger = AuditLogger()
-
-    # Guardian: validate input
-    journal.phase_start("guardian")
-    guard = validate_input(data, config)
-    if guard.dropped_ops:
-        journal.log("guardian", "warn", f"Dropped {len(guard.dropped_ops)} ops: {', '.join(guard.dropped_ops[:5])}")
-    journal.phase_end("guardian", f"{len(guard.issues)} issues, {len(guard.dropped_ops)} dropped", n_issues=len(guard.issues))
-    data = guard.cleaned
-
-    # Phase 1: EOps → Lots
-    journal.phase_start("lot_sizing")
-    lots = create_lots(data, config=config)
-    journal.phase_end("lot_sizing", f"{len(lots)} lots from {len(data.ops)} ops", n_lots=len(lots), n_ops=len(data.ops))
-    logger.info("Phase 1: %d lots from %d ops", len(lots), len(data.ops))
-
-    if not lots:
-        return ScheduleResult(
-            segments=[], lots=[], score={},
-            time_ms=0.0, warnings=journal.to_warnings(), operator_alerts=[],
-            journal=journal.to_dicts(),
-        )
-
-    # Phase 2: Lots → ToolRuns
-    journal.phase_start("tool_grouping")
-    runs = create_tool_runs(lots, audit_logger=audit_logger, config=config)
-    journal.phase_end("tool_grouping", f"{len(runs)} runs from {len(lots)} lots", n_runs=len(runs))
-    logger.info("Phase 2: %d tool runs (vs %d lots)", len(runs), len(lots))
-
-    # Auto buffer: detect per-machine capacity infeasibility with holidays
-    journal.phase_start("dispatch")
-    machine_runs = assign_machines(runs, data, audit_logger=audit_logger, config=config)
-    global_holidays = set(data.holidays) if data.holidays else set()
-    buffer_days = _detect_buffer_need(runs, config=config, machine_runs=machine_runs, holidays=global_holidays)
-    if buffer_days > 0:
-        logger.info("Auto buffer: +%d day(s) for infeasible early runs", buffer_days)
-        _apply_buffer(runs, buffer_days)
-        data = _shift_engine_data(data, buffer_days)
-        global_holidays = set(data.holidays) if data.holidays else set()
-        # Re-assign with shifted EDDs
-        machine_runs = assign_machines(runs, data, audit_logger=audit_logger, config=config)
-
-    # Phase 3: Sequence + Allocate
-    machine_runs = sequence_per_machine(machine_runs, audit_logger=audit_logger, config=config, holidays=global_holidays or None)
-    baseline_segments, baseline_lots, warnings = per_machine_dispatch(machine_runs, data, config=config)
-    journal.phase_end("dispatch", f"{len(baseline_segments)} segments", n_segments=len(baseline_segments))
-    logger.info("Phase 3: %d segments, %d warnings", len(baseline_segments), len(warnings))
-
-    # Baseline score
-    baseline_score = compute_score(baseline_segments, baseline_lots, data, config=config)
-    logger.info(
-        "Baseline: OTD=%.1f%%, OTD-D=%.1f%%, setups=%d, tardy=%d/%d",
-        baseline_score["otd"], baseline_score["otd_d"], baseline_score["setups"],
-        baseline_score["tardy_count"], baseline_score["total_lots"],
-    )
-
-    # Phase 4: JIT (LST-gated re-dispatch)
-    journal.phase_start("jit")
-    jit_thresh = config.jit_threshold
-    jit_machine_runs = None
-    jit_gates = None
-    if config.jit_enabled and baseline_score["otd"] >= jit_thresh:
-        final_segments, final_lots, jit_warnings, jit_machine_runs, jit_gates = jit_dispatch(
-            runs, data,
-            baseline_segments, baseline_lots, baseline_score,
-            audit_logger=audit_logger, config=config,
-        )
-        warnings.extend(jit_warnings)
-        journal.phase_end("jit", f"JIT applied, {len(final_segments)} segments")
-    else:
-        final_segments = baseline_segments
-        final_lots = baseline_lots
-        warnings.append("JIT disabled: baseline OTD < 95%")
-        journal.log("jit", "warn", "JIT disabled: baseline OTD < 95%")
-        journal.phase_end("jit", "JIT skipped")
-
-    # Phase 4b: VNS polish (post-JIT)
-    if config.vns_enabled and jit_machine_runs is not None and jit_gates is not None:
-        from backend.scheduler.vns import vns_polish
-        journal.phase_start("vns")
-        jit_score = compute_score(final_segments, final_lots, data, config=config)
-        vns_segs, vns_lots, vns_score, vns_warnings = vns_polish(
-            jit_machine_runs, jit_gates, data, config,
-            final_segments, final_lots, jit_score,
-        )
-        if (vns_score["tardy_count"] <= jit_score["tardy_count"]
-                and (vns_score["setups"] < jit_score["setups"] or vns_score["earliness_avg_days"] < jit_score["earliness_avg_days"])):
-            final_segments = vns_segs
-            final_lots = vns_lots
-        warnings.extend(vns_warnings)
-        journal.phase_end("vns", f"VNS: setups={vns_score['setups']}, earliness={vns_score['earliness_avg_days']:.1f}d")
-
-    # Un-shift buffer if applied
-    if buffer_days > 0:
-        final_segments = _unshift_segments(final_segments, buffer_days)
-        final_lots = _unshift_lots(final_lots, buffer_days)
-        # Restore original n_days for scoring
-        data = _shift_engine_data(data, -buffer_days)
-
-    # Fix any overlapping segments (from buffer unshift or dispatch edge cases)
-    global_holidays = set(getattr(data, "holidays", []))
-    final_segments = _fix_day_overlaps(final_segments, config, holidays=global_holidays)
-
-    # Crew mutex: serialize setups across machines (single setup operator)
-    # Iterate: serialize → fix overlaps → sanitize → re-serialize (each step can create new issues)
-    import copy
-    pre_crew_score = compute_score(final_segments, final_lots, data, config=config)
-    crew_segments = copy.deepcopy(final_segments)
-    prev_hash = None
-    for _crew_pass in range(10):  # max 10 passes with early exit on convergence
-        crew_segments = _serialize_crew_setups(crew_segments, config, holidays=global_holidays, crew_priority=crew_priority)
-        crew_segments = _fix_day_overlaps(crew_segments, config, holidays=global_holidays)
-        crew_segments = _sanitize_segments(crew_segments, config, holidays=global_holidays)
-        curr_hash = hash(tuple(
-            (s.lot_id, s.day_idx, s.start_min, s.end_min) for s in crew_segments
-        ))
-        if curr_hash == prev_hash:
-            break
-        prev_hash = curr_hash
-    crew_score = compute_score(crew_segments, final_lots, data, config=config)
-    if crew_score["tardy_count"] <= pre_crew_score["tardy_count"]:
-        final_segments = crew_segments
-        logger.info("Crew serialization applied: no tardy regression")
-    else:
-        # Standard serialization causes tardy — try EDD-safe per-overlap fallback
-        logger.info(
-            "Crew serialization caused tardy %d > %d, trying EDD-safe fallback",
-            crew_score["tardy_count"], pre_crew_score["tardy_count"],
-        )
-        safe_segments = copy.deepcopy(final_segments)
-        prev_hash_safe = None
-        for _ in range(10):
-            safe_segments = _serialize_crew_safe(safe_segments, config, holidays=global_holidays, crew_priority=crew_priority)
-            safe_segments = _fix_day_overlaps(safe_segments, config, holidays=global_holidays)
-            safe_segments = _sanitize_segments(safe_segments, config, holidays=global_holidays)
-            curr_hash_safe = hash(tuple(
-                (s.lot_id, s.day_idx, s.start_min, s.end_min) for s in safe_segments
-            ))
-            if curr_hash_safe == prev_hash_safe:
-                break
-            prev_hash_safe = curr_hash_safe
-        safe_score = compute_score(safe_segments, final_lots, data, config=config)
-        if safe_score["tardy_count"] <= pre_crew_score["tardy_count"]:
-            final_segments = safe_segments
-            logger.info("EDD-safe crew serialization applied: no tardy regression")
-        else:
-            logger.warning(
-                "Crew serialization skipped: both strategies cause tardy (std=%d, safe=%d, pre=%d)",
-                crew_score["tardy_count"], safe_score["tardy_count"], pre_crew_score["tardy_count"],
-            )
-            warnings.append(
-                f"Crew serialization limited: {safe_score['tardy_count']} tardy vs {pre_crew_score['tardy_count']} pre-crew"
-            )
-
-    # Final sanitize: enforce shift bounds
-    final_segments = _sanitize_segments(final_segments, config, holidays=global_holidays)
-
-    # Phase 5: Final scoring
-    journal.phase_start("scoring")
-    score = compute_score(final_segments, final_lots, data, config=config)
-    score["buffer_days"] = buffer_days
-    journal.phase_end("scoring", f"OTD={score['otd']:.1f}%, tardy={score['tardy_count']}", **{k: v for k, v in score.items() if isinstance(v, (int, float))})
-    logger.info(
-        "Final: OTD=%.1f%%, OTD-D=%.1f%%, setups=%d, tardy=%d/%d, earliness=%.1fd",
-        score["otd"], score["otd_d"], score["setups"],
-        score["tardy_count"], score["total_lots"], score["earliness_avg_days"],
-    )
-
-    # Earliness hard constraint check
-    earliness_target = config.jit_earliness_target if config else 6.0
-    if score["earliness_avg_days"] > earliness_target:
-        warnings.append(
-            f"HARD: earliness {score['earliness_avg_days']:.1f}d > target {earliness_target:.1f}d"
-        )
-        journal.log("scoring", "warn", f"Earliness {score['earliness_avg_days']:.1f}d exceeds target {earliness_target:.1f}d")
-
-    # Guardian: validate output
-    out_issues = validate_output(final_segments, data)
-    for issue in out_issues:
-        journal.log("guardian_output", "warn", issue.message, op_id=issue.op_id, field=issue.field)
-
-    # Operator alerts
-    alerts = compute_operator_alerts(final_segments, data, config=config)
-    if alerts:
-        logger.info("Operator alerts: %d", len(alerts))
-
-    elapsed = (time.perf_counter() - t0) * 1000
-
-    trail = audit_logger.get_trail() if audit_logger else None
-
-    # Merge journal warnings into warnings list
-    warnings.extend(journal.to_warnings())
-
-    return ScheduleResult(
-        segments=final_segments,
-        lots=final_lots,
-        score=score,
-        time_ms=round(elapsed, 1),
-        warnings=warnings,
-        operator_alerts=alerts,
-        audit_trail=trail,
-        journal=journal.to_dicts(),
-    )
+    raise NotImplementedError("Moldit scheduler pipeline — Phase 2")

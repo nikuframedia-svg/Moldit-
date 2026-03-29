@@ -5,7 +5,6 @@ GET /api/console?day_idx=0 — Full console data in one call.
 
 from __future__ import annotations
 
-from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException
 
@@ -26,7 +25,7 @@ async def get_console(day_idx: int = 0):
     if state.engine_data is None or state.config is None:
         raise HTTPException(
             status_code=503,
-            detail="Sem dados carregados. Carrega um ISOP primeiro.",
+            detail="Sem dados carregados.",
         )
 
     actions = compute_action_items(

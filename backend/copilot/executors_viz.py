@@ -20,7 +20,7 @@ def _dumps(obj: object) -> str:
 
 def _guard() -> str | None:
     if state.engine_data is None:
-        return _dumps({"error": "Sem dados carregados. Carrega um ISOP primeiro."})
+        return _dumps({"error": "Sem dados carregados."})
     return None
 
 
@@ -29,46 +29,7 @@ def _guard() -> str | None:
 def exec_visualizar_stock(args: dict) -> str:
     if (err := _guard()):
         return err
-
-    from backend.analytics.stock_projection import compute_stock_projections
-
-    sku = args.get("sku", "")
-    projections = state.stock_projections or compute_stock_projections(
-        state.segments, state.lots, state.engine_data,
-    )
-
-    proj = next((p for p in projections if p.sku == sku), None)
-    if not proj:
-        return _dumps({"error": f"SKU {sku} não encontrado nas projecções."})
-
-    days = []
-    stock_series = []
-    demand_series = []
-    produced_series = []
-
-    for d in proj.days:
-        days.append(d.date or str(d.day_idx))
-        stock_series.append(d.stock)
-        demand_series.append(d.cum_demand)
-        produced_series.append(d.cum_produced)
-
-    return _dumps({
-        "viz_type": "line_chart",
-        "title": f"Stock — {sku} ({proj.client})",
-        "data": {
-            "labels": days,
-            "series": [
-                {"name": "Stock", "values": stock_series},
-                {"name": "Procura acumulada", "values": demand_series},
-                {"name": "Produção acumulada", "values": produced_series},
-            ],
-        },
-        "meta": {
-            "stock_inicial": proj.initial_stock,
-            "stockout_day": proj.stockout_day,
-            "cobertura_dias": proj.coverage_days,
-        },
-    })
+    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
 
 
 # ─── 2. visualizar_carga_temporal ────────────────────────────────────────
@@ -142,39 +103,7 @@ def exec_visualizar_risco_heatmap(args: dict) -> str:
 def exec_visualizar_encomendas(args: dict) -> str:
     if (err := _guard()):
         return err
-
-    from backend.analytics.order_tracking import compute_order_tracking
-
-    client_orders = state.order_tracking or compute_order_tracking(
-        state.segments, state.lots, state.engine_data,
-    )
-
-    cliente_filter = args.get("cliente")
-    if cliente_filter:
-        client_orders = [co for co in client_orders if cliente_filter.lower() in co.client.lower()]
-
-    rows = []
-    for co in client_orders:
-        for o in co.orders:
-            rows.append({
-                "cliente": o.client,
-                "sku": o.sku,
-                "qty": o.order_qty,
-                "dia_entrega": o.delivery_day,
-                "data_entrega": o.delivery_date,
-                "status": o.status,
-                "maquina": o.production_machine,
-                "cobertura": f"{getattr(o, 'days_early', 0)}d early",
-            })
-
-    return _dumps({
-        "viz_type": "table",
-        "title": "Encomendas",
-        "data": {
-            "columns": ["cliente", "sku", "qty", "dia_entrega", "data_entrega", "status", "maquina", "cobertura"],
-            "rows": rows,
-        },
-    })
+    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
 
 
 # ─── 5. visualizar_expedicao ─────────────────────────────────────────────
@@ -182,38 +111,7 @@ def exec_visualizar_encomendas(args: dict) -> str:
 def exec_visualizar_expedicao(args: dict) -> str:
     if (err := _guard()):
         return err
-
-    from backend.analytics.expedition import compute_expedition
-
-    kpis = state.expedition or compute_expedition(state.segments, state.lots, state.engine_data)
-
-    dia_inicio = args.get("dia_inicio", 0)
-    dia_fim = args.get("dia_fim", len(kpis.days))
-
-    rows = []
-    for day in kpis.days:
-        if dia_inicio <= day.day_idx < dia_fim:
-            rows.append({
-                "dia": day.day_idx,
-                "data": day.date,
-                "total_encomendas": day.total_orders,
-                "prontas": day.total_ready,
-                "parciais": day.total_partial,
-                "nao_planeadas": day.total_not_planned,
-            })
-
-    return _dumps({
-        "viz_type": "table",
-        "title": "Expedição",
-        "data": {
-            "columns": ["dia", "data", "total_encomendas", "prontas", "parciais", "nao_planeadas"],
-            "rows": rows,
-        },
-        "meta": {
-            "fill_rate": round(kpis.fill_rate, 2),
-            "at_risk_count": kpis.at_risk_count,
-        },
-    })
+    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
 
 
 # ─── 6. visualizar_gantt ─────────────────────────────────────────────────
@@ -371,37 +269,7 @@ def exec_visualizar_atrasos(args: dict) -> str:
 def exec_visualizar_workforce(args: dict) -> str:
     if (err := _guard()):
         return err
-
-    from backend.analytics.workforce_forecast import forecast_workforce
-
-    window = args.get("window", 5)
-    wf = forecast_workforce(state.segments, state.engine_data, state.config, window=window)
-
-    rows = []
-    for d in wf.days:
-        rows.append({
-            "dia": d.day_idx,
-            "operadores": d.operators_needed,
-            "maquinas_activas": d.machines_active,
-            "pico": d.is_peak,
-        })
-
-    return _dumps({
-        "viz_type": "bar_chart",
-        "title": f"Workforce (próximos {window} dias)",
-        "data": {
-            "labels": [str(d.day_idx) for d in wf.days],
-            "series": [
-                {"name": "Operadores", "values": [d.operators_needed for d in wf.days]},
-                {"name": "Máquinas activas", "values": [d.machines_active for d in wf.days]},
-            ],
-        },
-        "meta": {
-            "peak_day": wf.peak_day,
-            "peak_operators": wf.peak_operators,
-            "trend": wf.trend,
-        },
-    })
+    return _dumps({"error": "Not yet available in Moldit — Phase 2"})
 
 
 # ─── 11. visualizar_cobertura ────────────────────────────────────────────

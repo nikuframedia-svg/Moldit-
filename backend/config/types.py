@@ -34,10 +34,10 @@ class MachineConfig:
 
 @dataclass
 class FactoryConfig:
-    """Complete factory configuration. Defaults = Incompol current values."""
+    """Complete factory configuration."""
 
     # Identity
-    name: str = "Incompol"
+    name: str = "Moldit"
     site: str = ""
     timezone: str = "Europe/Lisbon"
 
@@ -71,14 +71,7 @@ class FactoryConfig:
     def machine_groups(self) -> dict[str, str]:
         if self.machines:
             return {mid: m.group for mid, m in self.machines.items() if m.active}
-        # Default Incompol mapping when no machines configured
-        return {
-            "PRM019": "Grandes",
-            "PRM031": "Grandes",
-            "PRM039": "Grandes",
-            "PRM043": "Grandes",
-            "PRM042": "Medias",
-        }
+        return {}
 
     # Tools
     tools: dict[str, dict] = field(default_factory=dict)
@@ -88,12 +81,7 @@ class FactoryConfig:
     twins: dict[str, list[str]] = field(default_factory=dict)
 
     # Operators: (group, shift) → count
-    operators: dict[tuple[str, str], int] = field(default_factory=lambda: {
-        ("Grandes", "A"): 6,
-        ("Grandes", "B"): 5,
-        ("Medias", "A"): 9,
-        ("Medias", "B"): 4,
-    })
+    operators: dict[tuple[str, str], int] = field(default_factory=dict)
 
     # Setup crews
     setup_crews: int = 1

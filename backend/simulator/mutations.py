@@ -60,7 +60,7 @@ def mutation_summary(mutation_type: str, params: dict) -> str:
         "rush_order": lambda p: f"Encomenda urgente: {p.get('qty', '?')} pç SKU {p.get('sku', '?')} dia {p.get('deadline_day', '?')}",
         "demand_change": lambda p: f"Procura alterada: factor {p.get('factor', '?')}x SKU {p.get('sku', '?')}",
         "cancel_order": lambda p: f"Cancelar encomendas SKU {p.get('sku', '?')} dias {p.get('from_day', '?')}-{p.get('to_day', '?')}",
-        "third_shift": lambda p: f"3º turno activado (+420 min, todas as máquinas)",
+        "third_shift": lambda p: "3º turno activado (+420 min, todas as máquinas)",
         "overtime": lambda p: f"Horas extra (+{p.get('extra_min', '?')} min, todas as máquinas)",
         "add_holiday": lambda p: f"Feriado adicionado dia {p.get('day_idx', '?')}",
         "remove_holiday": lambda p: f"Feriado removido dia {p.get('day_idx', '?')}",
@@ -186,7 +186,7 @@ def _third_shift(data: EngineData, params: dict, config: FactoryConfig | None = 
     if not any(m.id == machine_id for m in data.machines):
         return f"3º turno: máquina {machine_id} não encontrada"
     if config is None:
-        return f"3º turno: config não disponível (sem efeito)"
+        return "3º turno: config não disponível (sem efeito)"
     # Only add once
     if not any(s.id == "C" for s in config.shifts):
         config.shifts.append(ShiftConfig("C", 1440, 1860, "Noite"))
@@ -205,7 +205,7 @@ def _overtime(data: EngineData, params: dict, config: FactoryConfig | None = Non
     if not any(m.id == machine_id for m in data.machines):
         return f"Horas extra: máquina {machine_id} não encontrada"
     if config is None:
-        return f"Horas extra: config não disponível (sem efeito)"
+        return "Horas extra: config não disponível (sem efeito)"
     # Extend last shift's end_min
     last_shift = config.shifts[-1]
     last_shift.end_min += extra_min

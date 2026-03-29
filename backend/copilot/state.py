@@ -111,25 +111,14 @@ class CopilotState:
         if self.engine_data is None or not self.segments:
             return
 
-        from backend.analytics.coverage_audit import compute_coverage_audit
-        from backend.analytics.expedition import compute_expedition
         from backend.analytics.late_delivery import analyze_late_deliveries
-        from backend.analytics.order_tracking import compute_order_tracking
-        from backend.analytics.stock_projection import compute_stock_projections
         from backend.risk import compute_risk
 
         analytics = [
-            ("expedition", lambda: compute_expedition(self.segments, self.lots, self.engine_data)),
-            ("stock_projections", lambda: compute_stock_projections(
-                self.segments, self.lots, self.engine_data,
-                buffer_days=self.score.get("buffer_days", 0),
-            )),
-            ("order_tracking", lambda: compute_order_tracking(self.segments, self.lots, self.engine_data)),
             ("risk_result", lambda: compute_risk(self.segments, self.lots, self.engine_data)),
             ("late_deliveries", lambda: analyze_late_deliveries(
                 self.segments, self.lots, self.engine_data, self.config,
             )),
-            ("coverage", lambda: compute_coverage_audit(self.segments, self.lots, self.engine_data)),
             ("stress_map", lambda: _compute_stress(self.segments, self.lots, self.engine_data)),
         ]
 

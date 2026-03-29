@@ -35,8 +35,8 @@ class OpenAIProvider(LLMProvider):
     def __init__(self) -> None:
         import openai
 
-        api_key = os.environ.get("PP1_OPENAI_API_KEY", "")
-        self.model = os.environ.get("PP1_OPENAI_MODEL", "gpt-4o")
+        api_key = os.environ.get("MOLDIT_OPENAI_API_KEY", "")
+        self.model = os.environ.get("MOLDIT_OPENAI_MODEL", "gpt-4o")
         self.client = openai.OpenAI(api_key=api_key)
 
     async def chat_with_tools(
@@ -82,8 +82,8 @@ class OllamaProvider(LLMProvider):
     def __init__(self) -> None:
         import httpx
 
-        self.base_url = os.environ.get("PP1_OLLAMA_URL", "http://localhost:11434")
-        self.model = os.environ.get("PP1_OLLAMA_MODEL", "qwen2.5:14b")
+        self.base_url = os.environ.get("MOLDIT_OLLAMA_URL", "http://localhost:11434")
+        self.model = os.environ.get("MOLDIT_OLLAMA_MODEL", "qwen2.5:14b")
         self.client = httpx.AsyncClient(timeout=60.0)
 
     async def chat_with_tools(
@@ -145,8 +145,8 @@ class OllamaProvider(LLMProvider):
 
 
 def get_provider() -> LLMProvider:
-    """Factory: select provider via PP1_LLM_BACKEND env var."""
-    backend = os.environ.get("PP1_LLM_BACKEND", "openai").lower()
+    """Factory: select provider via MOLDIT_LLM_BACKEND env var."""
+    backend = os.environ.get("MOLDIT_LLM_BACKEND", "openai").lower()
     if backend == "ollama":
         return OllamaProvider()
     return OpenAIProvider()

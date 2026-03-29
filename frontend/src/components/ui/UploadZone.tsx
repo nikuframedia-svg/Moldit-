@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { T } from "../../theme/tokens";
-import { uploadISOP } from "../../api/endpoints";
+import { uploadProject } from "../../api/endpoints";
 import { useAppStore } from "../../stores/useAppStore";
 import { useDataStore } from "../../stores/useDataStore";
 
@@ -18,12 +18,12 @@ export function UploadZone() {
     setError(null);
     setUploading(true);
     try {
-      const res = await uploadISOP(file);
+      const res = await uploadProject(file);
       setTrust(res.trust_index.score, res.trust_index.gate);
       await refreshAll();
       setHasData(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao carregar ISOP");
+      setError(e instanceof Error ? e.message : "Erro ao carregar ficheiro");
     } finally {
       setUploading(false);
     }
@@ -78,13 +78,13 @@ export function UploadZone() {
         {isUploading ? (
           <>
             <div style={{ fontSize: 32, marginBottom: 16 }}>⏳</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>A processar ISOP...</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>A processar...</div>
             <div style={{ fontSize: 13, color: T.secondary, marginTop: 8 }}>Scheduling + Analytics</div>
           </>
         ) : (
           <>
             <div style={{ fontSize: 32, marginBottom: 16 }}>📄</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>Carregar ISOP</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>Carregar MPP / Project Plan</div>
             <div style={{ fontSize: 13, color: T.secondary, marginTop: 8 }}>
               Arrasta ficheiro .xlsx ou clica para seleccionar
             </div>

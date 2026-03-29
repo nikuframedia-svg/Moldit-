@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import statistics
 from pathlib import Path
 
-from backend.scheduler.types import Lot, Segment
 from backend.types import EngineData
 
 from .types import LotRisk, MachineRisk

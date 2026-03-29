@@ -20,7 +20,7 @@ def _dumps(obj: object) -> str:
 
 def _guard() -> str | None:
     if state.engine_data is None:
-        return _dumps({"error": "Sem dados carregados. Carrega um ISOP primeiro."})
+        return _dumps({"error": "Sem dados carregados."})
     return None
 
 

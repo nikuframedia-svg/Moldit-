@@ -65,7 +65,7 @@ QUERY_TOOLS = [
                 "type": "string",
                 "description": "Conceito a explicar.",
                 "enum": ["jit", "campaign", "eco_lot", "twins", "scoring", "oee",
-                         "interleave", "2opt", "lot_sizing", "tool_grouping"],
+                         "interleave", "2opt"],
             },
         },
         "required": ["conceito"],

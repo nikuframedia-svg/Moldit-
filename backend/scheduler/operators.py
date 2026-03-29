@@ -6,7 +6,6 @@ Counts operators per (day, shift, machine_group), alerts if over capacity.
 
 from __future__ import annotations
 
-from collections import defaultdict
 
 from backend.config.types import FactoryConfig
 from backend.scheduler.constants import MACHINE_GROUP, OPERATOR_CAP

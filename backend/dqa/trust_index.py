@@ -6,7 +6,7 @@ Data quality scoring with automation gate recommendation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from backend.config.types import FactoryConfig
 from backend.types import EngineData

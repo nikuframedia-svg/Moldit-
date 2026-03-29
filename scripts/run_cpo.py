@@ -1,8 +1,8 @@
-"""CLI runner for CPO v3.0 — Load ISOP, run optimizer, print comparison.
+"""CLI runner for CPO v3.0 — Load data, run optimizer, print comparison.
 
 Usage:
   python scripts/run_cpo.py --mode normal
-  python scripts/run_cpo.py --isop "ISOP_ Nikufra_27_2.xlsx" --mode deep
+  python scripts/run_cpo.py --project "project.mpp" --mode deep
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from backend.cpo import optimize
 
 def main():
     parser = argparse.ArgumentParser(description="CPO v3.0 — Super Scheduler")
-    parser.add_argument("--isop", type=str, help="Path to ISOP Excel file")
+    parser.add_argument("--project", type=str, help="Path to project plan file")
     parser.add_argument(
         "--mode", type=str, default="normal",
         choices=["quick", "normal", "deep", "max"],
@@ -43,8 +43,8 @@ def main():
         config = FactoryConfig()
 
     # Load data
-    if args.isop:
-        engine_data = _load_isop(args.isop, config)
+    if args.project:
+        engine_data = _load_isop(args.project, config)
     else:
         engine_data = _build_demo_data()
 
@@ -131,7 +131,7 @@ def _check(label: str, passed: bool):
 
 
 def _build_demo_data():
-    """Build demo data when no ISOP file provided."""
+    """Build demo data when no project file provided."""
     from backend.types import EOp, MachineInfo
     from backend.scheduler.constants import DAY_CAP
 
@@ -176,26 +176,8 @@ def _build_demo_data():
 
 
 def _load_isop(path: str, config: FactoryConfig):
-    """Load ISOP Excel and transform to EngineData."""
-    try:
-        from backend.parser.isop_reader import read_isop
-        from backend.transform.transform import transform
-        from pathlib import Path
-        import yaml
-
-        raw_rows, workdays, has_twin_col = read_isop(path)
-
-        # Load master data from factory.yaml
-        master_data = None
-        yaml_path = Path("config/factory.yaml")
-        if yaml_path.exists():
-            with open(yaml_path) as f:
-                master_data = yaml.safe_load(f)
-
-        return transform(raw_rows, workdays, has_twin_col, master_data)
-    except ImportError as e:
-        print(f"Warning: parser/transform not available ({e}). Using demo data.")
-        return _build_demo_data()
+    """Load project plan and transform to EngineData."""
+    raise NotImplementedError("Moldit project loading — Phase 2")
 
 
 if __name__ == "__main__":

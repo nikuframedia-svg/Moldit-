@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 import random
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from backend.cpo.chromosome import Chromosome
 
