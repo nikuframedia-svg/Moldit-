@@ -1,68 +1,73 @@
 import { create } from "zustand";
-import { getScore, getSegments, getLots, getConfig, getLearning, simulateApply, revertSimulation } from "../api/endpoints";
-import type { Score, Segment, Lot, FactoryConfig, LearningInfo, MutationInput, SimulateApplyResponse } from "../api/types";
+import { getScore, getSegments, getMoldes, getOps, getStress, getConfig, getDeadlines, recalculate as doRecalculate } from "../api/endpoints";
+import type { ScoreMoldit, SegmentoMoldit, Molde, Operacao, DeadlineStatus, MaquinaStatus, MolditConfig } from "../api/types";
 
 interface DataState {
-  score: Score | null;
-  segments: Segment[] | null;
-  lots: Lot[] | null;
-  config: FactoryConfig | null;
-  learning: LearningInfo | null;
-
-  // Simulation state
-  isSimulated: boolean;
-  simulationSummary: string[];
-  canRevert: boolean;
+  score: ScoreMoldit | null;
+  segmentos: SegmentoMoldit[];
+  moldes: Molde[];
+  operacoes: Operacao[];
+  deadlines: DeadlineStatus[];
+  stress: MaquinaStatus[];
+  config: MolditConfig | null;
+  loading: boolean;
+  error: string | null;
 
   refreshAll: () => Promise<void>;
-  applySimulation: (mutations: MutationInput[]) => Promise<SimulateApplyResponse>;
-  revert: () => Promise<void>;
+  recalculate: () => Promise<void>;
   clear: () => void;
 }
 
-export const useDataStore = create<DataState>((set, get) => ({
+export const useDataStore = create<DataState>((set) => ({
   score: null,
-  segments: null,
-  lots: null,
+  segmentos: [],
+  moldes: [],
+  operacoes: [],
+  deadlines: [],
+  stress: [],
   config: null,
-  learning: null,
-
-  isSimulated: false,
-  simulationSummary: [],
-  canRevert: false,
+  loading: false,
+  error: null,
 
   refreshAll: async () => {
-    const results = await Promise.allSettled([
-      getScore(),
-      getSegments(),
-      getLots(),
-      getConfig(),
-      getLearning(),
-    ]);
-    set({
-      score: results[0].status === "fulfilled" ? results[0].value : null,
-      segments: results[1].status === "fulfilled" ? results[1].value : null,
-      lots: results[2].status === "fulfilled" ? results[2].value : null,
-      config: results[3].status === "fulfilled" ? results[3].value : null,
-      learning: results[4].status === "fulfilled" ? results[4].value : null,
-    });
+    set({ loading: true, error: null });
+    try {
+      const results = await Promise.allSettled([
+        getScore(),
+        getSegments(),
+        getMoldes(),
+        getOps(),
+        getStress(),
+        getConfig(),
+        getDeadlines(),
+      ]);
+      set({
+        score: results[0].status === "fulfilled" ? results[0].value : null,
+        segmentos: results[1].status === "fulfilled" ? results[1].value : [],
+        moldes: results[2].status === "fulfilled" ? results[2].value : [],
+        operacoes: results[3].status === "fulfilled" ? results[3].value : [],
+        stress: results[4].status === "fulfilled" ? results[4].value : [],
+        config: results[5].status === "fulfilled" ? results[5].value : null,
+        deadlines: results[6].status === "fulfilled" ? results[6].value : [],
+        loading: false,
+      });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e), loading: false });
+    }
   },
 
-  applySimulation: async (mutations) => {
-    const resp = await simulateApply(mutations);
-    await get().refreshAll();
-    set({ isSimulated: true, simulationSummary: resp.summary, canRevert: resp.can_revert });
-    return resp;
-  },
-
-  revert: async () => {
-    await revertSimulation();
-    await get().refreshAll();
-    set({ isSimulated: false, simulationSummary: [], canRevert: false });
+  recalculate: async () => {
+    set({ loading: true });
+    try {
+      await doRecalculate();
+      const store = useDataStore.getState();
+      await store.refreshAll();
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e), loading: false });
+    }
   },
 
   clear: () => set({
-    score: null, segments: null, lots: null, config: null, learning: null,
-    isSimulated: false, simulationSummary: [], canRevert: false,
+    score: null, segmentos: [], moldes: [], operacoes: [], deadlines: [], stress: [], config: null,
   }),
 }));

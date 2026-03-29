@@ -1,34 +1,19 @@
-import { useEffect, useState } from "react";
 import { T } from "../theme/tokens";
 import { useAppStore } from "../stores/useAppStore";
-import { getTrust } from "../api/endpoints";
-import type { TrustIndex } from "../api/types";
-import { ProgressBar } from "./ui/ProgressBar";
-import { Label } from "./ui/Label";
 
 const NAV = [
   { id: "console", label: "Consola" },
-  { id: "gantt", label: "Produção" },
-  { id: "stock", label: "Stock" },
+  { id: "gantt", label: "Producao" },
+  { id: "deadlines", label: "Prazos" },
   { id: "risk", label: "Risco" },
-  { id: "expedition", label: "Expedição" },
   { id: "sim", label: "Simulador" },
-  { id: "config", label: "Configuração" },
+  { id: "config", label: "Configuracao" },
   { id: "journal", label: "Journal" },
-  { id: "rules", label: "Regras" },
 ];
 
 export function Sidebar() {
   const page = useAppStore((s) => s.activePage);
   const setPage = useAppStore((s) => s.setPage);
-  const trustScore = useAppStore((s) => s.trustScore);
-  const hasData = useAppStore((s) => s.hasData);
-  const [trust, setTrust] = useState<TrustIndex | null>(null);
-
-  useEffect(() => {
-    if (!hasData) return;
-    getTrust().then(setTrust).catch(() => {});
-  }, [hasData]);
 
   return (
     <nav
@@ -45,7 +30,7 @@ export function Sidebar() {
         <div style={{ fontSize: 16, fontWeight: 700, color: T.primary, letterSpacing: "-0.02em" }}>
           Moldit Planner
         </div>
-        <div style={{ fontSize: 11, color: T.tertiary, marginTop: 2 }}>Moldit</div>
+        <div style={{ fontSize: 11, color: T.tertiary, marginTop: 2 }}>Producao de Moldes</div>
       </div>
 
       <div style={{ flex: 1, padding: "0 8px", display: "flex", flexDirection: "column", gap: 1 }}>
@@ -75,48 +60,6 @@ export function Sidebar() {
           );
         })}
       </div>
-
-      {trustScore !== null && (
-        <div style={{ padding: 16, borderTop: `0.5px solid ${T.border}` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <Label>Trust Index</Label>
-            <span
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: trustScore >= 80 ? T.green : T.orange,
-                fontFamily: T.mono,
-              }}
-            >
-              {trustScore}
-            </span>
-          </div>
-          <div style={{ marginTop: 6 }}>
-            <ProgressBar
-              value={trustScore}
-              color={trustScore >= 80 ? T.green : T.orange}
-              height={3}
-              bg="rgba(255,255,255,0.04)"
-            />
-          </div>
-          {trust?.dimensions && trust.dimensions.length > 0 && (
-            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
-              {trust.dimensions.map((d) => {
-                const c = d.score >= 80 ? T.green : d.score >= 50 ? T.orange : T.red;
-                return (
-                  <div key={d.name}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                      <span style={{ fontSize: 10, color: T.tertiary }}>{d.name}</span>
-                      <span style={{ fontSize: 10, color: c, fontFamily: T.mono }}>{d.score}</span>
-                    </div>
-                    <ProgressBar value={d.score} color={c} height={2} bg="rgba(255,255,255,0.04)" />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
     </nav>
   );
 }

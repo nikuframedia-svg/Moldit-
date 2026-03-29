@@ -1,455 +1,142 @@
-/** TypeScript interfaces matching backend /api/data/* responses exactly. */
+// Moldit Planner — API Types
 
-// ── Core ─────────────────────────────────────────────────────
+export interface Operacao {
+  op_id: number;
+  molde: string;
+  componente: string;
+  nome: string;
+  codigo: string;
+  nome_completo: string;
+  duracao_h: number;
+  work_h: number;
+  progresso: number;
+  work_restante_h: number;
+  recurso: string | null;
+  grupo_recurso: string | null;
+  e_condicional: boolean;
+  e_2a_placa: boolean;
+  deadline_semana: string | null;
+  notas: string | null;
+}
 
-export interface Score {
-  otd: number;
-  otd_d: number;
-  tardy_count: number;
-  setups: number;
-  earliness_avg_days: number;
-  utilization_avg: number;
+export interface Molde {
+  id: string;
+  cliente: string;
+  deadline: string;
+  data_ensaio: string | null;
+  componentes: string[];
+  total_ops: number;
+  ops_concluidas: number;
+  progresso: number;
+  total_work_h: number;
+}
+
+export interface SegmentoMoldit {
+  op_id: number;
+  molde: string;
+  maquina_id: string;
+  dia: number;
+  inicio_h: number;
+  fim_h: number;
+  duracao_h: number;
+  setup_h: number;
+  e_2a_placa: boolean;
+  e_continuacao: boolean;
+  progresso_antes: number;
+}
+
+export interface ScoreMoldit {
+  makespan_total_dias: number;
+  makespan_por_molde: Record<string, number>;
+  deadline_compliance: number;
+  total_setups: number;
+  utilization: Record<string, number>;
   utilization_balance: number;
   weighted_score: number;
-  [key: string]: unknown; // allow extra fields from scorer
+  ops_agendadas: number;
+  ops_total: number;
 }
 
-export interface Segment {
-  lot_id: string;
-  run_id: string;
-  machine_id: string;
-  tool_id: string;
-  day_idx: number;
-  start_min: number;
-  end_min: number;
-  shift: string;
-  qty: number;
-  prod_min: number;
-  setup_min: number;
-  is_continuation: boolean;
-  edd: number;
-  sku: string;
-  twin_outputs: [string, string, number][] | null;
+export interface MaquinaStatus {
+  maquina_id: string;
+  total_horas: number;
+  capacidade: number;
+  stress_pct: number;
+  pico_dia: number;
+  pico_horas: number;
 }
 
-export interface Lot {
-  id: string;
-  op_id: string;
-  tool_id: string;
-  machine_id: string;
-  alt_machine_id: string | null;
-  qty: number;
-  prod_min: number;
-  setup_min: number;
-  edd: number;
-  is_twin: boolean;
-  twin_outputs: [string, string, number][] | null;
+export interface DeadlineStatus {
+  molde: string;
+  deadline: string;
+  conclusao_prevista: number;
+  dias_atraso: number;
+  operacoes_pendentes: number;
+  on_time: boolean;
 }
 
-export interface TrustIndex {
-  score: number;
-  gate: string;
-  n_ops: number;
-  n_issues: number;
-  dimensions: { name: string; score: number; details: string[] }[];
-}
-
-// ── Analytics ────────────────────────────────────────────────
-
-export interface StockDayCompact {
-  day: number;
-  date: string;
-  stock: number;
-  demand: number;
-  produced: number;
-  workday: boolean;
-  is_buffer?: boolean;
-}
-
-export interface StockSummary {
-  op_id: string;
-  sku: string;
-  client: string;
-  machine: string;
-  tool: string;
-  initial_stock: number;
-  stockout_day: number | null;
-  coverage_days: number;
-  total_demand: number;
-  total_produced: number;
-  days: StockDayCompact[];
-}
-
-export interface StockDay {
-  day_idx: number;
-  date: string;
-  demand: number;
-  produced: number;
-  cum_demand: number;
-  cum_produced: number;
-  stock: number;
-  machine: string | null;
-  is_buffer?: boolean;
-}
-
-export interface StockProjection extends Omit<StockSummary, "days"> {
-  days: StockDay[];
-}
-
-export interface ExpeditionEntry {
-  client: string;
-  sku: string;
-  order_qty: number;
-  produced_qty: number;
-  shortfall: number;
-  status: string;
-  coverage_pct: number;
-}
-
-export interface ExpeditionDay {
-  day_idx: number;
-  date: string;
-  total: number;
-  ready: number;
-  partial: number;
-  not_planned: number;
-  entries: ExpeditionEntry[];
-}
-
-export interface ExpeditionKPIs {
-  fill_rate: number;
-  at_risk_count: number;
-  days: ExpeditionDay[];
-}
-
-export interface OrderTracking {
-  sku: string;
-  order_qty: number;
-  delivery_day: number;
-  delivery_date: string;
-  status: string;
-  production_machine: string | null;
-  days_early: number | null;
-  reason: string;
-  [key: string]: unknown;
-}
-
-export interface ClientOrders {
-  client: string;
-  total_orders: number;
-  total_ready: number;
-  orders: OrderTracking[];
-}
-
-export interface ClientCoverage {
-  client: string;
-  total_orders: number;
-  covered_orders: number;
-  coverage_pct: number;
-  at_risk_orders: number;
-  worst_sku: string | null;
-}
-
-export interface CoverageAudit {
-  overall_coverage_pct: number;
-  overall_fill_rate: number;
-  clients: ClientCoverage[];
-  stockout_count: number;
-  health_score: number;
-  summary: string;
-}
-
-export interface LotRisk {
-  lot_id: string;
-  sku: string;
-  machine_id: string;
-  edd: number;
-  slack: number;
-  risk_level: string;
-  [key: string]: unknown;
-}
-
-export interface HeatmapCell {
-  machine_id: string;
-  day_idx: number;
-  utilization: number;
-  risk_level: string;
-}
-
-export interface RiskResult {
-  health_score: number;
-  lot_risks: LotRisk[];
-  machine_risks: unknown[];
-  heatmap: HeatmapCell[];
-  critical_count: number;
-  top_risks: LotRisk[];
-  bottleneck: string | null;
-}
-
-export interface TardyAnalysis {
-  lot_id: string;
-  sku: string;
-  machine_id: string;
-  edd: number;
-  completion_day: number;
-  delay_days: number;
-  root_cause: string;
-  suggestion: string;
-}
-
-export interface LateDeliveryReport {
-  tardy_count: number;
-  avg_delay: number;
-  by_cause: Record<string, number>;
-  analyses: TardyAnalysis[];
-  worst_machine: string | null;
-  suggestion: string;
-}
-
-export interface DayForecast {
-  day_idx: number;
-  date: string;
-  shift: string;
-  machine_group: string;
-  required: number;
-  available: number;
-  surplus_or_deficit: number;
-}
-
-export interface WorkforceForecast {
-  window_days: number;
-  daily: DayForecast[];
-  peak_day: number;
-  peak_required: number;
-  avg_required: number;
-  deficit_days: number;
-  trend: string;
-  summary: string;
-}
-
-// ── Config / Master Data ─────────────────────────────────────
-
-export interface ShiftConfig {
-  id: string;
-  start_min: number;
-  end_min: number;
-  duration_min: number;
-  label: string;
-}
-
-export interface ToolConfig {
-  primary: string;
-  alt: string | null;
-  setup_hours: number;
-}
-
-export interface TwinConfig {
-  tool_id: string;
-  sku_a: string;
-  sku_b: string;
-}
-
-export interface FactoryConfig {
+export interface MolditConfig {
   name: string;
-  site: string;
-  timezone: string;
-  shifts: ShiftConfig[];
-  day_capacity_min: number;
-  machines: Record<string, { group: string; active: boolean }>;
-  tools: Record<string, ToolConfig>;
-  twins: TwinConfig[];
-  operators: Record<string, number>;
+  machines: Record<string, { group: string; regime_h: number; setup_h: number }>;
   holidays: string[];
-  oee_default: number;
-  jit_enabled: boolean;
-  jit_buffer_pct: number;
-  jit_threshold: number;
-  max_run_days: number;
-  max_edd_gap: number;
-  edd_swap_tolerance: number;
-  campaign_window: number;
-  urgency_threshold: number;
-  interleave_enabled: boolean;
-  weight_earliness: number;
-  weight_setups: number;
-  weight_balance: number;
-  eco_lot_mode: string;
+  scoring: {
+    weight_makespan: number;
+    weight_deadline_compliance: number;
+    weight_setups: number;
+    weight_utilization_balance: number;
+  };
 }
 
-export interface EOp {
-  id: string;
-  sku: string;
-  client: string;
-  designation: string;
-  machine: string;
-  tool: string;
-  alt_machine: string | null;
-  pcs_hour: number;
-  setup_hours: number;
-  eco_lot: number;
-  stock: number;
-  oee: number;
-  backlog: number;
-  operators: number;
-  demand: number[];
+export interface CTPMolde {
+  molde: string;
+  feasible: boolean;
+  conclusao_dia: number;
+  slack_dias: number;
+  dias_extra: number;
 }
 
-// ── Console ──────────────────────────────────────────────────
+export type MutationType =
+  | 'machine_down' | 'overtime' | 'deadline_change' | 'priority_boost'
+  | 'add_holiday' | 'remove_holiday' | 'force_machine' | 'op_done';
 
-export interface ConsoleAction {
-  severity: string;
-  title: string;
-  detail: string;
-  suggestion: string | null;
-  machine_id: string | null;
-  deadline: number | null;
-  client: string | null;
-  category: string | null;
-}
-
-export interface ConsoleMachine {
-  machine_id: string;
-  group: string;
-  utilization_pct: number;
-  current_tool: string | null;
-  current_sku: string | null;
-  runs: { tool_id: string; sku: string; qty: number; prod_min: number }[];
-  next_setup_at: number | null;
-  eta_current: number | null;
-  total_pcs: number;
-}
-
-export interface ConsoleExpedition {
-  client: string;
-  ready: number;
-  partial: number;
-  not_ready: number;
-  total: number;
-}
-
-export interface ConsoleSummaryLine {
-  text: string;
-  color: "red" | "orange" | "green" | "default";
-}
-
-export interface TomorrowSetup {
-  time: string;
-  machine: string;
-  from_tool: string | null;
-  to_tool: string;
-  duration_min: number;
-  already_mounted: boolean;
-}
-
-export interface TomorrowOperator {
-  shift: string;
-  group: string;
-  required: number;
-  available: number;
-  deficit: number;
-}
-
-export interface TomorrowPrep {
-  date: string | null;
-  setups: TomorrowSetup[];
-  operators: TomorrowOperator[];
-  expeditions_summary: string | null;
-  problems: string[];
-  ok: boolean;
-}
-
-export interface ConsoleData {
-  state: { color: string; phrase: string };
-  actions: ConsoleAction[];
-  machines: ConsoleMachine[];
-  expedition: ConsoleExpedition[];
-  tomorrow: TomorrowPrep | null;
-  summary: ConsoleSummaryLine[];
-}
-
-// ── Actions ──────────────────────────────────────────────────
-
-export interface MutationInput {
-  type: string;
+export interface MutationMoldit {
+  type: MutationType;
   params: Record<string, unknown>;
 }
 
 export interface DeltaReport {
-  otd_before: number;
-  otd_after: number;
-  otd_d_before: number;
-  otd_d_after: number;
+  makespan_before: number;
+  makespan_after: number;
+  compliance_before: number;
+  compliance_after: number;
   setups_before: number;
   setups_after: number;
-  earliness_before: number;
-  earliness_after: number;
-  tardy_before: number;
-  tardy_after: number;
+  balance_before: number;
+  balance_after: number;
+  summary: string;
 }
 
 export interface SimulateResponse {
-  score_baseline: Score;
-  score_scenario: Score;
+  segmentos: SegmentoMoldit[];
+  score: ScoreMoldit;
   delta: DeltaReport;
   time_ms: number;
-  summary: string[];
+  summary: string;
 }
 
-export interface SimulateApplyResponse {
-  status: string;
-  score: Score;
-  score_previous: Score;
-  summary: string[];
-  n_segments_before: number;
-  n_segments_after: number;
-  time_ms: number;
-  can_revert: boolean;
+export interface ConsoleData {
+  state_phrase: string;
+  machines_today: MaquinaStatus[];
+  deadlines_week: DeadlineStatus[];
+  day_summary: Record<string, unknown> | null;
+  action_items: { severity: string; title: string; detail: string }[];
 }
 
-export interface CTPResult {
-  sku: string;
-  qty_requested: number;
-  feasible: boolean;
-  latest_day: number | null;
-  machine: string | null;
-  confidence: string;
-  slack_min: number;
-  reason: string;
-}
-
-export interface LearningInfo {
-  optimized: boolean;
-  n_trials: number;
-  confidence: string;
-  improvement: { reward: number; earliness_delta: number; setups_delta: number };
-  total_time_ms: number;
-  best_params: Record<string, unknown>;
-}
-
-export interface LoadResponse {
-  status: string;
-  n_ops: number;
-  n_segments: number;
-  score: Score;
-  time_ms: number;
-  trust_index: { score: number; gate: string };
-  journal_summary: { total: number; warnings: number } | null;
-  learning: LearningInfo | null;
-}
-
-// ── Chat ─────────────────────────────────────────────────────
-
-export interface ChatResponse {
-  response: string;
-  widgets: unknown[];
-  tools_used: number;
-}
-
-export interface MasterDataResult {
-  status: string;
-  score: Score;
-  score_anterior: Score;
-  [key: string]: unknown;
+export interface RiskResult {
+  health_score: number;
+  bottleneck_machines: MaquinaStatus[];
+  heatmap: { maquina_id: string; dia: number; stress_pct: number }[];
+  proposals: { titulo: string; descricao: string; impacto: string }[];
 }
 
 export interface JournalEntry {
@@ -458,4 +145,18 @@ export interface JournalEntry {
   message: string;
   metadata?: Record<string, unknown>;
   elapsed_ms: number;
+}
+
+export interface ChatResponse {
+  response: string;
+  widgets: unknown[];
+  tools_used: number;
+}
+
+export interface LoadResponse {
+  status: string;
+  n_ops: number;
+  n_segments: number;
+  score: ScoreMoldit;
+  time_ms: number;
 }

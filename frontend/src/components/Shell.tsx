@@ -9,24 +9,20 @@ import { ChatPanel } from "./ChatPanel";
 import { UploadZone } from "./ui/UploadZone";
 import { ConsolePage } from "../pages/ConsolePage";
 import { GanttPage } from "../pages/GanttPage";
-import { StockPage } from "../pages/StockPage";
+import { DeadlinesPage } from "../pages/DeadlinesPage";
 import { RiskPage } from "../pages/RiskPage";
 import { SimulatorPage } from "../pages/SimulatorPage";
 import { ConfigPage } from "../pages/ConfigPage";
-import { ExpeditionPage } from "../pages/ExpeditionPage";
 import { JournalPage } from "../pages/JournalPage";
-import { RulesPage } from "../pages/RulesPage";
 
 const NAV_LABELS: Record<string, string> = {
   console: "Consola",
-  gantt: "Produção",
-  stock: "Stock",
+  gantt: "Producao",
+  deadlines: "Prazos",
   risk: "Risco",
-  expedition: "Expedição",
   sim: "Simulador",
-  config: "Configuração",
+  config: "Configuracao",
   journal: "Journal",
-  rules: "Regras",
 };
 
 function PageContent() {
@@ -34,13 +30,11 @@ function PageContent() {
   switch (page) {
     case "console": return <ConsolePage />;
     case "gantt": return <GanttPage />;
-    case "stock": return <StockPage />;
+    case "deadlines": return <DeadlinesPage />;
     case "risk": return <RiskPage />;
-    case "expedition": return <ExpeditionPage />;
     case "sim": return <SimulatorPage />;
     case "config": return <ConfigPage />;
     case "journal": return <JournalPage />;
-    case "rules": return <RulesPage />;
     default: return <ConsolePage />;
   }
 }
@@ -52,17 +46,7 @@ export function Shell() {
   const page = useAppStore((s) => s.activePage);
   const score = useDataStore((s) => s.score);
   const refreshAll = useDataStore((s) => s.refreshAll);
-  const isSimulated = useDataStore((s) => s.isSimulated);
-  const simulationSummary = useDataStore((s) => s.simulationSummary);
-  const revert = useDataStore((s) => s.revert);
   const [recalcing, setRecalcing] = useState(false);
-  const [reverting, setReverting] = useState(false);
-
-  const handleRevert = async () => {
-    setReverting(true);
-    try { await revert(); } catch (err) { console.error("Revert failed:", err); }
-    setReverting(false);
-  };
 
   const handleRecalc = async () => {
     setRecalcing(true);
@@ -102,11 +86,11 @@ export function Shell() {
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {hasData && score && (
               <div style={{ display: "flex", gap: 12 }}>
-                <span style={{ fontSize: 11, color: (score.otd ?? 0) >= TH.OTD_GREEN ? T.green : T.orange, fontFamily: T.mono, fontWeight: 500 }}>
-                  OTD {score.otd?.toFixed(1)}%
+                <span style={{ fontSize: 11, color: (score.deadline_compliance ?? 0) >= TH.COMPLIANCE_GREEN ? T.green : T.orange, fontFamily: T.mono, fontWeight: 500 }}>
+                  Compliance {score.deadline_compliance?.toFixed(1)}%
                 </span>
-                <span style={{ fontSize: 11, color: (score.otd_d ?? 0) >= TH.OTD_D_GREEN ? T.green : T.orange, fontFamily: T.mono, fontWeight: 500 }}>
-                  OTD-D {score.otd_d?.toFixed(1)}%
+                <span style={{ fontSize: 11, color: T.primary, fontFamily: T.mono, fontWeight: 500 }}>
+                  Makespan {score.makespan_total_dias}d
                 </span>
               </div>
             )}
@@ -126,19 +110,19 @@ export function Shell() {
                     fontFamily: "inherit",
                   }}
                 >
-                  ↻
+                  Refresh
                 </button>
                 <button
                   onClick={handleRecalc}
-                  disabled={recalcing || isSimulated}
-                  title={isSimulated ? "Reverta o cenario simulado primeiro" : "Recalcular schedule"}
+                  disabled={recalcing}
+                  title="Recalcular schedule"
                   style={{
                     background: "transparent",
                     border: `0.5px solid ${T.border}`,
-                    color: (recalcing || isSimulated) ? T.tertiary : T.secondary,
+                    color: recalcing ? T.tertiary : T.secondary,
                     borderRadius: 8,
                     padding: "5px 10px",
-                    cursor: (recalcing || isSimulated) ? "default" : "pointer",
+                    cursor: recalcing ? "default" : "pointer",
                     fontSize: 11,
                     fontFamily: "inherit",
                   }}
@@ -165,42 +149,6 @@ export function Shell() {
             </button>
           </div>
         </header>
-
-        {isSimulated && (
-          <div style={{
-            padding: "8px 24px",
-            background: `${T.orange}12`,
-            borderBottom: `1px solid ${T.orange}40`,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            flexShrink: 0,
-          }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>Cenario simulado</span>
-            {simulationSummary.length > 0 && (
-              <span style={{ fontSize: 11, color: T.secondary, flex: 1 }}>
-                {simulationSummary[0]}
-              </span>
-            )}
-            <button
-              onClick={handleRevert}
-              disabled={reverting}
-              style={{
-                background: "transparent",
-                border: `1px solid ${T.orange}`,
-                color: T.orange,
-                borderRadius: 6,
-                padding: "4px 12px",
-                cursor: reverting ? "default" : "pointer",
-                fontSize: 11,
-                fontWeight: 600,
-                fontFamily: "inherit",
-              }}
-            >
-              {reverting ? "A reverter..." : "Reverter"}
-            </button>
-          </div>
-        )}
 
         <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
           {hasData ? <PageContent /> : <UploadZone />}

@@ -17,7 +17,7 @@ interface Message {
 export function ChatPanel() {
   const toggleChat = useAppStore((s) => s.toggleChat);
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "Olá. Posso ajudar com análise de produção, simulações, ou perguntas sobre o plano." },
+    { role: "assistant", content: "Ola. Posso ajudar com analise de moldes, prazos, simulacoes de cenarios, ou perguntas sobre o plano de producao." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,9 +38,9 @@ export function ChatPanel() {
     try {
       const res = await chatCopilot(updated.map((m) => ({ role: m.role, content: m.content })));
       setMessages((prev) => [...prev, {
-        role: "assistant",
+        role: "assistant" as const,
         content: res.response,
-        widgets: res.widgets?.length ? res.widgets : undefined,
+        widgets: res.widgets?.length ? (res.widgets as Widget[]) : undefined,
       }]);
     } catch {
       setMessages((prev) => [...prev, { role: "assistant", content: "Erro ao contactar o copilot." }]);
@@ -74,7 +74,7 @@ export function ChatPanel() {
           onClick={toggleChat}
           style={{ background: "none", border: "none", color: T.tertiary, cursor: "pointer", fontSize: 16, fontFamily: "inherit" }}
         >
-          ×
+          x
         </button>
       </div>
 
@@ -128,7 +128,7 @@ export function ChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Perguntar..."
+            placeholder="Perguntar sobre moldes, prazos, risco..."
             style={{
               flex: 1,
               background: T.elevated,
@@ -155,7 +155,7 @@ export function ChatPanel() {
               fontFamily: "inherit",
             }}
           >
-            ↑
+            &gt;
           </button>
         </div>
       </div>

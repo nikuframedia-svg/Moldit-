@@ -1,18 +1,18 @@
 import { create } from "zustand";
-import type { MutationInput, SimulateResponse, CTPResult } from "../api/types";
+import type { MutationMoldit, MutationType, SimulateResponse, CTPMolde } from "../api/types";
 
 interface SimulatorState {
-  mutations: (MutationInput & { _key: number })[];
+  mutations: (MutationMoldit & { _key: number })[];
   result: SimulateResponse | null;
-  ctpResult: CTPResult | null;
+  ctpResult: CTPMolde | null;
   nextKey: number;
 
-  setMutations: (m: (MutationInput & { _key: number })[]) => void;
+  setMutations: (m: (MutationMoldit & { _key: number })[]) => void;
   setResult: (r: SimulateResponse | null) => void;
-  setCtpResult: (r: CTPResult | null) => void;
+  setCtpResult: (r: CTPMolde | null) => void;
   addMutation: () => void;
   removeMutation: (key: number) => void;
-  updateMutationType: (key: number, type: string) => void;
+  updateMutationType: (key: number, type: MutationType) => void;
   updateMutationParam: (key: number, paramKey: string, value: string) => void;
   clear: () => void;
 }
@@ -30,7 +30,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
   addMutation: () => {
     const { mutations, nextKey } = get();
     set({
-      mutations: [...mutations, { type: "", params: {}, _key: nextKey }],
+      mutations: [...mutations, { type: "machine_down" as MutationType, params: {}, _key: nextKey }],
       nextKey: nextKey + 1,
     });
   },

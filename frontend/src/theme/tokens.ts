@@ -26,13 +26,16 @@ export const T = {
   sans: "-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',sans-serif",
 } as const;
 
-/** Tool-id to color */
-const TOOL_COLORS = [
+/** Mold-id to color */
+const MOLDE_COLORS = [
   "#0A84FF", "#30D158", "#FF9F0A", "#FF453A", "#BF5AF2",
   "#64D2FF", "#FF6482", "#FFD60A", "#AC8E68", "#5E5CE6",
 ];
 
-export function toolColor(toolId: string): string {
-  const n = parseInt(toolId.replace(/\D/g, ""), 10) || 0;
-  return TOOL_COLORS[n % TOOL_COLORS.length];
+export function moldeColor(moldeId: string): string {
+  let hash = 0;
+  for (let i = 0; i < moldeId.length; i++) {
+    hash = ((hash << 5) - hash + moldeId.charCodeAt(i)) | 0;
+  }
+  return MOLDE_COLORS[Math.abs(hash) % MOLDE_COLORS.length];
 }

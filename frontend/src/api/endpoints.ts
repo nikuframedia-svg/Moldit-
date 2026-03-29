@@ -3,88 +3,51 @@
 import { get, post, put, del, upload } from "./client";
 import type {
   ChatResponse,
-  ClientOrders,
   ConsoleData,
-  CoverageAudit,
-  CTPResult,
-  EOp,
-  ExpeditionKPIs,
-  FactoryConfig,
+  CTPMolde,
+  DeadlineStatus,
   JournalEntry,
-  LateDeliveryReport,
-  LearningInfo,
   LoadResponse,
-  Lot,
-  MasterDataResult,
-  MutationInput,
+  MaquinaStatus,
+  Molde,
+  MolditConfig,
+  MutationMoldit,
+  Operacao,
   RiskResult,
-  Score,
-  Segment,
-  SimulateApplyResponse,
+  ScoreMoldit,
+  SegmentoMoldit,
   SimulateResponse,
-  StockProjection,
-  StockSummary,
-  TrustIndex,
-  WorkforceForecast,
 } from "./types";
 
 // ── Core ─────────────────────────────────────────────────────
 
-export const getToday = () => get<{ today_idx: number; date: string }>("/api/data/today");
-export const getWorkdays = () => get<string[]>("/api/data/workdays");
-export const getScore = () => get<Score>("/api/data/score");
-export const getSegments = () => get<Segment[]>("/api/data/segments");
-export const getLots = () => get<Lot[]>("/api/data/lots");
-export const getTrust = () => get<TrustIndex>("/api/data/trust");
+export const getScore = () => get<ScoreMoldit>("/api/data/score");
+export const getSegments = () => get<SegmentoMoldit[]>("/api/data/segments");
+export const getMoldes = () => get<Molde[]>("/api/data/moldes");
+export const getOps = () => get<Operacao[]>("/api/data/ops");
+export const getStress = () => get<MaquinaStatus[]>("/api/data/stress");
+export const getDeadlines = () => get<DeadlineStatus[]>("/api/data/deadlines");
 export const getJournal = () => get<JournalEntry[]>("/api/data/journal");
-export const getLearning = () => get<LearningInfo | null>("/api/data/learning");
 
-// ── Analytics ────────────────────────────────────────────────
+// ── Config ──────────────────────────────────────────────────
 
-export const getStockSummary = () => get<StockSummary[]>("/api/data/stock");
-export const getStockDetail = (sku: string) =>
-  get<StockProjection>(`/api/data/stock/${encodeURIComponent(sku)}`);
-export const getExpedition = () => get<ExpeditionKPIs>("/api/data/expedition");
-export const getOrders = () => get<ClientOrders[]>("/api/data/orders");
-export const getCoverage = () => get<CoverageAudit>("/api/data/coverage");
-export const getRisk = () => get<RiskResult>("/api/data/risk");
-export const getLateDeliveries = () => get<LateDeliveryReport>("/api/data/late");
-export const getWorkforce = (window = 10) =>
-  get<WorkforceForecast>(`/api/data/workforce?window=${window}`);
-
-// ── Config / Master Data ─────────────────────────────────────
-
-export const getConfig = () => get<FactoryConfig>("/api/data/config");
+export const getConfig = () => get<MolditConfig>("/api/data/config");
 export const updateConfig = (updates: Record<string, unknown>) =>
-  put<{ status: string; changed: string[]; score: Score }>("/api/data/config", updates);
-export const getOps = () => get<EOp[]>("/api/data/ops");
-export const getRules = () => get<{ id: string; tipo: string; descricao: string }[]>("/api/data/rules");
+  put<{ status: string; changed: string[]; score: ScoreMoldit }>("/api/data/config", updates);
 
 // ── Master Data Mutations ────────────────────────────────────
 
 export const editMachine = (mid: string, updates: Record<string, unknown>) =>
-  put<MasterDataResult>(`/api/data/machines/${encodeURIComponent(mid)}`, updates);
-
-export const editTool = (tid: string, updates: Record<string, unknown>) =>
-  put<MasterDataResult>(`/api/data/tools/${encodeURIComponent(tid)}`, updates);
-
-export const updateOperators = (ops: Record<string, number>) =>
-  put<MasterDataResult>("/api/data/operators", ops);
+  put<{ status: string; score: ScoreMoldit }>(`/api/data/machines/${encodeURIComponent(mid)}`, updates);
 
 export const addHoliday = (date: string) =>
-  post<MasterDataResult>("/api/data/holidays", { data: date });
+  post<{ status: string }>("/api/data/holidays", { data: date });
 
 export const removeHoliday = (date: string) =>
-  del<MasterDataResult>(`/api/data/holidays/${encodeURIComponent(date)}`);
-
-export const addTwin = (tool_id: string, sku_a: string, sku_b: string) =>
-  post<MasterDataResult>("/api/data/twins", { tool_id, sku_a, sku_b });
-
-export const removeTwin = (tool_id: string) =>
-  del<MasterDataResult>(`/api/data/twins/${encodeURIComponent(tool_id)}`);
+  del<{ status: string }>(`/api/data/holidays/${encodeURIComponent(date)}`);
 
 export const applyPreset = (name: string) =>
-  post<{ status: string; changed: string[]; score: Score }>(`/api/data/presets/${name}`, {});
+  post<{ status: string; changed: string[]; score: ScoreMoldit }>(`/api/data/presets/${name}`, {});
 
 // ── Console ──────────────────────────────────────────────────
 
@@ -93,23 +56,14 @@ export const getConsole = (dayIdx = 0) =>
 
 // ── Actions ──────────────────────────────────────────────────
 
-export const simulate = (mutations: MutationInput[]) =>
+export const simulate = (mutations: MutationMoldit[]) =>
   post<SimulateResponse>("/api/data/simulate", { mutations });
 
-export const simulateApply = (mutations: MutationInput[]) =>
-  post<SimulateApplyResponse>("/api/data/simulate-apply", { mutations });
-
-export const revertSimulation = () =>
-  post<{ status: string; score: Score }>("/api/data/revert", {});
-
-export const canRevert = () =>
-  get<{ can_revert: boolean }>("/api/data/can-revert");
-
-export const checkCTP = (sku: string, qty: number, deadline: number) =>
-  post<CTPResult>("/api/data/ctp", { sku, qty, deadline });
+export const checkCTP = (molde: string) =>
+  post<CTPMolde>("/api/data/ctp", { molde });
 
 export const recalculate = () =>
-  post<{ status: string; score: Score; score_previous: Score; time_ms: number; n_segments: number }>(
+  post<{ status: string; score: ScoreMoldit; time_ms: number; n_segments: number }>(
     "/api/data/recalculate",
     {},
   );
@@ -118,6 +72,10 @@ export const recalculate = () =>
 
 export const uploadProject = (file: File) =>
   upload<LoadResponse>("/api/data/load", file);
+
+// ── Risk ─────────────────────────────────────────────────────
+
+export const getRisk = () => get<RiskResult>("/api/data/risk");
 
 // ── Chat ─────────────────────────────────────────────────────
 

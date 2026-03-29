@@ -3,7 +3,7 @@ import { T } from "../theme/tokens";
 import { simulate, checkCTP } from "../api/endpoints";
 import { useDataStore } from "../stores/useDataStore";
 import { useSimulatorStore } from "../stores/useSimulatorStore";
-import type { MutationInput, SimulateResponse, CTPResult } from "../api/types";
+import type { MutationType } from "../api/types";
 import { Card } from "../components/ui/Card";
 import { Label } from "../components/ui/Label";
 import { Num } from "../components/ui/Num";
@@ -18,72 +18,47 @@ interface ParamField {
   type: "text" | "number";
 }
 
-const MUTATION_TYPES: { value: string; label: string; fields: ParamField[] }[] = [
-  // EDD shifts
-  { value: "advance_edd", label: "Antecipar EDD", fields: [
-    { key: "sku", label: "SKU", type: "text" },
-    { key: "days", label: "Dias", type: "number" },
-  ]},
-  { value: "delay_edd", label: "Atrasar EDD", fields: [
-    { key: "sku", label: "SKU", type: "text" },
-    { key: "days", label: "Dias", type: "number" },
-  ]},
+interface MutationDef {
+  value: MutationType;
+  label: string;
+  category: string;
+  fields: ParamField[];
+}
+
+const MUTATION_TYPES: MutationDef[] = [
   // Capacity
-  { value: "machine_down", label: "Maquina Parada", fields: [
+  { value: "machine_down", label: "Maquina Parada", category: "Capacidade", fields: [
     { key: "machine_id", label: "Maquina", type: "text" },
-    { key: "start", label: "De Dia", type: "number" },
-    { key: "end", label: "Ate Dia", type: "number" },
+    { key: "start_day", label: "De Dia", type: "number" },
+    { key: "end_day", label: "Ate Dia", type: "number" },
   ]},
-  { value: "tool_down", label: "Ferramenta Indisponivel", fields: [
-    { key: "tool_id", label: "Ferramenta", type: "text" },
-    { key: "start", label: "De Dia", type: "number" },
-    { key: "end", label: "Ate Dia", type: "number" },
-  ]},
-  { value: "overtime", label: "Horas Extra", fields: [
+  { value: "overtime", label: "Horas Extra", category: "Capacidade", fields: [
     { key: "machine_id", label: "Maquina", type: "text" },
-    { key: "extra_min", label: "Minutos Extra", type: "number" },
+    { key: "extra_h", label: "Horas Extra", type: "number" },
   ]},
-  { value: "third_shift", label: "3o Turno", fields: [
-    { key: "machine_id", label: "Maquina", type: "text" },
+  { value: "force_machine", label: "Forcar Maquina", category: "Capacidade", fields: [
+    { key: "op_id", label: "Op ID", type: "number" },
+    { key: "machine_id", label: "Para Maquina", type: "text" },
   ]},
-  // Demand
-  { value: "rush_order", label: "Encomenda Urgente", fields: [
-    { key: "sku", label: "SKU", type: "text" },
-    { key: "qty", label: "Quantidade", type: "number" },
-    { key: "deadline_day", label: "Dia Limite", type: "number" },
+  // Prazos
+  { value: "deadline_change", label: "Alterar Deadline", category: "Prazos", fields: [
+    { key: "molde", label: "Molde", type: "text" },
+    { key: "new_deadline", label: "Nova Deadline", type: "text" },
   ]},
-  { value: "demand_change", label: "Alterar Procura", fields: [
-    { key: "sku", label: "SKU", type: "text" },
-    { key: "factor", label: "Factor (1.0=igual)", type: "number" },
+  { value: "priority_boost", label: "Prioridade Molde", category: "Prazos", fields: [
+    { key: "molde", label: "Molde", type: "text" },
+    { key: "boost", label: "Boost (1-10)", type: "number" },
   ]},
-  { value: "cancel_order", label: "Cancelar Encomenda", fields: [
-    { key: "sku", label: "SKU", type: "text" },
-    { key: "from_day", label: "De Dia", type: "number" },
-    { key: "to_day", label: "Ate Dia", type: "number" },
+  // Calendario
+  { value: "add_holiday", label: "Adicionar Feriado", category: "Calendario", fields: [
+    { key: "date", label: "Data (YYYY-MM-DD)", type: "text" },
   ]},
-  // Config
-  { value: "force_machine", label: "Forcar Maquina", fields: [
-    { key: "tool_id", label: "Ferramenta", type: "text" },
-    { key: "to_machine", label: "Para Maquina", type: "text" },
+  { value: "remove_holiday", label: "Remover Feriado", category: "Calendario", fields: [
+    { key: "date", label: "Data (YYYY-MM-DD)", type: "text" },
   ]},
-  { value: "oee_change", label: "Alterar OEE", fields: [
-    { key: "tool_id", label: "Ferramenta", type: "text" },
-    { key: "new_oee", label: "Novo OEE (0-1)", type: "number" },
-  ]},
-  { value: "change_eco_lot", label: "Alterar Eco Lot", fields: [
-    { key: "sku", label: "SKU", type: "text" },
-    { key: "new_eco_lot", label: "Novo Eco Lot", type: "number" },
-  ]},
-  // Holidays
-  { value: "add_holiday", label: "Adicionar Feriado", fields: [
-    { key: "day_idx", label: "Dia", type: "number" },
-  ]},
-  { value: "remove_holiday", label: "Remover Feriado", fields: [
-    { key: "day_idx", label: "Dia", type: "number" },
-  ]},
-  // Advisory
-  { value: "operator_shortage", label: "Falta Operadores", fields: [
-    { key: "note", label: "Nota", type: "text" },
+  // Progresso
+  { value: "op_done", label: "Marcar Op Concluida", category: "Progresso", fields: [
+    { key: "op_id", label: "Op ID", type: "number" },
   ]},
 ];
 
@@ -155,17 +130,11 @@ export function SimulatorPage() {
     setResult, setCtpResult,
   } = useSimulatorStore();
   const refreshAll = useDataStore((s) => s.refreshAll);
-  const applySimulation = useDataStore((s) => s.applySimulation);
-  const isSimulated = useDataStore((s) => s.isSimulated);
   const [loading, setLoading] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // CTP
-  const [ctpSku, setCtpSku] = useState("");
-  const [ctpQty, setCtpQty] = useState("");
-  const [ctpDeadline, setCtpDeadline] = useState("");
+  const [ctpMolde, setCtpMolde] = useState("");
   const [ctpLoading, setCtpLoading] = useState(false);
   const [ctpError, setCtpError] = useState<string | null>(null);
 
@@ -174,7 +143,6 @@ export function SimulatorPage() {
     if (validMutations.length === 0) return;
     setLoading(true);
     setError(null);
-    setApplied(false);
     try {
       const res = await simulate(validMutations);
       setResult(res);
@@ -186,28 +154,14 @@ export function SimulatorPage() {
     }
   };
 
-  const handleApply = async () => {
-    const validMutations = mutations.filter((m) => m.type).map(({ type, params }) => ({ type, params }));
-    if (validMutations.length === 0) return;
-    setApplying(true);
-    try {
-      await applySimulation(validMutations);
-      setApplied(true);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setApplying(false);
-    }
-  };
-
   const runCTP = async () => {
-    if (!ctpSku || !ctpQty || !ctpDeadline) return;
+    if (!ctpMolde) return;
     setCtpLoading(true);
     setCtpError(null);
     try {
-      const res = await checkCTP(ctpSku, parseInt(ctpQty), parseInt(ctpDeadline));
+      const res = await checkCTP(ctpMolde);
       setCtpResult(res);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setCtpError(String(e));
     } finally {
       setCtpLoading(false);
@@ -228,7 +182,7 @@ export function SimulatorPage() {
         {mutations.length === 0 ? (
           <Card>
             <div style={{ textAlign: "center", padding: 24, color: T.secondary, fontSize: 13 }}>
-              Adiciona mutacoes para simular cenarios what-if.
+              Adiciona mutacoes para simular cenarios what-if: maquina parada, horas extra, alteracao de prazos, etc.
             </div>
           </Card>
         ) : (
@@ -240,12 +194,11 @@ export function SimulatorPage() {
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     <select
                       value={m.type}
-                      onChange={(e) => updateMutationType(m._key, e.target.value)}
+                      onChange={(e) => updateMutationType(m._key, e.target.value as MutationType)}
                       style={selectStyle}
                     >
-                      <option value="">Tipo...</option>
                       {MUTATION_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
+                        <option key={t.value} value={t.value}>{t.category}: {t.label}</option>
                       ))}
                     </select>
 
@@ -264,7 +217,7 @@ export function SimulatorPage() {
                       onClick={() => removeMutation(m._key)}
                       style={{ background: "transparent", border: "none", color: T.red, cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
                     >
-                      ×
+                      x
                     </button>
                   </div>
                 </Card>
@@ -291,39 +244,21 @@ export function SimulatorPage() {
       {/* ── Delta Results ── */}
       {result && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-            <DeltaCard label="OTD" before={result.delta.otd_before} after={result.delta.otd_after} suffix="%" higher />
-            <DeltaCard label="OTD-D" before={result.delta.otd_d_before} after={result.delta.otd_d_after} suffix="%" higher />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            <DeltaCard label="Makespan" before={result.delta.makespan_before} after={result.delta.makespan_after} suffix="d" />
+            <DeltaCard label="Compliance" before={result.delta.compliance_before} after={result.delta.compliance_after} suffix="%" higher />
             <DeltaCard label="Setups" before={result.delta.setups_before} after={result.delta.setups_after} />
-            <DeltaCard label="Atrasos" before={result.delta.tardy_before} after={result.delta.tardy_after} />
-            <DeltaCard label="Antecipacao" before={result.delta.earliness_before} after={result.delta.earliness_after} suffix="d" />
+            <DeltaCard label="Balanceamento" before={result.delta.balance_before} after={result.delta.balance_after} />
           </div>
 
-          {result.summary.length > 0 && (
+          {result.summary && (
             <Card>
               <Label style={{ marginBottom: 8 }}>Resumo</Label>
-              <ul style={{ margin: 0, paddingLeft: 16 }}>
-                {result.summary.map((s, i) => (
-                  <li key={i} style={{ fontSize: 12, color: T.secondary, lineHeight: 1.8 }}>{s}</li>
-                ))}
-              </ul>
+              <div style={{ fontSize: 12, color: T.secondary, lineHeight: 1.8 }}>{result.summary}</div>
             </Card>
           )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button
-              onClick={handleApply}
-              disabled={applying || applied || isSimulated}
-              style={{
-                ...btnStyle,
-                background: applied ? T.green : isSimulated ? T.tertiary : T.blue,
-                opacity: applying || applied || isSimulated ? 0.6 : 1,
-              }}
-            >
-              {applying ? "A aplicar..." : applied ? "Aplicado" : isSimulated ? "Cenario ja activo" : "Aplicar no Gantt"}
-            </button>
-            <span style={{ fontSize: 11, color: T.tertiary }}>Tempo: {result.time_ms.toFixed(0)}ms</span>
-          </div>
+          <span style={{ fontSize: 11, color: T.tertiary }}>Tempo: {result.time_ms.toFixed(0)}ms</span>
         </>
       )}
 
@@ -331,33 +266,19 @@ export function SimulatorPage() {
 
       {/* ── CTP ── */}
       <div>
-        <span style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>Capable-To-Promise (CTP)</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>CTP - Verificacao de Prazo</span>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
           <input
             type="text"
-            placeholder="SKU"
-            value={ctpSku}
-            onChange={(e) => setCtpSku(e.target.value)}
-            style={{ ...inputStyle, width: 160 }}
-          />
-          <input
-            type="number"
-            placeholder="Quantidade"
-            value={ctpQty}
-            onChange={(e) => setCtpQty(e.target.value)}
-            style={inputStyle}
-          />
-          <input
-            type="number"
-            placeholder="Deadline (dia)"
-            value={ctpDeadline}
-            onChange={(e) => setCtpDeadline(e.target.value)}
-            style={inputStyle}
+            placeholder="Molde (ex: M1234)"
+            value={ctpMolde}
+            onChange={(e) => setCtpMolde(e.target.value)}
+            style={{ ...inputStyle, width: 200 }}
           />
           <button
             onClick={runCTP}
-            disabled={ctpLoading || !ctpSku || !ctpQty || !ctpDeadline}
-            style={{ ...btnStyle, opacity: ctpLoading || !ctpSku ? 0.5 : 1 }}
+            disabled={ctpLoading || !ctpMolde}
+            style={{ ...btnStyle, opacity: ctpLoading || !ctpMolde ? 0.5 : 1 }}
           >
             {ctpLoading ? "A verificar..." : "Verificar"}
           </button>
@@ -371,40 +292,28 @@ export function SimulatorPage() {
             <Pill color={ctpResult.feasible ? T.green : T.red}>
               {ctpResult.feasible ? "Viavel" : "Inviavel"}
             </Pill>
-            <span style={{ fontSize: 13, fontFamily: T.mono, color: T.primary }}>{ctpResult.sku}</span>
-            <span style={{ fontSize: 12, color: T.secondary }}>{ctpResult.qty_requested.toLocaleString()} pcs</span>
+            <span style={{ fontSize: 13, fontFamily: T.mono, color: T.primary }}>{ctpResult.molde}</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
             <div>
-              <Label>Ultimo Dia</Label>
+              <Label>Conclusao (dia)</Label>
               <div style={{ fontSize: 14, fontFamily: T.mono, color: T.primary, marginTop: 4 }}>
-                {ctpResult.latest_day !== null ? `D${ctpResult.latest_day}` : "-"}
+                Dia {ctpResult.conclusao_dia}
               </div>
             </div>
             <div>
-              <Label>Maquina</Label>
-              <div style={{ fontSize: 14, fontFamily: T.mono, color: T.primary, marginTop: 4 }}>
-                {ctpResult.machine ?? "-"}
+              <Label>Slack (dias)</Label>
+              <div style={{ fontSize: 14, fontFamily: T.mono, color: ctpResult.slack_dias >= 0 ? T.green : T.red, marginTop: 4 }}>
+                {ctpResult.slack_dias >= 0 ? `+${ctpResult.slack_dias}` : ctpResult.slack_dias}
               </div>
             </div>
             <div>
-              <Label>Confianca</Label>
-              <div style={{ marginTop: 4 }}>
-                <Pill color={ctpResult.confidence === "high" ? T.green : ctpResult.confidence === "medium" ? T.orange : T.red}>
-                  {ctpResult.confidence}
-                </Pill>
-              </div>
-            </div>
-            <div>
-              <Label>Slack (min)</Label>
+              <Label>Dias Extra</Label>
               <div style={{ fontSize: 14, fontFamily: T.mono, color: T.primary, marginTop: 4 }}>
-                {ctpResult.slack_min.toFixed(0)}
+                {ctpResult.dias_extra}
               </div>
             </div>
           </div>
-          {ctpResult.reason && (
-            <div style={{ marginTop: 12, fontSize: 12, color: T.secondary, lineHeight: 1.5 }}>{ctpResult.reason}</div>
-          )}
         </Card>
       )}
     </div>

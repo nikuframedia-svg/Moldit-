@@ -1,11 +1,8 @@
-/** Centralized thresholds — avoid magic numbers across pages. */
+/** Centralized thresholds — Moldit mold production. */
 export const TH = {
-  OTD_GREEN: 98,
-  OTD_D_GREEN: 95,
-  FILL_GREEN: 95,
-  FILL_ORANGE: 80,
-  UTIL_RED: 95,
-  UTIL_ORANGE: 85,
-  UTIL_BLUE: 70,
-  TRUST_GREEN: 80,
+  COMPLIANCE_GREEN: 95,
+  COMPLIANCE_ORANGE: 80,
+  STRESS_WARN: 70,
+  STRESS_ORANGE: 85,
+  STRESS_RED: 90,
 } as const;
