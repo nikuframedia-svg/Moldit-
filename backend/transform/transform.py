@@ -126,6 +126,12 @@ def _fix_electrodes(
     if fixed:
         logger.info("Fixed %d electrode ops with default %gh", fixed, default_h)
 
+    # Add electrode compatibility if missing
+    if "EL001" not in data.compatibilidade:
+        data.compatibilidade["EL001"] = ["FE29 - GT"]
+    if "EL005" not in data.compatibilidade:
+        data.compatibilidade["EL005"] = ["FE29 - GT"]
+
     return data
 
 

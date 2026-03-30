@@ -320,7 +320,9 @@ def parse_mpp(filepath: str) -> MolditEngineData:
         # 2a placa detection: resource starts with "//"
         if res_name.startswith("//"):
             op.e_2a_placa = True
-            res_name = res_name[2:].strip()
+            # Keep the full "// XXX" name — config now uses the same prefix
+            # Normalise to "// " + stripped remainder
+            res_name = "// " + res_name[2:].strip()
 
         # Conditional detection: resource is "?"
         if res_name == "?":
@@ -511,6 +513,8 @@ def _infer_machine_group(resource_name: str) -> str:
         return "Externo"
     if rn.startswith("FE11") or rn.startswith("FE34"):
         return "Maq_Acessorios"
+    if rn.startswith("RE"):
+        return "Retificacao"
     return "Outros"
 
 

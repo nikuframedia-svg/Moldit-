@@ -108,10 +108,10 @@ class TestBuildPriorityQueue:
 class TestAssignMachines:
     def test_uses_mpp_resource(self):
         """Op with explicit recurso should get that machine."""
-        ops = {1: _make_op(1, recurso="FE16-Zayer")}
-        machines = {"FE16-Zayer": _make_machine("FE16-Zayer")}
-        result = assign_machines(ops, [1], {"CNC001": ["FE16-Zayer"]}, machines, _make_config())
-        assert result[1] == "FE16-Zayer"
+        ops = {1: _make_op(1, recurso="FE16 - Zayer")}
+        machines = {"FE16 - Zayer": _make_machine("FE16 - Zayer")}
+        result = assign_machines(ops, [1], {"CNC001": ["FE16 - Zayer"]}, machines, _make_config())
+        assert result[1] == "FE16 - Zayer"
 
     def test_picks_least_loaded(self):
         """With two compatible machines, pick the one with less load."""

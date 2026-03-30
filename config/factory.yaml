@@ -6,80 +6,83 @@ factory:
 
 machines:
   # CNC — Desbaste (regime 16h, pico 24h)
-  FE16-Zayer:         { group: Desbaste, regime_h: 16, setup_h: 1.0 }
-  FE22-Rambaudi:      { group: Desbaste, regime_h: 16, setup_h: 1.0 }
-  FE18-Rambaudi:      { group: Desbaste, regime_h: 16, setup_h: 1.0 }
-  FE19-Eumach:        { group: Desbaste_PD, regime_h: 16, setup_h: 1.0 }
+  "FE16 - Zayer":         { group: Desbaste, regime_h: 16, setup_h: 1.0 }
+  "FE22 - Rambaudi":      { group: Desbaste, regime_h: 16, setup_h: 1.0 }
+  "FE18 - Rambaudi":      { group: Desbaste, regime_h: 16, setup_h: 1.0 }
+  "FE19 - Eumach":        { group: Desbaste_PD, regime_h: 16, setup_h: 1.0 }
 
   # CNC — Maquinacao 3D/2D
-  FE26-Depo:          { group: Maq_3D_GD, regime_h: 16, setup_h: 1.0 }
-  FE31-MasterMill:    { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 1.0 }
-  FE35-Promac:        { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 1.0 }
-  FE32-UMILL1800:     { group: Maq_3D_MD, regime_h: 16, setup_h: 1.0 }
-  FE25-Correia:       { group: Maq_3D_PD, regime_h: 16, setup_h: 1.0 }
+  "FE26 - Depo":          { group: Maq_3D_GD, regime_h: 16, setup_h: 1.0 }
+  "FE31 - MasterMill":    { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 1.0 }
+  "FE35 - Promac":        { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 1.0 }
+  "FE32 - UMILL 1800":    { group: Maq_3D_MD, regime_h: 16, setup_h: 1.0 }
+  "FE25 - Correia":       { group: Maq_3D_PD, regime_h: 16, setup_h: 1.0 }
 
   # 2a Placa (virtual resources for parallel ops on same CNC)
-  x-FE31-MasterMill:  { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 0.0 }
-  x-FE35-Promac:      { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 0.0 }
-  x-FE32-UMILL1800:   { group: Maq_3D_MD, regime_h: 16, setup_h: 0.0 }
-  x-FE25-Correia:     { group: Maq_3D_PD, regime_h: 16, setup_h: 0.0 }
+  "// FE31 - MasterMill":  { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 0.0 }
+  "// FE35 - Promac":      { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 0.0 }
+  "// FE32 - UMILL 1800":  { group: Maq_3D_MD, regime_h: 16, setup_h: 0.0 }
+  "// FE25 - Correia":     { group: Maq_3D_PD, regime_h: 16, setup_h: 0.0 }
 
   # CNC — Acabamento 5 Eixos
-  FE30-5Eixos:        { group: Acab_5ax, regime_h: 16, setup_h: 1.0 }
-  FE36-Mikron:        { group: Acab_5ax, regime_h: 16, setup_h: 1.0 }
-  FE37-DOOSAN5AX:     { group: Acab_5ax, regime_h: 16, setup_h: 1.0 }
+  "FE30 - 5 Eixos":       { group: Acab_5ax, regime_h: 16, setup_h: 1.0 }
+  "FE36 - Mikron":         { group: Acab_5ax, regime_h: 16, setup_h: 1.0 }
+  "FE37 - DOOSAN 5AX":    { group: Acab_5ax, regime_h: 16, setup_h: 1.0 }
 
   # CNC — Estruturas
-  FE28-Sdv:           { group: Maq_estruturas, regime_h: 16, setup_h: 1.0 }
-  FE38-Doosan750L:    { group: Maq_estruturas, regime_h: 16, setup_h: 1.0 }
+  "FE28 - Sdv":            { group: Maq_estruturas, regime_h: 16, setup_h: 1.0 }
+  "FE38 - Doosan 750L":   { group: Maq_estruturas, regime_h: 16, setup_h: 1.0 }
 
   # Faces
-  FE23-Mori:          { group: FACESS, regime_h: 16, setup_h: 1.0 }
+  "FE23 - Mori":           { group: FACESS, regime_h: 16, setup_h: 1.0 }
 
   # Eletrodos
-  FE29-GT:            { group: Maq_Eletrodos, regime_h: 16, setup_h: 1.0 }
-  FE33-Microcut:      { group: Maq_Eletrodos, regime_h: 16, setup_h: 1.0 }
+  "FE29 - GT":             { group: Maq_Eletrodos, regime_h: 16, setup_h: 1.0 }
+  "FE33 - Microcut":       { group: Maq_Eletrodos, regime_h: 16, setup_h: 1.0 }
 
   # Erosao
-  EE01-Ona30:         { group: EROSAO, regime_h: 16, setup_h: 1.5 }
-  EE07-Ona700:        { group: EROSAO, regime_h: 16, setup_h: 1.5 }
-  EE08-OnaNX8:        { group: EROSAO, regime_h: 16, setup_h: 1.5 }
-  EE09-Ona400:        { group: EROSAO, regime_h: 16, setup_h: 1.5 }
-  EE11-ErosaoFio:     { group: Erosao_Fio, regime_h: 16, setup_h: 1.0 }
+  "EE01 - Ona 30":        { group: EROSAO, regime_h: 16, setup_h: 1.5 }
+  "EE07 - Ona 700":       { group: EROSAO, regime_h: 16, setup_h: 1.5 }
+  "EE08 - Ona NX8":       { group: EROSAO, regime_h: 16, setup_h: 1.5 }
+  "EE09 - Ona 400":       { group: EROSAO, regime_h: 16, setup_h: 1.5 }
+  "EE11 - Erosão fio":    { group: Erosao_Fio, regime_h: 16, setup_h: 1.0 }
 
   # Furacao
-  MA01-Collet:        { group: FURACAO, regime_h: 16, setup_h: 1.0 }
-  MA06-Heto:          { group: FURACAO, regime_h: 16, setup_h: 1.0 }
-  MA07-ChetoIX3000:   { group: FURACAO, regime_h: 16, setup_h: 1.0 }
-  MA08-Heto:          { group: FURACAO, regime_h: 16, setup_h: 1.0 }
+  "MA01 - Collet":         { group: FURACAO, regime_h: 16, setup_h: 1.0 }
+  "MA06 - Heto":           { group: FURACAO, regime_h: 16, setup_h: 1.0 }
+  "MA07 - Cheto IX 3000":  { group: FURACAO, regime_h: 16, setup_h: 1.0 }
+  "MA08 - Heto":           { group: FURACAO, regime_h: 16, setup_h: 1.0 }
 
   # Torno
-  TO02-Clovis28:      { group: TORNO, regime_h: 16, setup_h: 1.0 }
+  "TO02 - Clovis 28":     { group: TORNO, regime_h: 16, setup_h: 1.0 }
 
   # Convencionais
-  FE11-convencional:  { group: Maq_Acessorios, regime_h: 8, setup_h: 0.5 }
-  FE34-convencional:  { group: Maq_Acessorios, regime_h: 8, setup_h: 0.5 }
+  "FE11 - convencional":   { group: Maq_Acessorios, regime_h: 8, setup_h: 0.5 }
+  "FE34 - convencional":   { group: Maq_Acessorios, regime_h: 8, setup_h: 0.5 }
 
   # Bancada (manual, dedicated per mold)
-  BA01:               { group: Bancada, regime_h: 8, setup_h: 0 }
-  BA02:               { group: Bancada, regime_h: 8, setup_h: 0 }
-  BA03:               { group: Bancada, regime_h: 8, setup_h: 0 }
-  Prensa-Grande:      { group: Bancada, regime_h: 8, setup_h: 0 }
-  Prensa-Pequena:     { group: Bancada, regime_h: 8, setup_h: 0 }
+  "BA01":                  { group: Bancada, regime_h: 8, setup_h: 0 }
+  "BA02":                  { group: Bancada, regime_h: 8, setup_h: 0 }
+  "BA03":                  { group: Bancada, regime_h: 8, setup_h: 0 }
+  "Prensa Grande":         { group: Bancada, regime_h: 8, setup_h: 0 }
+  "Prensa Pequena":        { group: Bancada, regime_h: 8, setup_h: 0 }
 
   # Polimento (2 polidores) & Tapagem (2 operadores)
-  Polimento-1:        { group: Polimento, regime_h: 8, setup_h: 0.5 }
-  Polimento-2:        { group: Polimento, regime_h: 8, setup_h: 0.5 }
-  TP-Tapagem-1:       { group: Tapagem, regime_h: 8, setup_h: 0 }
-  TP-Tapagem-2:       { group: Tapagem, regime_h: 8, setup_h: 0 }
+  "Polimento-1":           { group: Polimento, regime_h: 8, setup_h: 0.5 }
+  "Polimento-2":           { group: Polimento, regime_h: 8, setup_h: 0.5 }
+  "TP-Tapagem-1":          { group: Tapagem, regime_h: 8, setup_h: 0 }
+  "TP-Tapagem-2":          { group: Tapagem, regime_h: 8, setup_h: 0 }
 
   # Qualidade
-  Controlo-Dimensional: { group: Qualidade, regime_h: 8, setup_h: 0 }
+  "Controlo Dimensional":  { group: Qualidade, regime_h: 8, setup_h: 0 }
 
   # Externos (capacidade infinita)
-  Externo-Ret:        { group: Externo, regime_h: 0, setup_h: 0 }
-  Externo-Aco:        { group: Externo, regime_h: 0, setup_h: 0 }
-  Textura-Laser:      { group: Externo, regime_h: 0, setup_h: 0 }
+  "Externo/Ret":           { group: Externo, regime_h: 0, setup_h: 0 }
+  "Externo/Aço":           { group: Externo, regime_h: 0, setup_h: 0 }
+  "Textura Laser":         { group: Externo, regime_h: 0, setup_h: 0 }
+
+  # Retificacao
+  "RE05":                  { group: Retificacao, regime_h: 8, setup_h: 0.5 }
 
 bancada_dedicacao:
   BA01: { "2950": 1.0 }

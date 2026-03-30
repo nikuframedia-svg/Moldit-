@@ -51,27 +51,27 @@ class TestFactoryConfig:
 
     def test_machine_groups_property(self):
         c = FactoryConfig(machines={
-            "FE16-Zayer": MachineConfig("FE16-Zayer", "Desbaste"),
-            "FE31-MasterMill": MachineConfig("FE31-MasterMill", "Maq_3D_2D_GD"),
+            "FE16 - Zayer": MachineConfig("FE16 - Zayer", "Desbaste"),
+            "FE31 - MasterMill": MachineConfig("FE31 - MasterMill", "Maq_3D_2D_GD"),
         })
         assert c.machine_groups == {
-            "FE16-Zayer": "Desbaste",
-            "FE31-MasterMill": "Maq_3D_2D_GD",
+            "FE16 - Zayer": "Desbaste",
+            "FE31 - MasterMill": "Maq_3D_2D_GD",
         }
 
     def test_inactive_machine_excluded(self):
         c = FactoryConfig(machines={
-            "FE16-Zayer": MachineConfig("FE16-Zayer", "Desbaste", active=True),
-            "FE22-Rambaudi": MachineConfig(
-                "FE22-Rambaudi", "Desbaste", active=False,
+            "FE16 - Zayer": MachineConfig("FE16 - Zayer", "Desbaste", active=True),
+            "FE22 - Rambaudi": MachineConfig(
+                "FE22 - Rambaudi", "Desbaste", active=False,
             ),
         })
-        assert "FE22-Rambaudi" not in c.machine_groups
-        assert "FE16-Zayer" in c.machine_groups
+        assert "FE22 - Rambaudi" not in c.machine_groups
+        assert "FE16 - Zayer" in c.machine_groups
 
     def test_machine_config_new_fields(self):
         mc = MachineConfig(
-            id="FE16-Zayer", group="Desbaste",
+            id="FE16 - Zayer", group="Desbaste",
             regime_h=16, setup_h=1.0, e_externo=False,
         )
         assert mc.regime_h == 16
@@ -116,14 +116,14 @@ class TestLoadConfig:
             mode="w", suffix=".yaml", delete=False,
         ) as f:
             f.write(
-                "machines:\n"
-                "  FE16-Zayer: { group: Desbaste, regime_h: 16, setup_h: 1.0 }\n"
-                "  Externo-Ret: { group: Externo, regime_h: 0, setup_h: 0 }\n"
+                'machines:\n'
+                '  "FE16 - Zayer": { group: Desbaste, regime_h: 16, setup_h: 1.0 }\n'
+                '  "Externo/Ret": { group: Externo, regime_h: 0, setup_h: 0 }\n'
             )
             f.flush()
             c = load_config(f.name)
-            assert c.machines["FE16-Zayer"].regime_h == 16
-            assert c.machines["Externo-Ret"].e_externo is True
+            assert c.machines["FE16 - Zayer"].regime_h == 16
+            assert c.machines["Externo/Ret"].e_externo is True
         os.unlink(f.name)
 
 

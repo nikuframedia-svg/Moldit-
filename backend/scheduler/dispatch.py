@@ -131,15 +131,11 @@ def assign_machines(
         # Direct resource assignment
         if op.recurso and op.recurso != "?":
             resource = op.recurso.strip()
-            # 2a placa: "// FE31" -> "x-FE31-MasterMill"
+            # 2a placa: "// FE31 - MasterMill" — use directly (config uses same name)
             if resource.startswith("//"):
-                raw = resource.lstrip("/").strip()
-                # Find virtual machine starting with "x-" that contains the raw name
-                for mid in machine_set:
-                    if mid.startswith("x-") and raw in mid:
-                        assigned = mid
-                        break
-                if assigned is None:
+                if resource in machine_set:
+                    assigned = resource
+                else:
                     logger.warning(
                         "Op %d: 2a placa '%s' no matching virtual machine",
                         op_id, resource,
@@ -421,7 +417,7 @@ def compute_operator_alerts(
     group_machines: dict[str, list[str]] = defaultdict(list)
     group_regime: dict[str, int] = {}
     for mid, m in machines.items():
-        if not mid.startswith("x-"):  # Skip virtual machines
+        if not mid.startswith("//"):  # Skip virtual machines
             group_machines[m.grupo].append(mid)
             group_regime[m.grupo] = m.regime_h
 
