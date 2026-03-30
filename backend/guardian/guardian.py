@@ -302,4 +302,27 @@ def validate_output(
                 f"Maquina {seg.maquina_id!r} nao existe",
             ))
 
+    # ── Deadline validation ─────────────────────────────────────────
+    from backend.scheduler.scoring import _parse_deadline_to_days
+
+    mold_last_day: dict[str, int] = defaultdict(int)
+    for seg in segmentos:
+        if seg.dia > mold_last_day[seg.molde]:
+            mold_last_day[seg.molde] = seg.dia
+
+    for molde in data.moldes:
+        if not molde.deadline:
+            continue
+        deadline_day = _parse_deadline_to_days(molde.deadline)
+        if deadline_day is None:
+            continue
+        last_day = mold_last_day.get(molde.id, 0)
+        if last_day > deadline_day:
+            issues.append(GuardianIssue(
+                molde.id, "deadline", "critical",
+                f"Molde {molde.id} ultrapassa deadline {molde.deadline} "
+                f"(dia {deadline_day}) — termina dia {last_day} "
+                f"(+{last_day - deadline_day} dias)",
+            ))
+
     return issues

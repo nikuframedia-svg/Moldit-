@@ -51,7 +51,11 @@ class CachedPipeline:
         result = schedule_all(modified_data, config=self.config)
 
         # Cost: negate weighted_score so lower = better
-        cost = -result.score.get("weighted_score", 0.0)
+        # Heavy penalty for deadline violations
+        if result.score.get("deadline_compliance", 1.0) < 1.0:
+            cost = 10.0
+        else:
+            cost = -result.score.get("weighted_score", 0.0)
 
         self._cache[h] = (result, cost)
         return result, cost

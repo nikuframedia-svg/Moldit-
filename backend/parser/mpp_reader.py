@@ -166,11 +166,42 @@ def parse_mpp(filepath: str) -> MolditEngineData:
             if m:
                 current_mold = m.group(1)
                 current_component = ""
+
+                # Extract deadline from TEXT3 (e.g. "S15")
+                raw_text3 = t.getText(3)
+                deadline_val = ""
+                if raw_text3 is not None:
+                    deadline_val = str(raw_text3).strip()
+                    if deadline_val.lower() == "null" or deadline_val == "None":
+                        deadline_val = ""
+
+                # Extract cliente from task name
+                # e.g. "2954 » Produção - AIS" -> "AIS"
+                # e.g. "2950 » Produção - Pro-X Automotive (CC)" -> "Pro-X Automotive (CC)"
+                # e.g. "2947 - Molde ASG" -> "ASG"
+                cliente_val = ""
+                if "\u00bb" in name:
+                    after_sep = name.split("\u00bb", 1)[1].strip()
+                    # Pattern: "Produção - CLIENT" or just "CLIENT"
+                    dash_parts = after_sep.split("-", 1)
+                    if len(dash_parts) >= 2:
+                        cliente_val = dash_parts[1].strip()
+                    else:
+                        cliente_val = after_sep.strip()
+                elif " - Molde " in name:
+                    # Pattern: "2947 - Molde ASG" -> "ASG"
+                    cliente_val = name.split(" - Molde ", 1)[1].strip()
+
                 mold_headers.setdefault(current_mold, {
-                    "cliente": "",
-                    "deadline": "",
+                    "cliente": cliente_val,
+                    "deadline": deadline_val,
                     "componentes": set(),
                 })
+                # Update if not yet set (setdefault won't overwrite)
+                if not mold_headers[current_mold]["cliente"] and cliente_val:
+                    mold_headers[current_mold]["cliente"] = cliente_val
+                if not mold_headers[current_mold]["deadline"] and deadline_val:
+                    mold_headers[current_mold]["deadline"] = deadline_val
             else:
                 current_mold = ""
                 current_component = ""
@@ -354,7 +385,7 @@ def parse_mpp(filepath: str) -> MolditEngineData:
             moldes_dict[op.molde] = Molde(
                 id=op.molde,
                 cliente=hdr.get("cliente", ""),
-                deadline="",
+                deadline=hdr.get("deadline", ""),
                 componentes=(
                     sorted(hdr.get("componentes", set()))
                     if isinstance(hdr.get("componentes"), set)
@@ -370,6 +401,13 @@ def parse_mpp(filepath: str) -> MolditEngineData:
     for m in moldes_dict.values():
         if m.total_ops > 0:
             m.progresso = (m.ops_concluidas / m.total_ops) * 100.0
+
+    # Propagate deadline_semana from mold to each operation
+    for op in operacoes:
+        hdr = mold_headers.get(op.molde, {})
+        dl = hdr.get("deadline", "")
+        if dl:
+            op.deadline_semana = dl
 
     moldes = list(moldes_dict.values())
 

@@ -91,9 +91,22 @@ def schedule_all(
     # 7. Operator alerts
     alerts = compute_operator_alerts(segmentos, machines, config)
 
+    # 7b. Deadline violation warnings
+    for v in score.get("deadline_violations", []):
+        logger.warning(
+            "VIOLAÇÃO DEADLINE: Molde %s ultrapassa %s por %d dias",
+            v["molde"], v["deadline"], v["delta_dias"],
+        )
+
     # 8. Output validation
     output_issues = validate_output(segmentos, cleaned)
     warnings = [issue.message for issue in guardian_result.issues]
+    # Add deadline violation warnings
+    for v in score.get("deadline_violations", []):
+        warnings.append(
+            f"VIOLAÇÃO DEADLINE: Molde {v['molde']} ultrapassa "
+            f"{v['deadline']} por {v['delta_dias']} dias"
+        )
     warnings.extend(issue.message for issue in output_issues)
 
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)

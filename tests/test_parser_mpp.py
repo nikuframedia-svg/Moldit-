@@ -88,3 +88,19 @@ class TestParseMPP:
     def test_critical_path_exists(self):
         """Critical path should be non-empty."""
         assert len(self.data.caminho_critico) > 0
+
+    def test_deadlines_extracted(self):
+        """All molds with TEXT3 should have non-empty deadline."""
+        molds_with_deadline = [m for m in self.data.moldes if m.deadline]
+        assert len(molds_with_deadline) >= 5, (
+            f"Expected at least 5 molds with deadline, got {len(molds_with_deadline)}: "
+            f"{[(m.id, m.deadline) for m in self.data.moldes]}"
+        )
+
+    def test_clientes_extracted(self):
+        """Molds should have cliente populated."""
+        molds_with_cliente = [m for m in self.data.moldes if m.cliente]
+        assert len(molds_with_cliente) >= 3, (
+            f"Expected at least 3 molds with cliente, got {len(molds_with_cliente)}: "
+            f"{[(m.id, m.cliente) for m in self.data.moldes]}"
+        )

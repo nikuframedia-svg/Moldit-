@@ -70,6 +70,7 @@ def compute_score(
 
     on_time = 0
     total_with_deadline = 0
+    deadline_violations: list[dict] = []
     for molde_id, deadline_day in molde_deadline.items():
         if deadline_day is None:
             continue
@@ -77,6 +78,20 @@ def compute_score(
         last_day = makespan_por_molde.get(molde_id, 0)
         if last_day <= deadline_day:
             on_time += 1
+        else:
+            # Find the original deadline string for this mold
+            dl_str = ""
+            for m in data.moldes:
+                if m.id == molde_id:
+                    dl_str = m.deadline
+                    break
+            deadline_violations.append({
+                "molde": molde_id,
+                "deadline": dl_str,
+                "deadline_day": deadline_day,
+                "actual_day": last_day,
+                "delta_dias": last_day - deadline_day,
+            })
 
     deadline_compliance = (on_time / total_with_deadline) if total_with_deadline > 0 else 1.0
 
@@ -134,10 +149,15 @@ def compute_score(
         + w_bal * utilization_balance
     )
 
+    # Hard deadline penalty: multiply score by compliance when there are violations
+    if deadline_compliance < 1.0:
+        weighted_score *= deadline_compliance
+
     return {
         "makespan_total_dias": makespan_dias,
         "makespan_por_molde": makespan_por_molde,
         "deadline_compliance": round(deadline_compliance, 4),
+        "deadline_violations": deadline_violations,
         "total_setups": total_setups,
         "utilization": utilization,
         "utilization_balance": round(utilization_balance, 4),

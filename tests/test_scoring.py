@@ -120,6 +120,41 @@ class TestUtilizationBalance:
         assert score["utilization_balance"] == 1.0
 
 
+class TestDeadlineViolations:
+    def test_deadline_violation_detected(self):
+        """A mold finishing after its deadline should have compliance < 1.0."""
+        segs = [_seg(1, "M1", "M1", 100, 7.0, 15.0)]  # day 100
+        moldes = [Molde(id="M1", cliente="C", deadline="S10")]  # S10 = day 50
+        score = compute_score(segs, _data(moldes=moldes, n_ops=1), _config())
+        assert score["deadline_compliance"] == 0.0
+        assert len(score["deadline_violations"]) == 1
+        v = score["deadline_violations"][0]
+        assert v["molde"] == "M1"
+        assert v["deadline"] == "S10"
+        assert v["deadline_day"] == 50
+        assert v["actual_day"] == 100
+        assert v["delta_dias"] == 50
+
+    def test_deadline_violation_in_score(self):
+        """Score dict should contain deadline_violations list."""
+        segs = [_seg(1, "M1", "M1", 10, 7.0, 15.0)]  # day 10, on time
+        moldes = [Molde(id="M1", cliente="C", deadline="S15")]  # S15 = day 75
+        score = compute_score(segs, _data(moldes=moldes, n_ops=1), _config())
+        assert "deadline_violations" in score
+        assert score["deadline_violations"] == []
+        assert score["deadline_compliance"] == 1.0
+
+    def test_deadline_penalty_reduces_score(self):
+        """Deadline violation should reduce weighted_score via penalty."""
+        segs_ok = [_seg(1, "M1", "M1", 10, 7.0, 15.0)]
+        segs_late = [_seg(1, "M1", "M1", 200, 7.0, 15.0)]
+        moldes = [Molde(id="M1", cliente="C", deadline="S15")]
+        data = _data(moldes=moldes, n_ops=1)
+        score_ok = compute_score(segs_ok, data, _config())
+        score_late = compute_score(segs_late, data, _config())
+        assert score_ok["weighted_score"] > score_late["weighted_score"]
+
+
 class TestWeightedScore:
     def test_range(self):
         """Weighted score should be between 0 and 1."""
