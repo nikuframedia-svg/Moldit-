@@ -48,7 +48,7 @@ def compute_score(
             "utilization_balance": 0.0,
             "weighted_score": 0.0,
             "ops_agendadas": 0,
-            "ops_total": len(data.operacoes),
+            "ops_total": sum(1 for o in data.operacoes if o.work_restante_h > 0),
         }
 
     # Makespan
@@ -129,7 +129,7 @@ def compute_score(
 
     # Ops scheduled
     ops_agendadas = len({s.op_id for s in segmentos})
-    ops_total = len(data.operacoes)
+    ops_total = sum(1 for o in data.operacoes if o.work_restante_h > 0)
 
     # Weighted score
     w_mk = config.weight_makespan

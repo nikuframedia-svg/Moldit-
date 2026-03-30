@@ -411,6 +411,27 @@ def parse_mpp(filepath: str) -> MolditEngineData:
 
     moldes = list(moldes_dict.values())
 
+    # ── Phase 5b: Expand Polimento/Tapagem to multiple units ────────
+    _RESOURCE_EXPANSION = {
+        "Polimento": ["Polimento-1", "Polimento-2"],
+        "TP - Tapagem de águas": ["TP-Tapagem-1", "TP-Tapagem-2"],
+        "TP-Tapagem": ["TP-Tapagem-1", "TP-Tapagem-2"],
+    }
+    # Expand compatibility: if a compat list has "Polimento", replace with both units
+    for codigo, machines in list(compatibilidade.items()):
+        expanded = []
+        for m in machines:
+            if m in _RESOURCE_EXPANSION:
+                expanded.extend(_RESOURCE_EXPANSION[m])
+            else:
+                expanded.append(m)
+        compatibilidade[codigo] = list(dict.fromkeys(expanded))  # dedupe preserving order
+
+    # Clear op.recurso for expanded resources (let dispatcher pick least-loaded)
+    for op in operacoes:
+        if op.recurso in _RESOURCE_EXPANSION:
+            op.recurso = None
+
     # ── Phase 6: Build machines from resource names ──────────────────
     # Collect unique resource names that appear in assignments
     resource_names: set[str] = set()

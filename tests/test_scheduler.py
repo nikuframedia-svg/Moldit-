@@ -293,8 +293,8 @@ class TestScheduleRealMPP:
 
         assert isinstance(result, ScheduleResult)
         assert len(result.segmentos) > 0
-        # ~212 schedulable ops (286 already complete, 46 dropped, 8 conditional)
-        assert result.score["ops_agendadas"] >= 200
+        # ~183 schedulable ops (328 complete/0h, some dropped by guardian)
+        assert result.score["ops_agendadas"] >= 150
 
         # Check no dependency violations in warnings
         dep_violations = [w for w in result.warnings if "comeca antes do predecessor" in w]

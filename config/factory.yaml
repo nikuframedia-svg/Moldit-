@@ -67,9 +67,11 @@ machines:
   Prensa-Grande:      { group: Bancada, regime_h: 8, setup_h: 0 }
   Prensa-Pequena:     { group: Bancada, regime_h: 8, setup_h: 0 }
 
-  # Polimento & Tapagem
-  Polimento:          { group: Polimento, regime_h: 8, setup_h: 0.5 }
-  TP-Tapagem:         { group: Tapagem, regime_h: 8, setup_h: 0 }
+  # Polimento (2 polidores) & Tapagem (2 operadores)
+  Polimento-1:        { group: Polimento, regime_h: 8, setup_h: 0.5 }
+  Polimento-2:        { group: Polimento, regime_h: 8, setup_h: 0.5 }
+  TP-Tapagem-1:       { group: Tapagem, regime_h: 8, setup_h: 0 }
+  TP-Tapagem-2:       { group: Tapagem, regime_h: 8, setup_h: 0 }
 
   # Qualidade
   Controlo-Dimensional: { group: Qualidade, regime_h: 8, setup_h: 0 }

@@ -78,18 +78,22 @@ def build_priority_queue(
         if oid not in layer:
             layer[oid] = current_layer
 
-    # Build priority tuples
-    priority: list[tuple[tuple[int, int, int, float], int]] = []
+    # Build priority tuples — skip completed ops, add urgency tiers
+    priority: list[tuple[tuple[int, int, int, int, float], int]] = []
     for op in ops:
+        if op.work_restante_h <= 0:
+            continue  # skip completed ops entirely
         oid = op.id
         if op.e_condicional:
             tl = 9999
         else:
             tl = layer.get(oid, 9999)
         dl = molde_deadline.get(op.molde, 999)
+        # Urgency tier: tighter deadlines get priority on shared resources
+        urgency = 0 if dl <= 15 else (1 if dl <= 20 else 2)
         crit = -1 if oid in crit_set else 0
         work = -op.work_restante_h
-        priority.append(((tl, dl, crit, work), oid))
+        priority.append(((tl, urgency, dl, crit, work), oid))
 
     priority.sort(key=lambda x: x[0])
     return [oid for _, oid in priority]
@@ -148,21 +152,26 @@ def assign_machines(
                     op_id, resource,
                 )
 
-        # Compatibility-based assignment
+        # Compatibility-based assignment (bancada dedication = preference, not hard filter)
         if assigned is None:
             candidates = compat.get(op.codigo, [])
-            valid: list[str] = []
+            preferred: list[str] = []
+            fallback: list[str] = []
             for mid in candidates:
                 if mid not in machine_set:
                     continue
                 m = machines[mid]
-                # Bancada dedication filter
+                # Bancada dedication: prefer dedicated machines, but allow fallback
                 if m.grupo == "Bancada" and mid in bancada_ded:
                     ded = bancada_ded[mid]
-                    if isinstance(ded, dict) and op.molde not in ded:
-                        continue
-                valid.append(mid)
+                    if isinstance(ded, dict) and op.molde in ded:
+                        preferred.append(mid)
+                    else:
+                        fallback.append(mid)
+                else:
+                    preferred.append(mid)
 
+            valid = preferred if preferred else fallback
             if valid:
                 # Pick least-loaded
                 assigned = min(valid, key=lambda mid: load_h[mid])
