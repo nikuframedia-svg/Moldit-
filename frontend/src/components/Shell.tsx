@@ -1,19 +1,19 @@
-/** Shell — 4 pages, NavBar on top, no sidebar.
+/** Shell — 5 pages, NavBar on top, StatusBar on bottom.
  *
- * 4 Páginas. Tudo.
- * Se precisa de mais de 4 páginas para gerir uma fábrica de moldes,
- * está complicado demais.
+ * 5 Paginas. Tudo.
  */
 
 import { T } from "../theme/tokens";
 import { useAppStore } from "../stores/useAppStore";
 import { NavBar } from "./NavBar";
+import { StatusBar } from "./StatusBar";
 import { ChatPanel } from "./ChatPanel";
 import { UploadZone } from "./ui/UploadZone";
 import InicioPage from "../pages/InicioPage";
 import MoldesPage from "../pages/MoldesPage";
 import EquipaPage from "../pages/EquipaPage";
 import ConfigPage2 from "../pages/ConfigPage2";
+import RegrasPage from "../pages/RegrasPage";
 
 function PageContent() {
   const page = useAppStore((s) => s.activePage);
@@ -26,6 +26,8 @@ function PageContent() {
       return <EquipaPage />;
     case "config":
       return <ConfigPage2 />;
+    case "regras":
+      return <RegrasPage />;
     default:
       return <InicioPage />;
   }
@@ -48,7 +50,7 @@ export function Shell() {
         WebkitFontSmoothing: "antialiased",
       }}
     >
-      {/* NavBar — 4 buttons, always visible */}
+      {/* NavBar — 5 buttons, always visible */}
       <NavBar />
 
       {/* Main content area */}
@@ -61,12 +63,15 @@ export function Shell() {
         {chatOpen && <ChatPanel />}
       </div>
 
+      {/* StatusBar — linha 23 AS/400 */}
+      <StatusBar />
+
       {/* Copilot toggle — floating bottom-right */}
       <button
         onClick={toggleChat}
         style={{
           position: "fixed",
-          bottom: 20,
+          bottom: 52,
           right: 20,
           padding: "10px 18px",
           borderRadius: 24,

@@ -2,7 +2,6 @@
 
 import { get, post, put, del, upload } from "./client";
 import type {
-  AlertStats,
   CalibrationData,
   ChatResponse,
   ConsoleData,
@@ -13,7 +12,6 @@ import type {
   JournalEntry,
   LoadResponse,
   MaquinaStatus,
-  MolditAlert,
   MoldExplorerData,
   Molde,
   MolditConfig,
@@ -32,7 +30,6 @@ import type {
   DurationPrediction,
   RiskPrediction,
   AnalogoResult,
-  MachineScoreML,
   AnomalyResult,
   TrainReport,
   RankingMatrix,
@@ -109,11 +106,6 @@ export const getExplorerData = (moldeId: string) =>
 export const getOpOptions = (opId: number) =>
   get<OpOptions>(`/api/explorer/operacoes/${opId}/opcoes`);
 
-export const previewOpChange = (opId: number, body: { target_machine: string; target_day?: number }) =>
-  post<{ op_id: number; target_machine: string; impacto: Record<string, number>; cascata: unknown[] }>(
-    `/api/explorer/operacoes/${opId}/preview`, body,
-  );
-
 export const applyOpChange = (opId: number, body: { target_machine: string }) =>
   post<MoldExplorerData>(`/api/explorer/operacoes/${opId}/apply`, body);
 
@@ -129,35 +121,6 @@ export const getExecutionLogs = (params?: { codigo?: string; maquina_id?: string
   return get<ExecutionLog[]>(`/api/data/execution-log?${q.toString()}`);
 };
 
-export const completeOperation = (opId: number, body: {
-  work_h_real: number; setup_h_real?: number;
-  motivo_desvio?: string; reportado_por?: string;
-}) =>
-  post<{ status: string; op_id: number; score: ScoreMoldit }>(
-    `/api/explorer/operacoes/${opId}/complete`, body,
-  );
-
-// ── Module C: Alerts ────────────────────────────────────────────
-
-export const getAlerts = (severidade?: string) => {
-  const q = severidade ? `?severidade=${severidade}` : "";
-  return get<MolditAlert[]>(`/api/alerts${q}`);
-};
-
-export const getAlertStats = () =>
-  get<AlertStats>("/api/alerts/stats");
-
-export const acknowledgeAlert = (id: string) =>
-  put<{ status: string }>(`/api/alerts/${encodeURIComponent(id)}/acknowledge`, {});
-
-export const resolveAlert = (id: string, note?: string) =>
-  put<{ status: string }>(`/api/alerts/${encodeURIComponent(id)}/resolve`, { note });
-
-export const applyAlertSuggestion = (alertId: string, idx: number) =>
-  post<{ status: string; score: ScoreMoldit }>(
-    `/api/alerts/${encodeURIComponent(alertId)}/apply/${idx}`, {},
-  );
-
 // ── Module D: Workforce ─────────────────────────────────────────
 
 export const getOperadores = () =>
@@ -165,9 +128,6 @@ export const getOperadores = () =>
 
 export const addOperador = (op: Partial<Operador>) =>
   post<{ id: string; status: string }>("/api/workforce/operadores", op);
-
-export const updateOperador = (id: string, updates: Partial<Operador>) =>
-  put<Operador>(`/api/workforce/operadores/${encodeURIComponent(id)}`, updates);
 
 export const deleteOperador = (id: string) =>
   del<{ status: string }>(`/api/workforce/operadores/${encodeURIComponent(id)}`);
@@ -209,9 +169,6 @@ export const feedbackAnalogy = (body: {
   util: boolean;
 }) => post<{ status: string }>("/api/ml/feedback/analogy", body);
 
-export const getMachineRanking = (tipo: string) =>
-  get<MachineScoreML[]>(`/api/ml/ranking/${encodeURIComponent(tipo)}`);
-
 export const getRankingMatrix = () =>
   get<RankingMatrix>("/api/ml/ranking/matrix");
 
@@ -221,13 +178,3 @@ export const getAnomalies = () =>
 export const trainML = () =>
   post<TrainReport>("/api/ml/train", {});
 
-export const bootstrapSynthetic = (n = 20) =>
-  post<{ ingested: number; errors: string[] }>(
-    `/api/ml/bootstrap/synthetic?n=${n}`,
-    {},
-  );
-
-export const updateMLConfig = (body: {
-  usar_previsoes_ml?: boolean;
-  min_confianca?: number;
-}) => put<{ status: string }>("/api/ml/config", body);

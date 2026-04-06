@@ -14,18 +14,21 @@ import {
   getWorkforceForecast,
   autoAllocate,
 } from "../api/endpoints";
+import { useAppStore } from "../stores/useAppStore";
 import type { Operador, WorkforceConflict, ForecastEntry } from "../api/types";
 
 type DaySel = "hoje" | "amanha" | "semana";
+type Turno = "manha" | "tarde" | "noite";
 
 export default function EquipaPage() {
   const [day, setDay] = useState<DaySel>("amanha");
+  const [turno, setTurno] = useState<Turno>("manha");
   const [operadores, setOperadores] = useState<Operador[]>([]);
   const [conflicts, setConflicts] = useState<WorkforceConflict[]>([]);
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [allocMsg, setAllocMsg] = useState("");
-  const [showForecast, setShowForecast] = useState(false);
+  const setStatus = useAppStore((s) => s.setStatus);
 
   useEffect(() => {
     setLoading(true);
@@ -67,37 +70,60 @@ export default function EquipaPage() {
   const dayIdx = day === "hoje" ? 0 : 1;
 
   const handleAutoAllocate = async () => {
+    setStatus("warning", "A distribuir equipa...");
     try {
-      const result = await autoAllocate(dayIdx, "manha");
+      const result = await autoAllocate(dayIdx, turno);
       const count = Array.isArray(result) ? result.length : 0;
       setAllocMsg(`Distribuicao aplicada. ${count} alocacoes feitas.`);
+      setStatus("ok", `Distribuicao concluida. ${count} alocacoes.`);
       const newConflicts = await getWorkforceConflicts(dayIdx);
       setConflicts(newConflicts);
-    } catch {
+    } catch (e: any) {
       setAllocMsg("Erro na distribuicao automatica.");
+      setStatus("error", e.message ?? "Erro na distribuicao automatica.");
     }
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 900 }}>
-      {/* Day selector */}
-      <div style={{ display: "flex", gap: 4 }}>
-        {(["hoje", "amanha", "semana"] as const).map((d) => (
-          <button
-            key={d}
-            onClick={() => setDay(d)}
-            style={{
-              padding: "8px 20px", borderRadius: T.radiusSm,
-              border: day === d ? `1px solid ${T.blue}` : `1px solid ${T.border}`,
-              background: day === d ? `${T.blue}15` : "transparent",
-              color: day === d ? T.primary : T.secondary,
-              fontSize: 13, fontWeight: day === d ? 600 : 400,
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            {d === "hoje" ? "Hoje" : d === "amanha" ? "Amanha" : "Esta semana"}
-          </button>
-        ))}
+      {/* Day selector + Turno selector */}
+      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 4 }}>
+          {(["hoje", "amanha", "semana"] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setDay(d)}
+              style={{
+                padding: "8px 20px", borderRadius: T.radiusSm,
+                border: day === d ? `1px solid ${T.blue}` : `1px solid ${T.border}`,
+                background: day === d ? `${T.blue}15` : "transparent",
+                color: day === d ? T.primary : T.secondary,
+                fontSize: 13, fontWeight: day === d ? 600 : 400,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              {d === "hoje" ? "Hoje" : d === "amanha" ? "Amanha" : "Esta semana"}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {(["manha", "tarde", "noite"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTurno(t)}
+              style={{
+                padding: "6px 14px", borderRadius: T.radiusSm,
+                border: turno === t ? `1px solid ${T.blue}` : `1px solid ${T.border}`,
+                background: turno === t ? `${T.blue}15` : "transparent",
+                color: turno === t ? T.primary : T.tertiary,
+                fontSize: 12, fontWeight: turno === t ? 600 : 400,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              {t === "manha" ? "Manha" : t === "tarde" ? "Tarde" : "Noite"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Frase-resumo */}

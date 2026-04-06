@@ -33,20 +33,25 @@ export default function InicioPage() {
   const [consoleData, setConsoleData] = useState<ConsoleData | null>(null);
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [recalcing, setRecalcing] = useState(false);
+  const setStatus = useAppStore((s) => s.setStatus);
 
   useEffect(() => {
-    getConsole(0).then(setConsoleData).catch(() => {});
-    getJournal().then((j) => setJournal(j.slice(0, 5))).catch(() => {});
-  }, []);
+    getConsole(0).then(setConsoleData).catch((e) => setStatus("error", e.message ?? "Erro ao carregar consola"));
+    getJournal().then((j) => setJournal(j.slice(0, 5))).catch((e) => setStatus("error", e.message ?? "Erro ao carregar journal"));
+  }, [setStatus]);
 
   const handleRecalc = async () => {
     setRecalcing(true);
+    setStatus("warning", "A recalcular plano...");
     try {
       await recalculate();
       await refreshAll();
       const cd = await getConsole(0);
       setConsoleData(cd);
-    } catch {}
+      setStatus("ok", "Plano recalculado com sucesso.");
+    } catch (e: any) {
+      setStatus("error", e.message ?? "Erro ao recalcular.");
+    }
     setRecalcing(false);
   };
 

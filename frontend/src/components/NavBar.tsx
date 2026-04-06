@@ -1,4 +1,4 @@
-/** NavBar — 4 big buttons, always visible at the top.
+/** NavBar — 5 big buttons, always visible at the top.
  *
  * Badges: alertas (inicio), moldes em risco (moldes), conflitos (equipa).
  */
@@ -13,6 +13,7 @@ const NAV = [
   { id: "inicio", label: "Inicio", sub: "Como esta a fabrica" },
   { id: "moldes", label: "Moldes", sub: "Os meus moldes" },
   { id: "equipa", label: "Equipa", sub: "Quem faz o que" },
+  { id: "regras", label: "Regras", sub: "Como funciona" },
   { id: "config", label: "Config", sub: "Mudar algo" },
 ] as const;
 

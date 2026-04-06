@@ -10,7 +10,7 @@ import {
   getConfig, updateConfig, editMachine, addHoliday, removeHoliday,
   applyPreset, getOps, getCalibration, getMLStatus, getMLEvolution,
   getOperadores, addOperador, deleteOperador, getJournal,
-  trainML, bootstrapSynthetic,
+  trainML,
 } from "../api/endpoints";
 import type { MolditConfig, Operacao, JournalEntry, EvolutionPoint } from "../api/types";
 import { Card } from "../components/ui/Card";
@@ -296,16 +296,6 @@ function AprendizagemTab() {
     setTraining(false);
   };
 
-  const handleBootstrap = async () => {
-    setTraining(true); setTrainMsg("");
-    try {
-      const r = await bootstrapSynthetic(20);
-      setTrainMsg(`Bootstrap: ${r.ingested} projectos sinteticos criados.`);
-      await handleTrain();
-    } catch { setTrainMsg("Erro no bootstrap."); }
-    setTraining(false);
-  };
-
   // Generate phrases
   const frases: string[] = [];
   if (mlStatus) {
@@ -373,12 +363,6 @@ function AprendizagemTab() {
           style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: T.blue, color: "#fff", fontSize: 13, fontWeight: 600, cursor: training ? "wait" : "pointer", fontFamily: "inherit" }}>
           {training ? "..." : "Actualizar previsoes"}
         </button>
-        {mlStatus?.n_projetos === 0 && (
-          <button onClick={handleBootstrap} disabled={training}
-            style={{ padding: "8px 18px", borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", color: T.secondary, fontSize: 13, cursor: training ? "wait" : "pointer", fontFamily: "inherit" }}>
-            Gerar dados de teste
-          </button>
-        )}
         {trainMsg && <span style={{ fontSize: 12, color: T.green }}>{trainMsg}</span>}
       </div>
     </div>

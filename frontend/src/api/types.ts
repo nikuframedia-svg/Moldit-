@@ -292,35 +292,6 @@ export interface ExecutionLog {
   created_at: string;
 }
 
-// ── Module C: Alerts ─────────────────────────────────────────────
-
-export interface AlertSuggestion {
-  acao: string;
-  impacto: string;
-  esforco: string;
-}
-
-export interface MolditAlert {
-  id: string;
-  regra: string;
-  severidade: "critico" | "aviso" | "info" | "positivo";
-  titulo: string;
-  mensagem: string;
-  timestamp: string;
-  moldes_afetados: string[];
-  maquinas_afetadas: string[];
-  impacto_dias: number;
-  sugestoes: AlertSuggestion[];
-  estado: string;
-}
-
-export interface AlertStats {
-  critico: number;
-  aviso: number;
-  info: number;
-  total: number;
-}
-
 // ── Module D: Workforce ──────────────────────────────────────────
 
 export interface Operador {
