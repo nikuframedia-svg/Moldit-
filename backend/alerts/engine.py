@@ -113,7 +113,7 @@ class AlertEngine:
         # ── Auto-resolve stale alerts ────────────────────────────────
         new_keys = {_dedup_key(a) for a in deduped}
         try:
-            active = self.store.get_alerts(estado="ativo")
+            active = self.store.list_active(estado="ativo")
             for old_alert in active:
                 key = _dedup_key(old_alert)
                 if key not in new_keys:

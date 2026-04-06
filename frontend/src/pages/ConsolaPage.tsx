@@ -394,14 +394,16 @@ export default function ConsolaPage() {
               </span>
             </Card>
           )}
-          {alertas.map((alerta, i) => (
+          {alertas.slice(0, 10).map((alerta, i) => {
+            const shown = Math.min(alertas.length, 10);
+            return (
             <div key={alerta.id}>
               {i > 0 && <Divider />}
               <Card
                 style={{
-                  borderRadius: i === 0 && alertas.length > 1
+                  borderRadius: i === 0 && shown > 1
                     ? `${T.radius}px ${T.radius}px 0 0`
-                    : i === alertas.length - 1 && alertas.length > 1
+                    : i === shown - 1 && shown > 1
                       ? `0 0 ${T.radius}px ${T.radius}px`
                       : alertas.length === 1
                         ? undefined
@@ -460,7 +462,20 @@ export default function ConsolaPage() {
                 </div>
               </Card>
             </div>
-          ))}
+            );
+          })}
+          {alertas.length > 10 && (
+            <button
+              onClick={() => navigateTo("alertas")}
+              style={{
+                padding: "8px 0", background: "transparent", border: "none",
+                color: T.blue, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                fontFamily: "inherit", textAlign: "center", width: "100%", marginTop: 4,
+              }}
+            >
+              Ver todos os {alertas.length} alertas
+            </button>
+          )}
 
           {/* ── Anomalias ML ── */}
           {anomaliasLoading && (

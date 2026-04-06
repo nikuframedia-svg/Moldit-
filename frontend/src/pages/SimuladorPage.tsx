@@ -35,24 +35,27 @@ const MAIN_MUTATIONS: { type: MutationType; label: string; icon: string }[] = [
 
 /* ── Human-readable mutation descriptions ────────────────── */
 
-function describeMutation(type: MutationType, machine: string, days: number, moldeId: string): string {
+function describeMutation(
+  type: MutationType, machine: string, moldeId: string,
+  opId: string, date: string, newDeadline: string, regime: number,
+): string {
   switch (type) {
     case "machine_down":
-      return `${machine || "Maquina"} parada durante ${days} dia${days > 1 ? "s" : ""}`;
+      return `${machine || "Maquina"} parada (retirada do plano)`;
     case "overtime":
-      return `Turno extra de 8h na ${machine || "maquina"} durante ${days} dia${days > 1 ? "s" : ""}`;
+      return `${machine || "Maquina"} passa para regime de ${regime}h/dia`;
     case "deadline_change":
-      return `Alterar prazo do ${moldeId || "molde"} em ${days} dia${days > 1 ? "s" : ""}`;
+      return `Prazo do molde ${moldeId || "?"} muda para ${newDeadline || "?"}`;
     case "priority_boost":
-      return `Subir prioridade do ${moldeId || "molde"}`;
+      return `Subir prioridade do molde ${moldeId || "?"}`;
     case "add_holiday":
-      return `Adicionar ${days} dia${days > 1 ? "s" : ""} de feriado`;
+      return `Adicionar feriado: ${date || "?"}`;
     case "remove_holiday":
-      return `Trabalhar em ${days} dia${days > 1 ? "s" : ""} de feriado`;
+      return `Retirar feriado: ${date || "?"}`;
     case "force_machine":
-      return `Forcar operacao para a ${machine || "maquina"}`;
+      return `Forcar operacao ${opId || "?"} para ${machine || "?"}`;
     case "op_done":
-      return `Marcar operacao como concluida`;
+      return `Marcar operacao ${opId || "?"} como concluida`;
     default:
       return `Cenario: ${type}`;
   }
@@ -89,12 +92,24 @@ function needsMachine(type: MutationType): boolean {
   return ["machine_down", "overtime", "force_machine"].includes(type);
 }
 
-function needsDays(type: MutationType): boolean {
-  return ["machine_down", "overtime", "deadline_change", "add_holiday", "remove_holiday"].includes(type);
+function needsMolde(type: MutationType): boolean {
+  return ["deadline_change", "priority_boost"].includes(type);
 }
 
-function needsMolde(type: MutationType): boolean {
-  return ["deadline_change", "priority_boost", "op_done"].includes(type);
+function needsDate(type: MutationType): boolean {
+  return ["add_holiday", "remove_holiday"].includes(type);
+}
+
+function needsOpId(type: MutationType): boolean {
+  return ["force_machine", "op_done"].includes(type);
+}
+
+function needsRegime(type: MutationType): boolean {
+  return type === "overtime";
+}
+
+function needsNewDeadline(type: MutationType): boolean {
+  return type === "deadline_change";
 }
 
 /* ── Component ────────────────────────────────────────────── */
@@ -115,7 +130,10 @@ export default function SimuladorPage() {
   const [selectedType, setSelectedType] = useState<MutationType>("machine_down");
   const [selectedMachine, setSelectedMachine] = useState("");
   const [selectedMolde, setSelectedMolde] = useState("");
-  const [days, setDays] = useState(1);
+  const [selectedOpId, setSelectedOpId] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [newDeadline, setNewDeadline] = useState("");
+  const [newRegime, setNewRegime] = useState(24);
   const [result, setResult] = useState<SimulateResponse | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -154,10 +172,22 @@ export default function SimuladorPage() {
       setStatus("warning", "Seleccione um molde.");
       return;
     }
+    if (needsOpId(selectedType) && !selectedOpId) {
+      setStatus("warning", "Seleccione uma operacao.");
+      return;
+    }
+    if (needsDate(selectedType) && !selectedDate) {
+      setStatus("warning", "Seleccione uma data.");
+      return;
+    }
+    if (needsNewDeadline(selectedType) && !newDeadline) {
+      setStatus("warning", "Indique a nova data de entrega.");
+      return;
+    }
 
     const mutation = {
       type: selectedType,
-      params: buildParams(selectedType, selectedMachine, days, selectedMolde),
+      params: buildParams(selectedType, selectedMachine, selectedMolde, selectedOpId, selectedDate, newDeadline, newRegime),
     };
 
     setSimulating(true);
@@ -180,7 +210,7 @@ export default function SimuladorPage() {
     try {
       const mutation = {
         type: selectedType,
-        params: buildParams(selectedType, selectedMachine, days, selectedMolde),
+        params: buildParams(selectedType, selectedMachine, selectedMolde, selectedOpId, selectedDate, newDeadline, newRegime),
       };
       await simulateApply([mutation]);
       await useDataStore.getState().refreshAll();
@@ -225,7 +255,10 @@ export default function SimuladorPage() {
 
   const canSimulate =
     (!needsMachine(selectedType) || selectedMachine) &&
-    (!needsMolde(selectedType) || selectedMolde);
+    (!needsMolde(selectedType) || selectedMolde) &&
+    (!needsOpId(selectedType) || selectedOpId) &&
+    (!needsDate(selectedType) || selectedDate) &&
+    (!needsNewDeadline(selectedType) || newDeadline);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 900 }}>
@@ -266,76 +299,77 @@ export default function SimuladorPage() {
       <Card style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <Label>Parametros do cenario</Label>
 
-        {/* Machine selector (only if needed) */}
+        {/* Machine selector */}
         {needsMachine(selectedType) && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <label style={{ fontSize: 11, color: T.tertiary }}>Maquina</label>
-            <select
-              value={selectedMachine}
-              onChange={(e) => setSelectedMachine(e.target.value)}
-              style={{
-                padding: "10px 14px", borderRadius: 8,
-                border: `1px solid ${T.border}`, background: T.elevated,
-                color: T.primary, fontSize: 13, fontFamily: T.mono,
-              }}
-            >
+            <select value={selectedMachine} onChange={(e) => setSelectedMachine(e.target.value)}
+              style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.elevated, color: T.primary, fontSize: 13, fontFamily: T.mono }}>
               <option value="">Seleccionar maquina...</option>
-              {[...stress]
-                .sort((a, b) => b.stress_pct - a.stress_pct)
-                .map((m) => (
-                  <option key={m.maquina_id} value={m.maquina_id}>
-                    {m.maquina_id} — {Math.round(m.stress_pct)}% carga
-                  </option>
-                ))}
-            </select>
-          </div>
-        )}
-
-        {/* Molde selector (only if needed) */}
-        {needsMolde(selectedType) && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 11, color: T.tertiary }}>Molde</label>
-            <select
-              value={selectedMolde}
-              onChange={(e) => setSelectedMolde(e.target.value)}
-              style={{
-                padding: "10px 14px", borderRadius: 8,
-                border: `1px solid ${T.border}`, background: T.elevated,
-                color: T.primary, fontSize: 13, fontFamily: "inherit",
-              }}
-            >
-              <option value="">Seleccionar molde...</option>
-              {moldes.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.id} — {m.cliente}
-                </option>
+              {[...stress].sort((a, b) => b.stress_pct - a.stress_pct).map((m) => (
+                <option key={m.maquina_id} value={m.maquina_id}>{m.maquina_id} — {Math.round(m.stress_pct)}% carga</option>
               ))}
             </select>
           </div>
         )}
 
-        {/* Days input (only if needed) */}
-        {needsDays(selectedType) && (
+        {/* Molde selector */}
+        {needsMolde(selectedType) && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 11, color: T.tertiary }}>Dias (1-14)</label>
-            <input
-              type="number"
-              min={1}
-              max={14}
-              value={days}
-              onChange={(e) => setDays(Math.min(14, Math.max(1, Number(e.target.value))))}
-              style={{
-                padding: "10px 14px", borderRadius: 8,
-                border: `1px solid ${T.border}`, background: T.elevated,
-                color: T.primary, fontSize: 13, fontFamily: T.mono, width: 120,
-              }}
-            />
+            <label style={{ fontSize: 11, color: T.tertiary }}>Molde</label>
+            <select value={selectedMolde} onChange={(e) => setSelectedMolde(e.target.value)}
+              style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.elevated, color: T.primary, fontSize: 13, fontFamily: "inherit" }}>
+              <option value="">Seleccionar molde...</option>
+              {moldes.map((m) => (<option key={m.id} value={m.id}>{m.id} — {m.cliente}</option>))}
+            </select>
+          </div>
+        )}
+
+        {/* Operation ID (force_machine, op_done) */}
+        {needsOpId(selectedType) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11, color: T.tertiary }}>Operacao (ID)</label>
+            <input type="number" value={selectedOpId} onChange={(e) => setSelectedOpId(e.target.value)}
+              placeholder="Ex: 155"
+              style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.elevated, color: T.primary, fontSize: 13, fontFamily: T.mono, width: 150 }} />
+          </div>
+        )}
+
+        {/* Date (add_holiday, remove_holiday) */}
+        {needsDate(selectedType) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11, color: T.tertiary }}>Data</label>
+            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
+              style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.elevated, color: T.primary, fontSize: 13, fontFamily: "inherit" }} />
+          </div>
+        )}
+
+        {/* New deadline (deadline_change) */}
+        {needsNewDeadline(selectedType) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11, color: T.tertiary }}>Nova data de entrega (ex: S22)</label>
+            <input value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)}
+              placeholder="S22"
+              style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.elevated, color: T.primary, fontSize: 13, fontFamily: T.mono, width: 120 }} />
+          </div>
+        )}
+
+        {/* New regime (overtime) */}
+        {needsRegime(selectedType) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11, color: T.tertiary }}>Novo regime (horas/dia)</label>
+            <select value={newRegime} onChange={(e) => setNewRegime(Number(e.target.value))}
+              style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.elevated, color: T.primary, fontSize: 13, fontFamily: T.mono, width: 150 }}>
+              <option value={16}>16h (2 turnos)</option>
+              <option value={24}>24h (3 turnos)</option>
+              <option value={8}>8h (1 turno)</option>
+            </select>
           </div>
         )}
 
         {/* Scenario description */}
         <div style={{ fontSize: 12, color: T.secondary, fontStyle: "italic" }}>
-          {describeMutation(selectedType, selectedMachine, days, selectedMolde)}
+          {describeMutation(selectedType, selectedMachine, selectedMolde, selectedOpId, selectedDate, newDeadline, newRegime)}
         </div>
 
         {/* BIG Simulate button */}
@@ -634,26 +668,29 @@ export default function SimuladorPage() {
 
 /* ── Helpers ──────────────────────────────────────────────── */
 
-function buildParams(type: MutationType, machine: string, days: number, moldeId: string): Record<string, unknown> {
+function buildParams(
+  type: MutationType, machine: string, moldeId: string,
+  opId: string, date: string, newDeadline: string, regime: number,
+): Record<string, unknown> {
   switch (type) {
     case "machine_down":
-      return { maquina_id: machine, dias: days };
+      return { machine_id: machine };
     case "overtime":
-      return { maquina_id: machine, dias: days, horas_extra: 8 };
+      return { machine_id: machine, new_regime_h: regime };
     case "deadline_change":
-      return { molde_id: moldeId, dias: days };
+      return { molde_id: moldeId, new_deadline: newDeadline };
     case "priority_boost":
       return { molde_id: moldeId };
     case "add_holiday":
-      return { dias: days };
+      return { date };
     case "remove_holiday":
-      return { dias: days };
+      return { date };
     case "force_machine":
-      return { maquina_id: machine };
+      return { op_id: Number(opId), machine_id: machine };
     case "op_done":
-      return { molde_id: moldeId };
+      return { op_id: Number(opId) };
     default:
-      return { maquina_id: machine, dias: days };
+      return { machine_id: machine };
   }
 }
 

@@ -273,7 +273,7 @@ export const getAlerts = (params?: { severidade?: string; estado?: string }) => 
   if (params?.severidade) q.set("severidade", params.severidade);
   if (params?.estado) q.set("estado", params.estado);
   const qs = q.toString();
-  return get<MolditAlert[]>(`/api/alerts${qs ? `?${qs}` : ""}`);
+  return get<MolditAlert[]>(`/api/alerts/${qs ? `?${qs}` : ""}`);
 };
 
 export const getAlertStats = () =>
