@@ -115,9 +115,19 @@ export default function AlertasPage() {
                   <div style={{ fontSize: 11, color: T.orange }}>Impacto: {a.impacto_dias} dia{a.impacto_dias > 1 ? "s" : ""}</div>
                 )}
                 {a.sugestoes?.length > 0 && (
-                  <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
+                  <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {a.sugestoes.map((s: any, i: number) => (
-                      <div key={i} style={{ fontSize: 11, color: T.green }}>→ {s.acao} ({s.impacto})</div>
+                      <button key={i}
+                        onClick={() => setStatus("ok", `Accao simulada: ${s.acao}`)}
+                        style={{
+                          background: T.elevated, border: `0.5px solid ${T.border}`,
+                          color: T.blue, fontSize: 11, fontWeight: 500, padding: "6px 12px",
+                          borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {s.acao} <span style={{ color: T.green, marginLeft: 4 }}>({s.impacto})</span>
+                      </button>
                     ))}
                   </div>
                 )}
