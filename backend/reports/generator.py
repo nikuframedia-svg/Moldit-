@@ -233,24 +233,24 @@ class ReportGenerator:
 <div class="kpi">
   <div class="kpi-card">
     <div class="kpi-val">{compliance:.1f}%</div>
-    <div class="kpi-label">Compliance</div>
+    <div class="kpi-label">Entregas a tempo</div>
   </div>
   <div class="kpi-card">
     <div class="kpi-val">{makespan}d</div>
-    <div class="kpi-label">Makespan</div>
+    <div class="kpi-label">Duracao total</div>
   </div>
   <div class="kpi-card">
     <div class="kpi-val">{setups}</div>
-    <div class="kpi-label">Setups</div>
+    <div class="kpi-label">Trocas</div>
   </div>
   <div class="kpi-card">
     <div class="kpi-val">{context.get('total_hours', 0):.0f}h</div>
-    <div class="kpi-label">Horas Total</div>
+    <div class="kpi-label">Horas totais</div>
   </div>
 </div>
 
 <h2>Moldes</h2>
-<table><thead><tr><th>Molde</th><th>Deadline</th><th>Progresso</th></tr></thead>
+<table><thead><tr><th>Molde</th><th>Prazo</th><th>Progresso</th></tr></thead>
 <tbody>{rows}</tbody></table>
 
 <h2>Produção por Molde</h2>

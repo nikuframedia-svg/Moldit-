@@ -68,17 +68,30 @@ def frase_cartao_tempo(score: dict, deadlines: list[dict]) -> dict:
         if deadline_dia < min_deadline_dias:
             min_deadline_dias = deadline_dia
 
-    folga = min_deadline_dias - makespan if min_deadline_dias < 999 else 0
-
-    if folga > 5:
-        cor = "green"
-        frase = f"Dentro do prazo. {fmt_dias(folga)} de folga."
-    elif folga > 0:
-        cor = "orange"
-        frase = f"Dentro do prazo mas com pouca margem ({fmt_dias(folga)})."
+    if min_deadline_dias >= 999:
+        # No deadline_dia available — use compliance as proxy
+        compliance = score.get("deadline_compliance", 1.0)
+        late = [d for d in deadlines if not d.get("on_time", True)]
+        if compliance >= 1.0 and not late:
+            cor = "green"
+            frase = f"Producao total: {fmt_dias(makespan)}. Dentro do prazo."
+        elif late:
+            cor = "red"
+            frase = f"Producao total: {fmt_dias(makespan)}. {len(late)} molde(s) atrasado(s)."
+        else:
+            cor = "orange"
+            frase = f"Producao total: {fmt_dias(makespan)}."
     else:
-        cor = "red"
-        frase = f"Fora do prazo por {fmt_dias(abs(folga))}."
+        folga = min_deadline_dias - makespan
+        if folga > 5:
+            cor = "green"
+            frase = f"Dentro do prazo. {fmt_dias(folga)} de folga."
+        elif folga > 0:
+            cor = "orange"
+            frase = f"Dentro do prazo mas com pouca margem ({fmt_dias(folga)})."
+        else:
+            cor = "red"
+            frase = f"Fora do prazo por {fmt_dias(abs(folga))}."
 
     return {"valor": fmt_dias(makespan), "frase": frase, "cor": cor}
 

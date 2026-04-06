@@ -82,17 +82,34 @@ async def simulate_and_apply(request: SimulateRequest):
 
     mutations = [Mutation(type=m.type, params=m.params) for m in request.mutations]
 
-    async with state.lock:
-        result = simulate(state.engine_data, old_score, mutations, config=state.config)
-        state.update_schedule(result)
+    try:
+        async with state.lock:
+            result = simulate(
+                state.engine_data, old_score, mutations, config=state.config,
+            )
+            # Convert SimulateResponse to ScheduleResult for update_schedule
+            from backend.scheduler.types import ScheduleResult
+            schedule = ScheduleResult(
+                segmentos=result.segments,
+                score=result.score,
+            )
+            state.update_schedule(schedule)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    summary = (
+        "\n".join(result.summary)
+        if isinstance(result.summary, list)
+        else result.summary
+    )
 
     return {
         "status": "applied",
         "score": result.score,
         "score_previous": old_score,
-        "summary": result.summary,
+        "summary": summary,
         "n_segments_before": old_n,
-        "n_segments_after": len(result.segmentos),
+        "n_segments_after": len(result.segments),
         "time_ms": result.time_ms,
         "can_revert": True,
     }
