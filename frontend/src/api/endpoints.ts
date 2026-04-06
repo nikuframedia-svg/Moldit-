@@ -2,23 +2,40 @@
 
 import { get, post, put, del, upload } from "./client";
 import type {
+  AlertStats,
+  CalibrationData,
   ChatResponse,
   ConsoleData,
   CTPMolde,
   DeadlineStatus,
+  ExecutionLog,
+  ForecastEntry,
   JournalEntry,
   LoadResponse,
   MaquinaStatus,
+  MolditAlert,
   MoldExplorerData,
   Molde,
   MolditConfig,
   MutationMoldit,
+  Operador,
   OpOptions,
   Operacao,
   RiskResult,
   ScoreMoldit,
   SegmentoMoldit,
   SimulateResponse,
+  WorkforceAllocation,
+  WorkforceConflict,
+  MLStatus,
+  EvolutionPoint,
+  DurationPrediction,
+  RiskPrediction,
+  AnalogoResult,
+  MachineScoreML,
+  AnomalyResult,
+  TrainReport,
+  RankingMatrix,
 } from "./types";
 
 // ── Core ─────────────────────────────────────────────────────
@@ -99,3 +116,118 @@ export const previewOpChange = (opId: number, body: { target_machine: string; ta
 
 export const applyOpChange = (opId: number, body: { target_machine: string }) =>
   post<MoldExplorerData>(`/api/explorer/operacoes/${opId}/apply`, body);
+
+// ── Module A: Learning & Calibration ────────────────────────────
+
+export const getCalibration = () =>
+  get<CalibrationData>("/api/data/calibration");
+
+export const getExecutionLogs = (params?: { codigo?: string; maquina_id?: string }) => {
+  const q = new URLSearchParams();
+  if (params?.codigo) q.set("codigo", params.codigo);
+  if (params?.maquina_id) q.set("maquina_id", params.maquina_id);
+  return get<ExecutionLog[]>(`/api/data/execution-log?${q.toString()}`);
+};
+
+export const completeOperation = (opId: number, body: {
+  work_h_real: number; setup_h_real?: number;
+  motivo_desvio?: string; reportado_por?: string;
+}) =>
+  post<{ status: string; op_id: number; score: ScoreMoldit }>(
+    `/api/explorer/operacoes/${opId}/complete`, body,
+  );
+
+// ── Module C: Alerts ────────────────────────────────────────────
+
+export const getAlerts = (severidade?: string) => {
+  const q = severidade ? `?severidade=${severidade}` : "";
+  return get<MolditAlert[]>(`/api/alerts${q}`);
+};
+
+export const getAlertStats = () =>
+  get<AlertStats>("/api/alerts/stats");
+
+export const acknowledgeAlert = (id: string) =>
+  put<{ status: string }>(`/api/alerts/${encodeURIComponent(id)}/acknowledge`, {});
+
+export const resolveAlert = (id: string, note?: string) =>
+  put<{ status: string }>(`/api/alerts/${encodeURIComponent(id)}/resolve`, { note });
+
+export const applyAlertSuggestion = (alertId: string, idx: number) =>
+  post<{ status: string; score: ScoreMoldit }>(
+    `/api/alerts/${encodeURIComponent(alertId)}/apply/${idx}`, {},
+  );
+
+// ── Module D: Workforce ─────────────────────────────────────────
+
+export const getOperadores = () =>
+  get<Operador[]>("/api/workforce/operadores");
+
+export const addOperador = (op: Partial<Operador>) =>
+  post<{ id: string; status: string }>("/api/workforce/operadores", op);
+
+export const updateOperador = (id: string, updates: Partial<Operador>) =>
+  put<Operador>(`/api/workforce/operadores/${encodeURIComponent(id)}`, updates);
+
+export const deleteOperador = (id: string) =>
+  del<{ status: string }>(`/api/workforce/operadores/${encodeURIComponent(id)}`);
+
+export const getWorkforceConflicts = (dia?: number) => {
+  const q = dia !== undefined ? `?dia=${dia}` : "";
+  return get<WorkforceConflict[]>(`/api/workforce/conflicts${q}`);
+};
+
+export const autoAllocate = (dia: number, turno: string) =>
+  post<WorkforceAllocation[]>("/api/workforce/auto-allocate", { dia, turno });
+
+export const getWorkforceForecast = (semanas = 4) =>
+  get<ForecastEntry[]>(`/api/workforce/forecast?semanas=${semanas}`);
+
+// ── ML / Inteligência ─────────────────────────────────────────────
+
+export const getMLStatus = () =>
+  get<MLStatus>("/api/ml/status");
+
+export const getMLEvolution = () =>
+  get<EvolutionPoint[]>("/api/ml/evolution");
+
+export const predictDuration = (opId: number) =>
+  get<DurationPrediction>(`/api/ml/predict/duration/${opId}`);
+
+export const predictRisk = (moldeId: string) =>
+  get<RiskPrediction>(`/api/ml/predict/risk/${encodeURIComponent(moldeId)}`);
+
+export const predictBulk = () =>
+  get<DurationPrediction[]>("/api/ml/predict/bulk");
+
+export const getAnalogues = (moldeId: string) =>
+  get<AnalogoResult[]>(`/api/ml/analogues/${encodeURIComponent(moldeId)}`);
+
+export const feedbackAnalogy = (body: {
+  molde_id: string;
+  analogo_id: string;
+  util: boolean;
+}) => post<{ status: string }>("/api/ml/feedback/analogy", body);
+
+export const getMachineRanking = (tipo: string) =>
+  get<MachineScoreML[]>(`/api/ml/ranking/${encodeURIComponent(tipo)}`);
+
+export const getRankingMatrix = () =>
+  get<RankingMatrix>("/api/ml/ranking/matrix");
+
+export const getAnomalies = () =>
+  get<AnomalyResult[]>("/api/ml/anomalies");
+
+export const trainML = () =>
+  post<TrainReport>("/api/ml/train", {});
+
+export const bootstrapSynthetic = (n = 20) =>
+  post<{ ingested: number; errors: string[] }>(
+    `/api/ml/bootstrap/synthetic?n=${n}`,
+    {},
+  );
+
+export const updateMLConfig = (body: {
+  usar_previsoes_ml?: boolean;
+  min_confianca?: number;
+}) => put<{ status: string }>("/api/ml/config", body);

@@ -13,7 +13,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  activePage: "console",
+  activePage: "inicio",
   chatOpen: false,
   hasData: false,
   isUploading: false,

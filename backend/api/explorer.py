@@ -291,3 +291,66 @@ async def apply_change(op_id: int, request: ApplyRequest):
 
     # Return new explorer data
     return await get_explorer_data(op.molde)
+
+
+# ── POST /api/explorer/operacoes/{op_id}/complete ─────────────────────
+
+
+class CompleteOpRequest(BaseModel):
+    work_h_real: float
+    setup_h_real: float = 0.0
+    motivo_desvio: str = ""
+    reportado_por: str = ""
+
+
+@router.post("/operacoes/{op_id}/complete")
+async def complete_operation(op_id: int, request: CompleteOpRequest):
+    """Mark operation as complete and record execution data."""
+    if state.engine_data is None:
+        raise HTTPException(503, "Sem dados carregados.")
+    data = state.engine_data
+
+    op = next((o for o in data.operacoes if o.id == op_id), None)
+    if not op:
+        raise HTTPException(404, f"Operacao {op_id} nao encontrada.")
+
+    # Record in execution store
+    from backend.learning.execution_store import ExecutionStore
+
+    if not hasattr(state, "_exec_store") or state._exec_store is None:
+        state._exec_store = ExecutionStore()
+
+    # Find planned segment for this op
+    op_segs = [s for s in state.segments if s.op_id == op_id]
+    dia_planeado = op_segs[0].dia if op_segs else 0
+    setup_h_planeado = op_segs[0].setup_h if op_segs else 0.0
+
+    state._exec_store.log_completion(
+        op_id=op.id, molde=op.molde,
+        maquina_id=op.recurso or "",
+        codigo=op.codigo,
+        work_h_planeado=op.work_h,
+        work_h_real=request.work_h_real,
+        setup_h_planeado=setup_h_planeado,
+        setup_h_real=request.setup_h_real,
+        dia_planeado=dia_planeado,
+        dia_real=dia_planeado,  # Assume same day unless specified
+        motivo_desvio=request.motivo_desvio,
+        reportado_por=request.reportado_por,
+    )
+
+    # Update operation progress
+    op.progresso = 100.0
+    op.work_restante_h = 0.0
+
+    # Re-schedule
+    from backend.scheduler.scheduler import schedule_all
+
+    result = schedule_all(data, audit=True, config=state.config)
+    state.update_schedule(result)
+
+    return {
+        "status": "ok",
+        "op_id": op_id,
+        "score": state.score,
+    }

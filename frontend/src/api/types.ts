@@ -125,11 +125,20 @@ export interface SimulateResponse {
 }
 
 export interface ConsoleData {
-  state_phrase: string;
-  machines_today: MaquinaStatus[];
-  deadlines_week: DeadlineStatus[];
-  day_summary: Record<string, unknown> | null;
-  action_items: { severity: string; title: string; detail: string }[];
+  state: { color: string; phrase: string };
+  actions: {
+    severity: string;
+    title: string;
+    detail: string;
+    suggestion: string | null;
+    category: string;
+    deadline: string;
+    client: string;
+  }[];
+  machines: { machine_id: string; utilization_pct: number; setup_count: number }[];
+  expedition: { client: string; ready: number; partial: number; not_ready: number; total: number }[];
+  tomorrow: Record<string, unknown> | null;
+  summary: { text: string; color: string }[];
 }
 
 export interface RiskResult {
@@ -241,4 +250,214 @@ export interface OpOptions {
     atual: { dia: number; hora: number };
   };
   opcoes_sequencia: { trocar_com: number; descricao: string; setup_delta: number }[];
+}
+
+// ── Module A: Calibration & Learning ─────────────────────────────
+
+export interface CalibrationFactor {
+  codigo: string;
+  ratio_media: number;
+  ratio_std: number;
+  n_amostras: number;
+  confianca: number;
+}
+
+export interface MachineReliability {
+  maquina_id: string;
+  uptime_pct: number;
+  mtbf_h: number;
+  mttr_h: number;
+  n_eventos: number;
+}
+
+export interface CalibrationData {
+  fatores: Record<string, CalibrationFactor>;
+  fiabilidade: Record<string, MachineReliability>;
+}
+
+export interface ExecutionLog {
+  id: number;
+  op_id: number;
+  molde: string;
+  maquina_id: string;
+  codigo: string;
+  work_h_planeado: number;
+  work_h_real: number;
+  setup_h_planeado: number;
+  setup_h_real: number;
+  dia_planeado: number;
+  dia_real: number;
+  motivo_desvio: string;
+  reportado_por: string;
+  created_at: string;
+}
+
+// ── Module C: Alerts ─────────────────────────────────────────────
+
+export interface AlertSuggestion {
+  acao: string;
+  impacto: string;
+  esforco: string;
+}
+
+export interface MolditAlert {
+  id: string;
+  regra: string;
+  severidade: "critico" | "aviso" | "info" | "positivo";
+  titulo: string;
+  mensagem: string;
+  timestamp: string;
+  moldes_afetados: string[];
+  maquinas_afetadas: string[];
+  impacto_dias: number;
+  sugestoes: AlertSuggestion[];
+  estado: string;
+}
+
+export interface AlertStats {
+  critico: number;
+  aviso: number;
+  info: number;
+  total: number;
+}
+
+// ── Module D: Workforce ──────────────────────────────────────────
+
+export interface Operador {
+  id: string;
+  nome: string;
+  competencias: string[];
+  nivel: Record<string, number>;
+  turno: string;
+  zona: string;
+  disponivel: boolean;
+  horas_semanais: number;
+}
+
+export interface WorkforceConflict {
+  tipo: string;
+  dia: number;
+  turno: string;
+  maquinas: string[];
+  operadores_necessarios: number;
+  operadores_disponiveis: number;
+  deficit: number;
+  descricao: string;
+  severidade: string;
+}
+
+export interface WorkforceAllocation {
+  dia: number;
+  turno: string;
+  maquina_id: string;
+  operador_id: string;
+  auto: boolean;
+}
+
+export interface ForecastEntry {
+  semana: number;
+  zona: string;
+  turno: string;
+  necessarios: number;
+  disponiveis: number;
+  deficit: number;
+  horas_extra_h: number;
+}
+
+// ── ML Types ─────────────────────────────────────────────────────
+
+export interface ShapContribution {
+  feature: string;
+  contribuicao_h: number;
+  descricao: string;
+}
+
+export interface DurationPrediction {
+  op_id: number;
+  estimado_mpp: number;
+  previsao_ml: number;
+  intervalo_p10: number;
+  intervalo_p90: number;
+  ratio: number;
+  confianca: number;
+  explicacao: ShapContribution[];
+}
+
+export interface RiskPrediction {
+  molde_id: string;
+  prob_atraso: number;
+  dias_atraso_esperado: number;
+  top_fatores_risco: string[];
+  molde_analogo_que_atrasou: string;
+  recomendacao: string;
+}
+
+export interface AnalogoResult {
+  projeto_id: string;
+  molde_id: string;
+  similaridade: number;
+  n_ops: number;
+  makespan_real_dias: number;
+  compliance: boolean;
+  nota: string;
+}
+
+export interface MachineScoreML {
+  maquina: string;
+  ratio_medio: number;
+  ratio_std: number;
+  n_amostras: number;
+  percentil_95: number;
+  taxa_problemas: number;
+}
+
+export interface AnomalyResult {
+  op_id: number;
+  tipo: string;
+  projecao_h: number;
+  esperado_h: number;
+  desvio_pct: number;
+  acao_sugerida: string;
+  timestamp: string;
+}
+
+export interface MLModelStatus {
+  name: string;
+  version: string;
+  health: string;
+  last_train: string;
+  metrics: Record<string, number>;
+  n_samples: number;
+}
+
+export interface MLStatus {
+  phase: string;
+  phase_label: string;
+  n_projetos: number;
+  models: MLModelStatus[];
+  last_retrain: string;
+  models_active: string[];
+  min_confianca: number;
+  message: string;
+}
+
+export interface EvolutionPoint {
+  date: string;
+  mae: number;
+  coverage: number;
+  n_samples: number;
+}
+
+export interface TrainReport {
+  status: string;
+  models_trained: string[];
+  duration_s: number;
+  metrics: Record<string, Record<string, number>>;
+  warnings: string[];
+}
+
+export interface RankingMatrix {
+  tipos: string[];
+  maquinas: string[];
+  data: Record<string, MachineScoreML[]>;
 }

@@ -68,10 +68,10 @@ python -m pytest tests/ -v --tb=short
 ruff check backend/ tests/ scripts/
 ```
 
-### Test fixture
+### Upload integration test
 ```bash
-python scripts/create_test_fixture.py          # generates data/test_fixture.mpp
-python -m pytest tests/test_upload_flow.py -v   # upload integration test
+# Place a real .mpp file at data/test_fixture.mpp, then:
+python -m pytest tests/test_upload_flow.py -v
 ```
 
 ### Frontend E2E (Playwright)

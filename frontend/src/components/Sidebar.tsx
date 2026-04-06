@@ -8,6 +8,9 @@ const NAV = [
   { id: "deadlines", label: "Prazos" },
   { id: "risk", label: "Risco" },
   { id: "sim", label: "Simulador" },
+  { id: "operadores", label: "Operadores" },
+  { id: "learning", label: "Aprendizagem" },
+  { id: "inteligencia", label: "Inteligencia" },
   { id: "config", label: "Configuracao" },
   { id: "journal", label: "Journal" },
 ];

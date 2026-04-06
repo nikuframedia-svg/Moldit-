@@ -94,7 +94,7 @@ def exec_ver_alertas(args: dict) -> str:
 
     from backend.risk import compute_risk
 
-    risk = state.risk_result or compute_risk(state.segments, state.lots, state.engine_data)
+    risk = state.risk_result or compute_risk(state.segments, state.engine_data)
 
     alerts = []
     tardy = state.score.get("tardy_count", 0)

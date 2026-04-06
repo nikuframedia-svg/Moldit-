@@ -14,7 +14,7 @@ from pathlib import Path
 
 from backend.types import MolditEngineData as EngineData
 
-from .types import LotRisk, MachineRisk
+from .types import MachineRisk, OpRisk
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ _SURROGATE_PATH = Path("data/risk_surrogate.json")
 
 
 def extract_features(
-    lot_risks: list[LotRisk],
+    op_risks: list[OpRisk],
     machine_risks: list[MachineRisk],
     engine_data: EngineData,
 ) -> list[float]:
@@ -36,19 +36,19 @@ def extract_features(
       4. max_utilization      -- peak machine utilization
       5. util_std             -- std dev of avg utilizations
       6. n_machines           -- number of machines
-      7. n_lots               -- number of lots
+      7. n_ops               -- number of lots
       8. avg_work_h           -- average work_h across ops
       9. dependency_density   -- fraction of ops with dependencies
     """
-    n_lots = len(lot_risks) or 1
+    n_ops = len(op_risks) or 1
     n_machines = len(machine_risks) or 1
 
-    slacks = [lr.slack_days for lr in lot_risks] or [0]
+    slacks = [lr.slack_days for lr in op_risks] or [0]
     min_slack = min(slacks)
     slack_sd = statistics.stdev(slacks) if len(slacks) > 1 else 0.0
 
-    critical_pct = sum(1 for lr in lot_risks if lr.risk_level == "critical") / n_lots
-    high_pct = sum(1 for lr in lot_risks if lr.risk_level == "high") / n_lots
+    critical_pct = sum(1 for lr in op_risks if lr.risk_level == "critical") / n_ops
+    high_pct = sum(1 for lr in op_risks if lr.risk_level == "high") / n_ops
 
     max_util = max((mr.peak_utilization for mr in machine_risks), default=0.0)
     utils = [mr.avg_utilization for mr in machine_risks] or [0.0]
@@ -73,7 +73,7 @@ def extract_features(
         round(max_util, 3),
         round(util_sd, 3),
         float(n_machines),
-        float(n_lots),
+        float(n_ops),
         round(avg_work_h, 3),
         round(dep_density, 4),
     ]

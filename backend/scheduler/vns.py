@@ -1,23 +1,26 @@
 """VNS Post-Processing -- Moldit Planner.
 
-Variable Neighbourhood Search with 4 neighbourhoods for local improvement
-of a greedy schedule.
+Variable Neighbourhood Search with correct re-dispatch evaluation.
+Mutates machine ASSIGNMENTS, then re-runs the full dispatch pipeline
+to produce valid schedules. Slower per iteration but correct.
 
 Neighbourhoods:
-  N1: swap_same_machine    -- swap 2 ops on the same machine
-  N2: move_to_machine      -- move 1 op to a different compatible machine
-  N3: swap_between_machines -- swap 2 ops between different machines
-  N4: shift_earlier        -- shift an op to an earlier slot on its machine
+  N1: relocate_op     — move 1 op to a different compatible machine
+  N2: swap_machines    — swap machine assignments of 2 compatible ops
+  N3: boost_mold       — adjust priority of 1 mold (reorder priority queue)
 """
 
 from __future__ import annotations
 
-import copy
 import logging
 import random
 import time
 
 from backend.config.types import FactoryConfig
+from backend.scheduler.dispatch import (
+    build_priority_queue,
+    dispatch_timeline,
+)
 from backend.scheduler.scoring import compute_score
 from backend.scheduler.types import ScheduleResult, SegmentoMoldit
 from backend.types import MolditEngineData
@@ -25,126 +28,251 @@ from backend.types import MolditEngineData
 logger = logging.getLogger(__name__)
 
 
-def _swap_same_machine(
-    segmentos: list[SegmentoMoldit], rng: random.Random,
-) -> list[SegmentoMoldit] | None:
-    """N1: Swap scheduling order of 2 ops on the same machine."""
-    # Group non-continuation segments by machine
-    by_machine: dict[str, list[int]] = {}
-    for i, seg in enumerate(segmentos):
-        if not seg.e_continuacao:
-            by_machine.setdefault(seg.maquina_id, []).append(i)
+def _extract_assignments(
+    segmentos: list[SegmentoMoldit],
+) -> dict[int, str]:
+    """Extract op_id → machine_id from existing segments."""
+    asgn: dict[int, str] = {}
+    for s in segmentos:
+        if s.op_id not in asgn:
+            asgn[s.op_id] = s.maquina_id
+    return asgn
 
-    candidates = [m for m, idxs in by_machine.items() if len(idxs) >= 2]
+
+def _evaluate(
+    assignments: dict[int, str],
+    data: MolditEngineData,
+    config: FactoryConfig,
+) -> tuple[list[SegmentoMoldit], dict]:
+    """Re-dispatch with given assignments and score the result."""
+    ops_by_id = {op.id: op for op in data.operacoes}
+    machines = {m.id: m for m in data.maquinas}
+
+    pq = build_priority_queue(
+        data.operacoes, data.dag, data.dag_reverso,
+        data.moldes, data.caminho_critico,
+    )
+
+    segs = dispatch_timeline(
+        ops_by_id, pq, assignments, data.dag_reverso,
+        machines, config,
+        ref_date=data.data_referencia,
+        holidays=data.feriados or config.holidays,
+    )
+
+    score = compute_score(segs, data, config)
+    return segs, score
+
+
+# ── Neighbourhoods ───────────────────────────────────────────────────
+
+
+def _relocate_op(
+    assignments: dict[int, str],
+    data: MolditEngineData,
+    rng: random.Random,
+) -> dict[int, str] | None:
+    """N1: Move 1 random op to a different compatible machine."""
+    ops_by_id = {op.id: op for op in data.operacoes}
+    candidates = list(assignments.keys())
     if not candidates:
         return None
 
-    mid = rng.choice(candidates)
-    idxs = by_machine[mid]
-    a, b = rng.sample(idxs, 2)
-
-    new_segs = list(segmentos)
-    sa, sb = copy.copy(new_segs[a]), copy.copy(new_segs[b])
-    # Swap time slots
-    sa.dia, sb.dia = sb.dia, sa.dia
-    sa.inicio_h, sb.inicio_h = sb.inicio_h, sa.inicio_h
-    sa.fim_h, sb.fim_h = sb.fim_h, sa.fim_h
-    new_segs[a] = sa
-    new_segs[b] = sb
-    return new_segs
-
-
-def _move_to_machine(
-    segmentos: list[SegmentoMoldit],
-    data: MolditEngineData,
-    rng: random.Random,
-) -> list[SegmentoMoldit] | None:
-    """N2: Move 1 op to a different compatible machine."""
-    ops_by_id = {op.id: op for op in data.operacoes}
-    non_cont = [i for i, s in enumerate(segmentos) if not s.e_continuacao]
-    if not non_cont:
+    op_id = rng.choice(candidates)
+    op = ops_by_id.get(op_id)
+    if not op:
         return None
 
-    idx = rng.choice(non_cont)
-    seg = segmentos[idx]
-    op = ops_by_id.get(seg.op_id)
-    if not op or op.codigo not in data.compatibilidade:
-        return None
-
-    compat = data.compatibilidade[op.codigo]
-    alts = [m for m in compat if m != seg.maquina_id]
+    compat = data.compatibilidade.get(op.codigo, [])
+    machine_set = {m.id for m in data.maquinas}
+    current = assignments[op_id]
+    alts = [m for m in compat if m in machine_set and m != current]
     if not alts:
         return None
 
-    new_machine = rng.choice(alts)
-    new_segs = list(segmentos)
-    new_seg = copy.copy(seg)
-    new_seg.maquina_id = new_machine
-    new_segs[idx] = new_seg
-    return new_segs
+    new_asgn = dict(assignments)
+    new_asgn[op_id] = rng.choice(alts)
+    return new_asgn
 
 
-def _swap_between_machines(
-    segmentos: list[SegmentoMoldit],
+def _swap_machines(
+    assignments: dict[int, str],
     data: MolditEngineData,
     rng: random.Random,
-) -> list[SegmentoMoldit] | None:
-    """N3: Swap 2 ops between different machines (if compatible)."""
+) -> dict[int, str] | None:
+    """N2: Swap machine assignments of 2 ops (if mutually compatible)."""
     ops_by_id = {op.id: op for op in data.operacoes}
-    non_cont = [(i, s) for i, s in enumerate(segmentos) if not s.e_continuacao]
-    if len(non_cont) < 2:
+    machine_set = {m.id for m in data.maquinas}
+    candidates = list(assignments.keys())
+    if len(candidates) < 2:
         return None
 
-    (ia, sa), (ib, sb) = rng.sample(non_cont, 2)
-    if sa.maquina_id == sb.maquina_id:
+    a_id, b_id = rng.sample(candidates, 2)
+    a_machine = assignments[a_id]
+    b_machine = assignments[b_id]
+    if a_machine == b_machine:
         return None
 
-    op_a = ops_by_id.get(sa.op_id)
-    op_b = ops_by_id.get(sb.op_id)
+    op_a = ops_by_id.get(a_id)
+    op_b = ops_by_id.get(b_id)
     if not op_a or not op_b:
         return None
 
     compat_a = set(data.compatibilidade.get(op_a.codigo, []))
     compat_b = set(data.compatibilidade.get(op_b.codigo, []))
 
-    if sb.maquina_id not in compat_a or sa.maquina_id not in compat_b:
+    if b_machine not in compat_a or a_machine not in compat_b:
+        return None
+    if b_machine not in machine_set or a_machine not in machine_set:
         return None
 
-    new_segs = list(segmentos)
-    new_a = copy.copy(sa)
-    new_b = copy.copy(sb)
-    new_a.maquina_id = sb.maquina_id
-    new_b.maquina_id = sa.maquina_id
-    new_a.dia, new_b.dia = new_b.dia, new_a.dia
-    new_a.inicio_h, new_b.inicio_h = new_b.inicio_h, new_a.inicio_h
-    new_a.fim_h, new_b.fim_h = new_b.fim_h, new_a.fim_h
-    new_segs[ia] = new_a
-    new_segs[ib] = new_b
-    return new_segs
+    new_asgn = dict(assignments)
+    new_asgn[a_id] = b_machine
+    new_asgn[b_id] = a_machine
+    return new_asgn
 
 
-def _shift_earlier(
-    segmentos: list[SegmentoMoldit], rng: random.Random,
-) -> list[SegmentoMoldit] | None:
-    """N4: Shift an op to an earlier day on its machine."""
-    non_cont = [(i, s) for i, s in enumerate(segmentos) if not s.e_continuacao and s.dia > 0]
-    if not non_cont:
+def _boost_mold(
+    assignments: dict[int, str],
+    data: MolditEngineData,
+    rng: random.Random,
+) -> dict[int, str] | None:
+    """N3: Re-assign all ops of 1 mold to their least-loaded alternatives.
+
+    This shakes up the schedule by moving an entire mold's workload,
+    potentially freeing bottleneck machines.
+    """
+    ops_by_id = {op.id: op for op in data.operacoes}
+    machine_set = {m.id for m in data.maquinas}
+    molds = list({op.molde for op in data.operacoes if op.id in assignments})
+    if not molds:
         return None
 
-    idx, seg = rng.choice(non_cont)
-    new_segs = list(segmentos)
-    new_seg = copy.copy(seg)
-    new_seg.dia = max(0, seg.dia - rng.randint(1, 3))
-    new_segs[idx] = new_seg
-    return new_segs
+    target_mold = rng.choice(molds)
+    mold_ops = [oid for oid in assignments
+                if ops_by_id.get(oid) and ops_by_id[oid].molde == target_mold]
+    if not mold_ops:
+        return None
+
+    new_asgn = dict(assignments)
+    changed = False
+    for oid in mold_ops:
+        op = ops_by_id[oid]
+        compat = data.compatibilidade.get(op.codigo, [])
+        alts = [m for m in compat if m in machine_set and m != assignments[oid]]
+        if alts:
+            new_asgn[oid] = rng.choice(alts)
+            changed = True
+
+    return new_asgn if changed else None
+
+
+def _relieve_bottleneck(
+    assignments: dict[int, str],
+    data: MolditEngineData,
+    rng: random.Random,
+) -> dict[int, str] | None:
+    """N4: Move an op from the most loaded machine to a less loaded one.
+
+    Guided neighbourhood: targets the bottleneck directly instead of
+    random exploration.
+    """
+    ops_by_id = {op.id: op for op in data.operacoes}
+    machine_set = {m.id for m in data.maquinas}
+
+    # Compute load per machine
+    load: dict[str, float] = {}
+    ops_on: dict[str, list[int]] = {}
+    for oid, mid in assignments.items():
+        op = ops_by_id.get(oid)
+        if not op:
+            continue
+        load[mid] = load.get(mid, 0) + op.work_restante_h
+        ops_on.setdefault(mid, []).append(oid)
+
+    if not load:
+        return None
+
+    # Pick the most loaded machine
+    busiest = max(load, key=lambda m: load[m])
+    candidates = ops_on.get(busiest, [])
+    if not candidates:
+        return None
+
+    # Pick a random op from the busiest machine
+    op_id = rng.choice(candidates)
+    op = ops_by_id.get(op_id)
+    if not op:
+        return None
+
+    compat = data.compatibilidade.get(op.codigo, [])
+    alts = [m for m in compat if m in machine_set and m != busiest]
+    if not alts:
+        return None
+
+    # Move to least loaded alternative
+    target = min(alts, key=lambda m: load.get(m, 0))
+    new_asgn = dict(assignments)
+    new_asgn[op_id] = target
+    return new_asgn
+
+
+def _compress_mold(
+    assignments: dict[int, str],
+    data: MolditEngineData,
+    rng: random.Random,
+) -> dict[int, str] | None:
+    """N5: Consolidate ops of 1 mold onto fewer machines to reduce setups.
+
+    Picks a mold, finds which machine has the most ops for it,
+    and tries to move other ops of that mold to the same machine.
+    """
+    ops_by_id = {op.id: op for op in data.operacoes}
+    machine_set = {m.id for m in data.maquinas}
+    molds = list({ops_by_id[oid].molde for oid in assignments if oid in ops_by_id})
+    if not molds:
+        return None
+
+    target_mold = rng.choice(molds)
+    mold_ops = [
+        oid for oid in assignments
+        if ops_by_id.get(oid) and ops_by_id[oid].molde == target_mold
+    ]
+    if len(mold_ops) < 2:
+        return None
+
+    # Find which machine has most ops for this mold
+    machine_count: dict[str, int] = {}
+    for oid in mold_ops:
+        mid = assignments[oid]
+        machine_count[mid] = machine_count.get(mid, 0) + 1
+    dominant = max(machine_count, key=lambda m: machine_count[m])
+
+    # Try to move other ops to the dominant machine (if compatible)
+    new_asgn = dict(assignments)
+    changed = False
+    for oid in mold_ops:
+        if assignments[oid] == dominant:
+            continue
+        op = ops_by_id[oid]
+        compat = data.compatibilidade.get(op.codigo, [])
+        if dominant in compat and dominant in machine_set:
+            new_asgn[oid] = dominant
+            changed = True
+
+    return new_asgn if changed else None
 
 
 _NEIGHBORHOODS = [
-    _swap_same_machine,
-    _move_to_machine,
-    _swap_between_machines,
-    _shift_earlier,
+    _relocate_op,
+    _swap_machines,
+    _boost_mold,
+    _relieve_bottleneck,
+    _compress_mold,
 ]
+
+
+# ── Main VNS loop ───────────────────────────────────────────────────
 
 
 def vns_polish(
@@ -157,8 +285,11 @@ def vns_polish(
 ) -> ScheduleResult:
     """VNS local search to improve a schedule.
 
-    Cycles through 4 neighbourhoods. Accepts strictly improving moves.
-    Returns improved ScheduleResult (or original if no improvement found).
+    Mutates machine assignments, re-dispatches fully, and accepts
+    strictly improving moves. Returns improved ScheduleResult or
+    original if no improvement found.
+
+    Per APS best practice: never return a result worse than baseline.
     """
     if not result.segmentos:
         return result
@@ -166,44 +297,55 @@ def vns_polish(
     rng = random.Random(seed)
     t0 = time.perf_counter()
 
+    best_asgn = _extract_assignments(result.segmentos)
     best_segs = result.segmentos
     best_score = result.score
-    best_cost = -best_score.get("weighted_score", 0.0)
+    best_ws = best_score.get("weighted_score", 0.0)
 
-    k = 0  # current neighbourhood index
+    k = 0  # current neighbourhood
     improvements = 0
+    iterations = 0
 
-    for iteration in range(max_iter):
+    for iterations in range(max_iter):
         if time.perf_counter() - t0 > time_budget:
             break
 
         nhood = _NEIGHBORHOODS[k]
+        candidate_asgn = nhood(best_asgn, data, rng)
 
-        # Generate neighbour
-        if nhood in (_move_to_machine, _swap_between_machines):
-            candidate_segs = nhood(best_segs, data, rng)
-        else:
-            candidate_segs = nhood(best_segs, rng)
-
-        if candidate_segs is None:
+        if candidate_asgn is None:
             k = (k + 1) % len(_NEIGHBORHOODS)
             continue
 
-        # Score candidate
-        candidate_score = compute_score(candidate_segs, data, config)
-        candidate_cost = -candidate_score.get("weighted_score", 0.0)
+        # Full re-dispatch and score (correct evaluation)
+        try:
+            candidate_segs, candidate_score = _evaluate(
+                candidate_asgn, data, config,
+            )
+        except Exception:
+            k = (k + 1) % len(_NEIGHBORHOODS)
+            continue
 
-        if candidate_cost < best_cost:
+        candidate_ws = candidate_score.get("weighted_score", 0.0)
+
+        if candidate_ws > best_ws:
+            best_asgn = candidate_asgn
             best_segs = candidate_segs
             best_score = candidate_score
-            best_cost = candidate_cost
+            best_ws = candidate_ws
             improvements += 1
             k = 0  # restart from N1
         else:
             k = (k + 1) % len(_NEIGHBORHOODS)
 
+    elapsed = time.perf_counter() - t0
     if improvements > 0:
-        logger.info("VNS: %d improvements in %d iterations", improvements, iteration + 1)
+        logger.info(
+            "VNS: %d improvements in %d iterations (%.1fs), "
+            "score %.4f → %.4f",
+            improvements, iterations + 1, elapsed,
+            result.score.get("weighted_score", 0), best_ws,
+        )
         return ScheduleResult(
             segmentos=best_segs,
             score=best_score,
@@ -214,4 +356,5 @@ def vns_polish(
             makespan_por_molde=best_score.get("makespan_por_molde", {}),
         )
 
+    logger.info("VNS: no improvement in %d iterations (%.1fs)", iterations + 1, elapsed)
     return result

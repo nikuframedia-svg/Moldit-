@@ -1,4 +1,4 @@
-"""Copilot state — Spec 10.
+"""Copilot state — Moldit Planner.
 
 Singleton holding the current schedule, engine data, config, and rules.
 """
@@ -19,42 +19,28 @@ logger = logging.getLogger(__name__)
 _STATE_PATH = "data/copilot_state.json"
 
 
-def _compute_stress(segments, lots, engine_data):
-    """Lazy import + call for stress map."""
-    from backend.scheduler.stress import compute_stress_map
-    return compute_stress_map(
-        segments, lots, engine_data.n_days,
-        n_holidays=len(getattr(engine_data, 'holidays', []) or []),
-    )
-
-
 @dataclass
 class CopilotState:
     """Mutable copilot session state."""
 
-    # Core data (populated via load_isop or externally)
-    engine_data: object | None = None  # EngineData (avoid circular import)
+    # Core data (populated via load or externally)
+    engine_data: object | None = None  # MolditEngineData (avoid circular import)
     config: FactoryConfig | None = None
 
     # Schedule results
     segments: list[Segment] = field(default_factory=list)
-    lots: list = field(default_factory=list)  # legacy Lot — Phase 3
     score: dict = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
-    # Journal (Spec 12)
+    # Journal
     journal_entries: list[dict] | None = None
 
-    # DQA (Spec 12)
+    # DQA
     trust_index: object | None = None
 
     # Pre-computed analytics (refreshed on every schedule update)
-    stock_projections: list | None = None
-    expedition: object | None = None
     risk_result: object | None = None
     late_deliveries: object | None = None
-    coverage: object | None = None
-    order_tracking: list | None = None
     stress_map: list | None = None
     operator_alerts: list | None = None
 
@@ -62,7 +48,7 @@ class CopilotState:
     schedule_id: str = ""
     audit_store: AuditStore | None = None
 
-    # Learning optimization info (persisted from smart_schedule)
+    # Learning optimization info
     learning_info: dict | None = None
 
     # User rules
@@ -74,11 +60,10 @@ class CopilotState:
     def save_current(self) -> None:
         """Save current schedule for revert after simulation apply."""
         self.saved_schedule = ScheduleResult(
-            segments=list(self.segments),
-            lots=list(self.lots),
+            segmentos=list(self.segments),
             score=dict(self.score),
             warnings=list(self.warnings),
-            operator_alerts=list(self.operator_alerts or []),
+            alerts=list(self.operator_alerts or []),
             time_ms=0,
             audit_trail=None,
             journal=self.journal_entries,
@@ -86,12 +71,11 @@ class CopilotState:
 
     def update_schedule(self, result: ScheduleResult) -> None:
         """Update state from a ScheduleResult. Saves audit trail if present."""
-        self.segments = result.segments
-        self.lots = result.lots
+        self.segments = result.segmentos
         self.score = result.score
         self.warnings = result.warnings
         self.journal_entries = result.journal
-        self.operator_alerts = result.operator_alerts
+        self.operator_alerts = result.alerts
 
         if result.audit_trail:
             if not self.audit_store:
@@ -103,8 +87,11 @@ class CopilotState:
         # Pre-compute all analytics
         self._refresh_analytics()
 
+        # Persist schedule snapshot for restart survival
+        self._save_snapshot()
+
     def _refresh_analytics(self) -> None:
-        """Pre-compute all analytics over current segments/lots.
+        """Pre-compute all analytics over current segments.
 
         Each analytics is isolated — a failure in one does not block the others.
         """
@@ -115,11 +102,10 @@ class CopilotState:
         from backend.risk import compute_risk
 
         analytics = [
-            ("risk_result", lambda: compute_risk(self.segments, self.lots, self.engine_data)),
+            ("risk_result", lambda: compute_risk(self.segments, self.engine_data)),
             ("late_deliveries", lambda: analyze_late_deliveries(
-                self.segments, self.lots, self.engine_data, self.config,
+                self.segments, self.engine_data, self.config,
             )),
-            ("stress_map", lambda: _compute_stress(self.segments, self.lots, self.engine_data)),
         ]
 
         for name, fn in analytics:
@@ -127,6 +113,46 @@ class CopilotState:
                 setattr(self, name, fn())
             except Exception:
                 logger.exception("Failed to compute %s", name)
+
+    def _save_snapshot(self) -> None:
+        """Persist current schedule to JSON for restart survival (P4)."""
+        from dataclasses import asdict
+        try:
+            from datetime import datetime
+            snapshot = {
+                "segmentos": [asdict(s) for s in self.segments],
+                "score": self.score,
+                "warnings": self.warnings,
+                "timestamp": datetime.now().isoformat(),
+            }
+            p = Path("data/schedule_snapshot.json")
+            p.parent.mkdir(parents=True, exist_ok=True)
+            with open(p, "w") as f:
+                json.dump(snapshot, f, ensure_ascii=False)
+        except Exception:
+            logger.exception("Failed to save schedule snapshot")
+
+    def load_snapshot(self) -> bool:
+        """Load schedule snapshot from disk. Returns True if loaded."""
+        p = Path("data/schedule_snapshot.json")
+        if not p.exists():
+            return False
+        try:
+            with open(p) as f:
+                data = json.load(f)
+            self.segments = [
+                Segment(**s) for s in data.get("segmentos", [])
+            ]
+            self.score = data.get("score", {})
+            self.warnings = data.get("warnings", [])
+            logger.info(
+                "Loaded schedule snapshot: %d segments, score=%s",
+                len(self.segments), self.score.get("weighted_score", "?"),
+            )
+            return True
+        except Exception:
+            logger.exception("Failed to load schedule snapshot")
+            return False
 
     def add_rule(self, rule: dict) -> str:
         """Add a user rule. Returns rule id."""

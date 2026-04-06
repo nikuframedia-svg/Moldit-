@@ -1,4 +1,4 @@
-"""Risk assessment types — Spec 06 §1."""
+"""Risk assessment types — Moldit Planner."""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 
 @dataclass(slots=True)
-class LotRisk:
-    lot_id: str
-    sku: str
+class OpRisk:
+    op_id: int
+    molde: str
     machine_id: str
     edd: int
     completion_day: int
@@ -24,8 +24,8 @@ class MachineRisk:
     machine_id: str
     peak_utilization: float    # max utilisation in a single day (0-1)
     avg_utilization: float
-    critical_lot_count: int    # lots with slack < 2 days on this machine
-    bottleneck_score: float    # 0-1, sensitivity of OTD to this machine
+    critical_op_count: int     # ops with slack < 2 days on this machine
+    bottleneck_score: float    # 0-1
 
 
 @dataclass(slots=True)
@@ -33,7 +33,7 @@ class HeatmapCell:
     machine_id: str
     day_idx: int
     utilization: float         # 0-1
-    min_slack_min: float       # min slack of active lots (-1 if none)
+    min_slack_min: float       # min slack of active ops (-1 if none)
     risk_level: str            # "low" | "medium" | "high" | "critical"
 
 
@@ -41,11 +41,11 @@ class HeatmapCell:
 class RiskResult:
     # Tier 1 (always present)
     health_score: int          # 0-100 (100 = safe)
-    lot_risks: list[LotRisk]
+    op_risks: list[OpRisk]
     machine_risks: list[MachineRisk]
     heatmap: list[HeatmapCell]
     critical_count: int
-    top_risks: list[LotRisk]  # top 5 riskiest
+    top_risks: list[OpRisk]   # top 5 riskiest
     bottleneck: str            # machine_id
 
     # Tier 2 (if surrogate trained)

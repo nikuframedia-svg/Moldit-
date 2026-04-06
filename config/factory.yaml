@@ -6,46 +6,46 @@ factory:
 
 machines:
   # CNC — Desbaste (regime 16h, pico 24h)
-  "FE16 - Zayer":         { group: Desbaste, regime_h: 16, setup_h: 1.0 }
-  "FE22 - Rambaudi":      { group: Desbaste, regime_h: 16, setup_h: 1.0 }
-  "FE18 - Rambaudi":      { group: Desbaste, regime_h: 16, setup_h: 1.0 }
-  "FE19 - Eumach":        { group: Desbaste_PD, regime_h: 16, setup_h: 1.0 }
+  "FE16 - Zayer":         { group: Desbaste, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE22 - Rambaudi":      { group: Desbaste, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE18 - Rambaudi":      { group: Desbaste, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE19 - Eumach":        { group: Desbaste_PD, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
 
   # CNC — Maquinacao 3D/2D
-  "FE26 - Depo":          { group: Maq_3D_GD, regime_h: 16, setup_h: 1.0 }
-  "FE31 - MasterMill":    { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 1.0 }
-  "FE35 - Promac":        { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 1.0 }
-  "FE32 - UMILL 1800":    { group: Maq_3D_MD, regime_h: 16, setup_h: 1.0 }
-  "FE25 - Correia":       { group: Maq_3D_PD, regime_h: 16, setup_h: 1.0 }
+  "FE26 - Depo":          { group: Maq_3D_GD, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE31 - MasterMill":    { group: Maq_3D_2D_GD, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE35 - Promac":        { group: Maq_3D_2D_GD, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE32 - UMILL 1800":    { group: Maq_3D_MD, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE25 - Correia":       { group: Maq_3D_PD, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
 
   # 2a Placa (virtual resources for parallel ops on same CNC)
-  "// FE31 - MasterMill":  { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 0.0 }
-  "// FE35 - Promac":      { group: Maq_3D_2D_GD, regime_h: 16, setup_h: 0.0 }
-  "// FE32 - UMILL 1800":  { group: Maq_3D_MD, regime_h: 16, setup_h: 0.0 }
-  "// FE25 - Correia":     { group: Maq_3D_PD, regime_h: 16, setup_h: 0.0 }
+  "// FE31 - MasterMill":  { group: Maq_3D_2D_GD, regime_h: 16, regime_pico_h: 24, setup_h: 0.0 }
+  "// FE35 - Promac":      { group: Maq_3D_2D_GD, regime_h: 16, regime_pico_h: 24, setup_h: 0.0 }
+  "// FE32 - UMILL 1800":  { group: Maq_3D_MD, regime_h: 16, regime_pico_h: 24, setup_h: 0.0 }
+  "// FE25 - Correia":     { group: Maq_3D_PD, regime_h: 16, regime_pico_h: 24, setup_h: 0.0 }
 
   # CNC — Acabamento 5 Eixos
-  "FE30 - 5 Eixos":       { group: Acab_5ax, regime_h: 16, setup_h: 1.0 }
-  "FE36 - Mikron":         { group: Acab_5ax, regime_h: 16, setup_h: 1.0 }
-  "FE37 - DOOSAN 5AX":    { group: Acab_5ax, regime_h: 16, setup_h: 1.0 }
+  "FE30 - 5 Eixos":       { group: Acab_5ax, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE36 - Mikron":         { group: Acab_5ax, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE37 - DOOSAN 5AX":    { group: Acab_5ax, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
 
   # CNC — Estruturas
-  "FE28 - Sdv":            { group: Maq_estruturas, regime_h: 16, setup_h: 1.0 }
-  "FE38 - Doosan 750L":   { group: Maq_estruturas, regime_h: 16, setup_h: 1.0 }
+  "FE28 - Sdv":            { group: Maq_estruturas, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE38 - Doosan 750L":   { group: Maq_estruturas, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
 
   # Faces
-  "FE23 - Mori":           { group: FACESS, regime_h: 16, setup_h: 1.0 }
+  "FE23 - Mori":           { group: FACESS, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
 
   # Eletrodos
-  "FE29 - GT":             { group: Maq_Eletrodos, regime_h: 16, setup_h: 1.0 }
-  "FE33 - Microcut":       { group: Maq_Eletrodos, regime_h: 16, setup_h: 1.0 }
+  "FE29 - GT":             { group: Maq_Eletrodos, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
+  "FE33 - Microcut":       { group: Maq_Eletrodos, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
 
   # Erosao
-  "EE01 - Ona 30":        { group: EROSAO, regime_h: 16, setup_h: 1.5 }
-  "EE07 - Ona 700":       { group: EROSAO, regime_h: 16, setup_h: 1.5 }
-  "EE08 - Ona NX8":       { group: EROSAO, regime_h: 16, setup_h: 1.5 }
-  "EE09 - Ona 400":       { group: EROSAO, regime_h: 16, setup_h: 1.5 }
-  "EE11 - Erosão fio":    { group: Erosao_Fio, regime_h: 16, setup_h: 1.0 }
+  "EE01 - Ona 30":        { group: EROSAO, regime_h: 16, regime_pico_h: 24, setup_h: 1.5 }
+  "EE07 - Ona 700":       { group: EROSAO, regime_h: 16, regime_pico_h: 24, setup_h: 1.5 }
+  "EE08 - Ona NX8":       { group: EROSAO, regime_h: 16, regime_pico_h: 24, setup_h: 1.5 }
+  "EE09 - Ona 400":       { group: EROSAO, regime_h: 16, regime_pico_h: 24, setup_h: 1.5 }
+  "EE11 - Erosão fio":    { group: Erosao_Fio, regime_h: 16, regime_pico_h: 24, setup_h: 1.0 }
 
   # Furacao
   "MA01 - Collet":         { group: FURACAO, regime_h: 16, setup_h: 1.0 }
@@ -79,6 +79,7 @@ machines:
   # Externos (capacidade infinita)
   "Externo/Ret":           { group: Externo, regime_h: 0, setup_h: 0 }
   "Externo/Aço":           { group: Externo, regime_h: 0, setup_h: 0 }
+  "Externo/Furação":       { group: Externo, regime_h: 0, setup_h: 0 }
   "Textura Laser":         { group: Externo, regime_h: 0, setup_h: 0 }
 
   # Retificacao

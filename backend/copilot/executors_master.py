@@ -313,3 +313,13 @@ def exec_adicionar_turno(args: dict) -> str:
         "day_capacity_min": state.config.day_capacity_min,
         "score": new_score, "score_anterior": old_score,
     })
+
+
+# ── Twin stubs (not applicable to Moldit) ────────────
+
+def exec_adicionar_twin(args: dict) -> str:
+    return _dumps({"status": "error", "detail": "Twins nao suportados no Moldit."})
+
+
+def exec_remover_twin(args: dict) -> str:
+    return _dumps({"status": "error", "detail": "Twins nao suportados no Moldit."})

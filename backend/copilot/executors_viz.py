@@ -80,7 +80,7 @@ def exec_visualizar_risco_heatmap(args: dict) -> str:
 
     from backend.risk import compute_risk
 
-    risk = state.risk_result or compute_risk(state.segments, state.lots, state.engine_data)
+    risk = state.risk_result or compute_risk(state.segments, state.engine_data)
 
     cells = []
     for cell in risk.heatmap:

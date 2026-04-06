@@ -28,6 +28,25 @@ logger = logging.getLogger(__name__)
 from backend.api.console import router as console_router
 from backend.api.data import router as data_router
 from backend.api.explorer import router as explorer_router
+from backend.api.reports import router as reports_router
+
+# Optional routers (Module C & D — may not exist yet)
+try:
+    from backend.api.alerts import router as alerts_router
+except ImportError:
+    alerts_router = None  # type: ignore[assignment]
+try:
+    from backend.api.workforce import router as workforce_router
+except ImportError:
+    workforce_router = None  # type: ignore[assignment]
+try:
+    from backend.api.ml import router as ml_router
+except ImportError:
+    ml_router = None  # type: ignore[assignment]
+try:
+    from backend.api.explain import router as explain_router
+except ImportError:
+    explain_router = None  # type: ignore[assignment]
 
 app = FastAPI(title="Moldit Copilot", version="1.0.0")
 app.add_middleware(
@@ -40,6 +59,15 @@ app.add_middleware(
 app.include_router(console_router)
 app.include_router(data_router)
 app.include_router(explorer_router)
+app.include_router(reports_router)
+if alerts_router:
+    app.include_router(alerts_router)
+if workforce_router:
+    app.include_router(workforce_router)
+if ml_router:
+    app.include_router(ml_router)
+if explain_router:
+    app.include_router(explain_router)
 
 
 class ChatMessage(BaseModel):

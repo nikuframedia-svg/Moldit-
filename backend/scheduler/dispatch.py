@@ -1,11 +1,13 @@
 """Phase 3 — Dispatch: Moldit Planner.
 
-Greedy forward scheduler: priority queue -> machine assignment -> timeline dispatch.
+Greedy forward scheduler with ATCS dispatch rule and shift-awareness.
+Pipeline: priority queue (ATCS) → machine assignment → timeline dispatch (shift-aware).
 """
 
 from __future__ import annotations
 
 import logging
+import math
 from collections import defaultdict, deque
 
 from backend.config.types import FactoryConfig
@@ -34,18 +36,23 @@ def build_priority_queue(
     dag_rev: dict[int, list[int]],
     moldes: list[Molde],
     caminho_critico: list[int],
+    config: FactoryConfig | None = None,
 ) -> list[int]:
-    """Build a topologically-sorted priority queue of operation IDs.
+    """Build a topologically-sorted priority queue with ATCS scoring.
 
-    Sort key: (topo_layer, deadline_week, critical_path_flag, -work_restante_h).
-    Conditional ops are pushed to the end (layer=9999).
+    Layer 1: topological order (dependencies must be respected).
+    Layer 2: within the same topo layer, ATCS score decides order.
+
+    ATCS = exp(-slack / (k1 * avg_proc)) × exp(-setup / (k2 * avg_setup)) / proc
+    Higher ATCS score = schedule sooner.
     """
     crit_set = set(caminho_critico)
+    k1 = config.atcs_k1 if config else 1.5
 
-    # Map molde -> deadline week
+    # Map molde -> deadline in working days
     molde_deadline: dict[str, int] = {}
     for m in moldes:
-        molde_deadline[m.id] = _parse_deadline_week(m.deadline)
+        molde_deadline[m.id] = _parse_deadline_week(m.deadline) * 5
 
     # Kahn's algorithm for topological layers
     all_ids = {op.id for op in ops}
@@ -73,27 +80,47 @@ def build_priority_queue(
         queue = next_queue
         current_layer += 1
 
-    # Assign remaining (cyclic / orphan) to max layer
     for oid in all_ids:
         if oid not in layer:
             layer[oid] = current_layer
 
-    # Build priority tuples — skip completed ops, add urgency tiers
-    priority: list[tuple[tuple[int, int, int, int, float], int]] = []
+    # Pre-compute averages for ATCS
+    active_ops = [op for op in ops if op.work_restante_h > 0 and not op.e_condicional]
+    avg_proc_days = (
+        sum(op.work_restante_h for op in active_ops)
+        / max(len(active_ops), 1)
+        / 16.0  # convert hours to days (16h regime)
+    )
+    # Build priority: (topo_layer, -atcs_score) — lower layer first, higher ATCS first
+    priority: list[tuple[tuple[int, float], int]] = []
     for op in ops:
         if op.work_restante_h <= 0:
-            continue  # skip completed ops entirely
+            continue
         oid = op.id
+
         if op.e_condicional:
             tl = 9999
         else:
             tl = layer.get(oid, 9999)
-        dl = molde_deadline.get(op.molde, 999)
-        # Urgency tier: tighter deadlines get priority on shared resources
-        urgency = 0 if dl <= 15 else (1 if dl <= 20 else 2)
-        crit = -1 if oid in crit_set else 0
-        work = -op.work_restante_h
-        priority.append(((tl, urgency, dl, crit, work), oid))
+
+        # ATCS score
+        deadline_days = molde_deadline.get(op.molde, 9999)
+        proc_days = op.work_restante_h / 16.0
+        slack_days = max(deadline_days - proc_days, 0)
+
+        # Urgency: exponential decay from slack
+        urgency = math.exp(-slack_days / (k1 * max(avg_proc_days, 0.1)))
+
+        # Setup saving: critical path ops get bonus (proxy for setup awareness
+        # since we don't know machine assignment yet at this stage)
+        crit_bonus = 1.2 if oid in crit_set else 1.0
+
+        # Efficiency: shorter ops with tighter deadlines score higher
+        efficiency = 1.0 / max(proc_days, 0.01)
+
+        atcs = urgency * crit_bonus * efficiency
+
+        priority.append(((tl, -atcs), oid))
 
     priority.sort(key=lambda x: x[0])
     return [oid for _, oid in priority]
@@ -115,6 +142,7 @@ def assign_machines(
     """
     load_h: dict[str, float] = defaultdict(float)
     assignment: dict[int, str] = {}
+    last_mold: dict[str, str] = {}  # P4: track last mold per machine
 
     bancada_ded = config.bancada_dedicacao or {}
     machine_set = set(machines.keys())
@@ -131,7 +159,6 @@ def assign_machines(
         # Direct resource assignment
         if op.recurso and op.recurso != "?":
             resource = op.recurso.strip()
-            # 2a placa: "// FE31 - MasterMill" — use directly (config uses same name)
             if resource.startswith("//"):
                 if resource in machine_set:
                     assigned = resource
@@ -157,7 +184,6 @@ def assign_machines(
                 if mid not in machine_set:
                     continue
                 m = machines[mid]
-                # Bancada dedication: prefer dedicated machines, but allow fallback
                 if m.grupo == "Bancada" and mid in bancada_ded:
                     ded = bancada_ded[mid]
                     if isinstance(ded, dict) and op.molde in ded:
@@ -169,8 +195,17 @@ def assign_machines(
 
             valid = preferred if preferred else fallback
             if valid:
-                # Pick least-loaded
-                assigned = min(valid, key=lambda mid: load_h[mid])
+                # P4: Setup-aware assignment — prefer machine with same mold
+                # to avoid unnecessary setup (discount by setup_h)
+                setup_discount = config.default_setup_hours
+
+                def _cost(mid: str) -> float:
+                    cost = load_h[mid]
+                    if last_mold.get(mid) == op.molde:
+                        cost -= setup_discount
+                    return cost
+
+                assigned = min(valid, key=_cost)
             else:
                 if not op.e_condicional:
                     logger.debug(
@@ -181,6 +216,7 @@ def assign_machines(
         if assigned is not None:
             assignment[op_id] = assigned
             load_h[assigned] += op.work_restante_h
+            last_mold[assigned] = op.molde
 
     return assignment
 
@@ -237,6 +273,41 @@ def _compute_holiday_offsets(
     return offsets, ref_weekday
 
 
+def _get_shift_end(hour: float, regime_h: int, config: FactoryConfig) -> float:
+    """Return the end hour of the current shift for a given hour.
+
+    Respects both shift boundaries AND machine regime capacity.
+    The effective end = min(shift_boundary, day_start + regime_h).
+
+    For 8h machines: min(shift_A_end=15.5, 7+8=15.0) = 15.0
+    For 16h machines: shift A end=15.5, then shift B end=min(23.0, 7+16=23.0)
+    For 24h machines: 7+24 = 31.0 (wraps to next day)
+    """
+    day_limit = _DAY_START_H + regime_h
+
+    if regime_h >= 24:
+        return day_limit
+
+    shifts = config.shifts
+    if not shifts:
+        return day_limit
+
+    for shift in shifts:
+        shift_start_h = shift.start_min / 60.0
+        shift_end_h = shift.end_min / 60.0
+        if shift.end_min <= shift.start_min:
+            shift_end_h = 24.0  # cross-midnight
+
+        if shift_start_h <= hour < shift_end_h:
+            # For 8h regime, only allow first shift
+            if regime_h <= 8 and shift.id != shifts[0].id:
+                return shift_start_h  # not active in this shift
+            # Cap at regime limit
+            return min(shift_end_h, day_limit)
+
+    return day_limit
+
+
 def dispatch_timeline(
     ops_by_id: dict[int, Operacao],
     priority_queue: list[int],
@@ -247,10 +318,10 @@ def dispatch_timeline(
     ref_date: str = "",
     holidays: list[str] | None = None,
 ) -> list[SegmentoMoldit]:
-    """Dispatch operations onto a timeline. Returns list of SegmentoMoldit.
+    """Dispatch operations onto a shift-aware timeline.
 
-    Uses greedy forward scheduling: each op starts at max(predecessor_finish, machine_available).
-    Multi-day operations span across working days. Holidays and weekends are skipped.
+    Uses greedy forward scheduling with shift boundaries.
+    Segments never cross shift boundaries (Turno A: 7:00-15:30, Turno B: 15:30-23:00).
     """
     holiday_list = holidays if holidays is not None else config.holidays
     holiday_offsets, ref_weekday = _compute_holiday_offsets(holiday_list, ref_date)
@@ -258,6 +329,7 @@ def dispatch_timeline(
     # Track availability: (day, hour)
     machine_available: dict[str, tuple[int, float]] = {}
     op_finish: dict[int, tuple[int, float]] = {}
+    last_mold_on_machine: dict[str, str] = {}  # setup consolidation
 
     segments: list[SegmentoMoldit] = []
 
@@ -279,10 +351,14 @@ def dispatch_timeline(
             continue
 
         regime_h = machine.regime_h
-        setup_h = machine.setup_h
+
+        # P2: Skip setup if same mold continues on this machine
+        if last_mold_on_machine.get(machine_id) == op.molde:
+            setup_h = 0.0
+        else:
+            setup_h = machine.setup_h
 
         # Calculate earliest start from predecessors
-        # Skip conditional predecessors (they don't block successors)
         pred_finish = (0, _DAY_START_H)
         for pred_id in dag_rev.get(op_id, []):
             pred_op = ops_by_id.get(pred_id)
@@ -317,56 +393,64 @@ def dispatch_timeline(
                 e_continuacao=False,
             )
             segments.append(seg)
-            # External doesn't block the machine (infinite capacity)
             end_day = current_day + max(1, int(work / 8))
             op_finish[op_id] = (end_day, _DAY_START_H)
+            last_mold_on_machine[machine_id] = op.molde
             continue
 
-        # Normal scheduling: fill day by day
-        day_end_h = _DAY_START_H + regime_h
+        # Normal scheduling: fill shift by shift
         remaining = work
         first_segment = True
 
         while remaining > 0.01:
-            # Ensure we are on a workday
             current_day = _next_workday(current_day, ref_weekday, holiday_offsets)
 
-            # Clamp current_hour to day boundaries
             if current_hour < _DAY_START_H:
                 current_hour = _DAY_START_H
-            if current_hour >= day_end_h:
-                current_day += 1
-                current_day = _next_workday(current_day, ref_weekday, holiday_offsets)
-                current_hour = _DAY_START_H
 
-            available_today = day_end_h - current_hour
-            if available_today <= 0.01:
+            # Shift-aware: end of current shift (not end of day)
+            shift_end_h = _get_shift_end(current_hour, regime_h, config)
+
+            if current_hour >= shift_end_h:
+                # Past shift boundary — advance to next shift or next day
+                if regime_h > 8 and shift_end_h < _DAY_START_H + regime_h:
+                    # Move to start of next shift (Turno B)
+                    current_hour = shift_end_h
+                    shift_end_h = _get_shift_end(current_hour, regime_h, config)
+                else:
+                    current_day += 1
+                    current_day = _next_workday(current_day, ref_weekday, holiday_offsets)
+                    current_hour = _DAY_START_H
+                    continue
+
+            available = shift_end_h - current_hour
+            if available <= 0.01:
                 current_day += 1
                 current_day = _next_workday(current_day, ref_weekday, holiday_offsets)
                 current_hour = _DAY_START_H
                 continue
 
-            # Add setup on first segment
+            # Setup on first segment only
             seg_setup = 0.0
             if first_segment and setup_h > 0:
                 seg_setup = setup_h
-                if seg_setup >= available_today:
-                    # Setup takes the rest of today
-                    current_hour += seg_setup
-                    if current_hour >= day_end_h:
+                # If setup doesn't fit in this shift, push to next shift/day
+                if seg_setup >= available:
+                    if regime_h > 8 and shift_end_h < _DAY_START_H + regime_h:
+                        current_hour = shift_end_h
+                    else:
                         current_day += 1
                         current_day = _next_workday(
                             current_day, ref_weekday, holiday_offsets,
                         )
                         current_hour = _DAY_START_H
-                    available_today = day_end_h - current_hour
-                    # Setup already accounted for, mark as done but don't re-add
+                    continue  # re-enter loop with new shift
                 else:
                     current_hour += seg_setup
-                    available_today -= seg_setup
+                    available -= seg_setup
                 first_segment = False
 
-            hours_this = min(remaining, available_today)
+            hours_this = min(remaining, available)
             if hours_this <= 0.01:
                 current_day += 1
                 current_day = _next_workday(current_day, ref_weekday, holiday_offsets)
@@ -399,6 +483,7 @@ def dispatch_timeline(
         # Update availability
         machine_available[machine_id] = (current_day, current_hour)
         op_finish[op_id] = (current_day, current_hour)
+        last_mold_on_machine[machine_id] = op.molde
 
     return segments
 

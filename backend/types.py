@@ -53,6 +53,7 @@ class Maquina:
     regime_h: int = 16  # 8, 16, 24 (0 = infinite/external)
     e_externo: bool = False
     setup_h: float = 1.0
+    regime_pico_h: int = 0  # 0 = no peak. 24 = extended shift available
 
 
 @dataclass(slots=True)

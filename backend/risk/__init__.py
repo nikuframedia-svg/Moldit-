@@ -1,4 +1,4 @@
-"""Risk Assessment — Spec 06.
+"""Risk Assessment — Moldit Planner.
 
 Three tiers:
   Tier 1: Slack analytics (<50ms) — always computed
@@ -14,14 +14,11 @@ from backend.types import MolditEngineData as EngineData
 from .heatmap import compute_heatmap
 from .slack_analytics import (
     compute_health_score,
-    compute_lot_risks,
     compute_machine_risks,
+    compute_op_risks,
 )
 from .surrogate import extract_features, predict_risk
 from .types import RiskResult
-
-
-class Lot: pass  # noqa: E302
 
 __all__ = [
     "compute_risk",
@@ -31,7 +28,6 @@ __all__ = [
 
 def compute_risk(
     segments: list[Segment],
-    lots: list[Lot],
     engine_data: EngineData,
     mc_cache: dict | None = None,
 ) -> RiskResult:
@@ -39,21 +35,20 @@ def compute_risk(
 
     Args:
         segments: Schedule segments from dispatch.
-        lots: Production lots from lot sizing.
         engine_data: Full engine input data.
-        mc_cache: Pre-computed Monte Carlo results (from monte_carlo_risk).
+        mc_cache: Pre-computed Monte Carlo results.
 
     Returns:
         RiskResult with all tiers populated as available.
     """
     # Tier 1: Slack analytics (always)
-    lot_risks = compute_lot_risks(segments, lots, engine_data)
-    machine_risks = compute_machine_risks(segments, lot_risks, engine_data)
-    health = compute_health_score(lot_risks, machine_risks)
-    heatmap = compute_heatmap(segments, lot_risks, engine_data)
+    op_risks = compute_op_risks(segments, engine_data)
+    machine_risks = compute_machine_risks(segments, op_risks, engine_data)
+    health = compute_health_score(op_risks, machine_risks)
+    heatmap = compute_heatmap(segments, op_risks, engine_data)
 
-    critical_count = sum(1 for lr in lot_risks if lr.risk_level == "critical")
-    top_risks = sorted(lot_risks, key=lambda lr: -lr.risk_score)[:5]
+    critical_count = sum(1 for lr in op_risks if lr.risk_level == "critical")
+    top_risks = sorted(op_risks, key=lambda lr: -lr.risk_score)[:5]
     bottleneck = (
         max(machine_risks, key=lambda mr: mr.peak_utilization).machine_id
         if machine_risks
@@ -63,7 +58,7 @@ def compute_risk(
     # Tier 2: Surrogate (if trained)
     surrogate_otd: float | None = None
     surrogate_conf: str | None = None
-    features = extract_features(lot_risks, machine_risks, engine_data)
+    features = extract_features(op_risks, machine_risks, engine_data)
     prediction = predict_risk(features)
     if prediction:
         surrogate_otd, surrogate_conf = prediction
@@ -83,7 +78,7 @@ def compute_risk(
 
     return RiskResult(
         health_score=health,
-        lot_risks=lot_risks,
+        op_risks=op_risks,
         machine_risks=machine_risks,
         heatmap=heatmap,
         critical_count=critical_count,

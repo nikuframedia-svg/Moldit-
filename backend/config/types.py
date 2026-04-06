@@ -30,6 +30,7 @@ class MachineConfig:
     group: str
     active: bool = True
     regime_h: int = 16
+    regime_pico_h: int = 0  # 0 = no peak mode. 24 = extended shift
     setup_h: float = 1.0
     e_externo: bool = False
     dedicacao: dict[str, float] = field(default_factory=dict)
@@ -100,6 +101,10 @@ class FactoryConfig:
     lst_safety_buffer: int = 2
     urgency_threshold: int = 5
     auto_buffer: bool = True
+
+    # ATCS dispatch parameters
+    atcs_k1: float = 1.5       # urgency sensitivity [0.5, 3.0]
+    atcs_k2: float = 0.5       # setup sensitivity [0.1, 2.0]
 
     # VNS post-processing
     vns_enabled: bool = True
