@@ -429,8 +429,8 @@ async def simulate_scenario(request: SimulateRequest):
     result = simulate(state.engine_data, state.score, mutations, config=state.config)
 
     return {
-        "score_baseline": state.score,
-        "score_scenario": result.score,
+        "segmentos": [asdict(s) for s in result.segmentos] if hasattr(result, 'segmentos') else [],
+        "score": result.score,
         "delta": asdict(result.delta),
         "time_ms": result.time_ms,
         "summary": result.summary,

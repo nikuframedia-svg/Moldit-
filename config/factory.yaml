@@ -85,6 +85,11 @@ machines:
   # Retificacao
   "RE05":                  { group: Retificacao, regime_h: 8, setup_h: 0.5 }
 
+  # Recursos MPP adicionais (mapeados da auditoria)
+  "ASG":                   { group: Montagem, regime_h: 8, setup_h: 0.5 }
+  "PP":                    { group: Montagem, regime_h: 8, setup_h: 0.5 }
+  "FE365":                 { group: Desbaste, regime_h: 16, setup_h: 1.0 }
+
 bancada_dedicacao:
   BA01: { "2950": 1.0 }
   BA02: { "2944": 0.75, "2954": 0.25 }

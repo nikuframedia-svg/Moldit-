@@ -67,13 +67,13 @@ def simulate_breakdown(
 
     # Assess impact level
     delta = sim_result.delta
-    if delta.tardy_after > delta.tardy_before:
+    if delta.compliance_after < delta.compliance_before:
         impact = "critical"
-    elif delta.otd_after < delta.otd_before - 0.5:
+    elif delta.makespan_after > delta.makespan_before + 5:
         impact = "critical"
     elif delta.setups_after > delta.setups_before + 5:
         impact = "warning"
-    elif delta.earliness_after > delta.earliness_before + 2.0:
+    elif delta.balance_after < delta.balance_before - 0.1:
         impact = "warning"
     else:
         impact = "ok"
@@ -83,13 +83,13 @@ def simulate_breakdown(
     parts = [f"Máquina {machine_id} parada {n_days} dia(s) (dia {start_day}-{end_day})."]
     parts.append(f"{len(affected_ops)} operação(ões) afectada(s).")
 
-    if delta.tardy_after > delta.tardy_before:
+    if delta.compliance_after < delta.compliance_before:
         parts.append(
-            f"ALERTA: atrasos aumentam de {delta.tardy_before} para {delta.tardy_after}."
+            f"ALERTA: compliance desce de {delta.compliance_before:.1f}% para {delta.compliance_after:.1f}%."
         )
-    if abs(delta.otd_after - delta.otd_before) > 0.05:
+    if abs(delta.makespan_after - delta.makespan_before) > 0:
         parts.append(
-            f"OTD: {delta.otd_before:.1f}% → {delta.otd_after:.1f}%."
+            f"Makespan: {delta.makespan_before} → {delta.makespan_after} dias."
         )
     if delta.setups_after != delta.setups_before:
         diff = delta.setups_after - delta.setups_before

@@ -149,7 +149,7 @@ def compute_score(
         regime = machine_regime.get(mid, 16)
         if regime > 0 and makespan_dias > 0:
             cap = makespan_dias * regime
-            utilization[mid] = min(hours / cap, 1.0) if cap > 0 else 0.0
+            utilization[mid] = round(hours / cap, 4) if cap > 0 else 0.0
         else:
             utilization[mid] = 0.0
 

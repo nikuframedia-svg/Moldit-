@@ -199,10 +199,7 @@ async def get_conflicts(dia: int | None = None):
         config=state.config,
     )
 
-    return {
-        "total": len(conflicts),
-        "conflicts": [asdict(c) for c in conflicts],
-    }
+    return [asdict(c) for c in conflicts]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -228,12 +225,7 @@ async def auto_allocate_endpoint(body: AutoAllocateRequest):
         competencias=competencias,
     )
 
-    return {
-        "dia": body.dia,
-        "turno": body.turno,
-        "total": len(allocations),
-        "allocations": [asdict(a) for a in allocations],
-    }
+    return [asdict(a) for a in allocations]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -259,11 +251,7 @@ async def get_forecast(semanas: int = 4):
         semanas=semanas,
     )
 
-    return {
-        "semanas": semanas,
-        "total_registos": len(forecast),
-        "forecast": forecast,
-    }
+    return forecast
 
 
 # ═══════════════════════════════════════════════════════════════════════

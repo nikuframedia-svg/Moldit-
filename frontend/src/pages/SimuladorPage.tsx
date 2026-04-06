@@ -33,6 +33,7 @@ export default function SimuladorPage() {
   const [result, setResult] = useState<SimulateResponse | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [ctpMolde, setCtpMolde] = useState("");
+  const [ctpWeek, setCtpWeek] = useState("");
   const [ctpResult, setCtpResult] = useState<CTPMolde | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -51,10 +52,10 @@ export default function SimuladorPage() {
   };
 
   const handleCTP = async () => {
-    if (!ctpMolde) return;
+    if (!ctpMolde || !ctpWeek) return;
     setStatus("warning", "A verificar viabilidade...");
     try {
-      const r = await checkCTP(ctpMolde);
+      const r = await checkCTP(ctpMolde, ctpWeek);
       setCtpResult(r);
       setStatus("ok", r.feasible ? "Entrega viavel!" : "Entrega nao viavel.");
     } catch (e: any) {
@@ -176,11 +177,17 @@ export default function SimuladorPage() {
               <option key={m.id} value={m.id}>{m.id} — {m.cliente}</option>
             ))}
           </select>
+          <input
+            value={ctpWeek}
+            onChange={(e) => { setCtpWeek(e.target.value); setCtpResult(null); }}
+            placeholder="S20"
+            style={{ padding: "8px 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: T.elevated, color: T.primary, fontSize: 12, fontFamily: "inherit", width: 80 }}
+          />
           <button
             onClick={handleCTP}
-            disabled={!ctpMolde}
+            disabled={!ctpMolde || !ctpWeek}
             data-testid="btn-ctp"
-            style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: T.blue, color: "#fff", fontSize: 12, fontWeight: 600, cursor: ctpMolde ? "pointer" : "not-allowed", fontFamily: "inherit", opacity: ctpMolde ? 1 : 0.5 }}
+            style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: T.blue, color: "#fff", fontSize: 12, fontWeight: 600, cursor: ctpMolde && ctpWeek ? "pointer" : "not-allowed", fontFamily: "inherit", opacity: ctpMolde && ctpWeek ? 1 : 0.5 }}
           >
             Verificar
           </button>
@@ -192,7 +199,7 @@ export default function SimuladorPage() {
               {ctpResult.feasible ? "SIM — entrega viavel" : "NAO — entrega nao viavel"}
             </div>
             <div style={{ fontSize: 12, color: T.secondary, marginTop: 4 }}>
-              Conclusao prevista: dia {ctpResult.conclusao_dia}.
+              {ctpResult.reason}
               {ctpResult.feasible
                 ? ` Margem de ${ctpResult.slack_dias} dias.`
                 : ` Precisa de mais ${ctpResult.dias_extra} dias.`

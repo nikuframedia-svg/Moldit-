@@ -88,11 +88,12 @@ export interface MolditConfig {
 }
 
 export interface CTPMolde {
-  molde: string;
+  molde_id: string;
+  target_week: string;
   feasible: boolean;
-  conclusao_dia: number;
   slack_dias: number;
   dias_extra: number;
+  reason: string;
 }
 
 export type MutationType =

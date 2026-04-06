@@ -93,6 +93,13 @@ def validate_input(
                 f"Duracao work_h={op.work_h} <= 0",
             ))
 
+        # Inconsistency: has duration but no work
+        if op.duracao_h > 0 and op.work_h <= 0 and op.codigo not in ("EL001", "EL005"):
+            issues.append(GuardianIssue(
+                op.id, "duracao_work", "warn",
+                f"duracao_h={op.duracao_h} mas work_h={op.work_h} — inconsistente",
+            ))
+
         # Clamp progress > 100
         if op.progresso > 100.0:
             issues.append(GuardianIssue(

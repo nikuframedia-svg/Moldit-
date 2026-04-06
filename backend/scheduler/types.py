@@ -20,15 +20,6 @@ class SegmentoMoldit:
     progresso_antes: float = 0.0
 
 
-@dataclass(slots=True)
-class MachineState:
-    """Tracks machine availability during dispatch."""
-    machine_id: str
-    group: str
-    regime_h: int = 16
-    available_at_h: float = 0.0
-    last_op_id: int | None = None
-
 
 @dataclass(slots=True)
 class OperatorAlert:

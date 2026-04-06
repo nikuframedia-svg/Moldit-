@@ -578,7 +578,8 @@ class TestReportGeneration:
 # ── Tests: Real MPP Full Pipeline ────────────────────────────────────
 
 
-_MPP_PATH = "/Users/martimnicolau/Downloads/Template_para_teste_Moldit.mpp"
+import os as _os
+_MPP_PATH = _os.environ.get("MPP_TEST_FILE", str(Path(__file__).resolve().parent.parent / "data" / "test_fixture.mpp"))
 
 
 @pytest.mark.skipif(

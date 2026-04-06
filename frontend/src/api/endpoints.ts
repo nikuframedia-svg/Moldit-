@@ -107,8 +107,8 @@ export const getConsole = (dayIdx = 0) =>
 export const simulate = (mutations: MutationMoldit[]) =>
   post<SimulateResponse>("/api/data/simulate", { mutations });
 
-export const checkCTP = (molde: string) =>
-  post<CTPMolde>("/api/data/ctp", { molde });
+export const checkCTP = (moldeId: string, targetWeek: string) =>
+  post<CTPMolde>("/api/data/ctp", { molde_id: moldeId, target_week: targetWeek });
 
 export const recalculate = () =>
   post<{ status: string; score: ScoreMoldit; time_ms: number; n_segments: number }>(

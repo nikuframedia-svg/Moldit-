@@ -25,15 +25,6 @@ def _op_duration_from_segments(segmentos: list[SegmentoMoldit]) -> dict[int, flo
     return dict(dur)
 
 
-def _op_absolute_start(segmentos: list[SegmentoMoldit]) -> dict[int, float]:
-    """Get absolute start (dia * 24 + inicio_h) per op from segments."""
-    starts: dict[int, float] = {}
-    for s in segmentos:
-        abs_h = s.dia * 24.0 + s.inicio_h
-        if s.op_id not in starts or abs_h < starts[s.op_id]:
-            starts[s.op_id] = abs_h
-    return starts
-
 
 def compute_slack(
     data: MolditEngineData,

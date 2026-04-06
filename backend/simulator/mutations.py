@@ -201,6 +201,17 @@ def _force_machine(data: MolditEngineData, params: dict) -> str:
     if not any(m.id == machine_id for m in data.maquinas):
         raise ValueError(f"Maquina {machine_id} nao existe")
 
+    # Check compatibility
+    for op in data.operacoes:
+        if op.id == op_id:
+            compativeis = data.compatibilidade.get(op.codigo, [])
+            if compativeis and machine_id not in compativeis:
+                raise ValueError(
+                    f"Maquina {machine_id} nao e compativel com {op.codigo}. "
+                    f"Compativeis: {', '.join(compativeis)}"
+                )
+            break
+
     for op in data.operacoes:
         if op.id == op_id:
             old = op.recurso
