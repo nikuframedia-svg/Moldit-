@@ -20,14 +20,19 @@ logger = logging.getLogger(__name__)
 _DAY_START_H = 7.0
 
 
-def _parse_deadline_week(deadline: str) -> int:
-    """Parse deadline like 'S15' -> 15, 'S18' -> 18. Returns 999 if empty/unknown."""
-    if not deadline:
+def _parse_deadline_to_working_days(deadline: str, ref_date_str: str) -> int:
+    """Convert 'S15' to working days from project start. Returns 999 if empty."""
+    if not deadline or not ref_date_str:
+        if not deadline:
+            return 999
+        # Fallback: week × 5 if no ref date
+        d = deadline.strip().upper()
+        if d.startswith("S") and d[1:].isdigit():
+            return int(d[1:]) * 5
         return 999
-    d = deadline.strip().upper()
-    if d.startswith("S") and d[1:].isdigit():
-        return int(d[1:])
-    return 999
+    from backend.scheduler.scoring import _deadline_to_working_days
+    result = _deadline_to_working_days(deadline, ref_date_str)
+    return result if result is not None else 999
 
 
 def build_priority_queue(
@@ -37,6 +42,7 @@ def build_priority_queue(
     moldes: list[Molde],
     caminho_critico: list[int],
     config: FactoryConfig | None = None,
+    ref_date: str = "",
 ) -> list[int]:
     """Build a topologically-sorted priority queue with ATCS scoring.
 
@@ -49,10 +55,10 @@ def build_priority_queue(
     crit_set = set(caminho_critico)
     k1 = config.atcs_k1 if config else 1.5
 
-    # Map molde -> deadline in working days
+    # Map molde -> deadline in working days (calendar-aware)
     molde_deadline: dict[str, int] = {}
     for m in moldes:
-        molde_deadline[m.id] = _parse_deadline_week(m.deadline) * 5
+        molde_deadline[m.id] = _parse_deadline_to_working_days(m.deadline, ref_date)
 
     # Kahn's algorithm for topological layers
     all_ids = {op.id for op in ops}

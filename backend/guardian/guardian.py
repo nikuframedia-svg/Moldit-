@@ -303,17 +303,18 @@ def validate_output(
             ))
 
     # ── Deadline validation ─────────────────────────────────────────
-    from backend.scheduler.scoring import _parse_deadline_to_days
+    from backend.scheduler.scoring import _deadline_to_working_days
 
     mold_last_day: dict[str, int] = defaultdict(int)
     for seg in segmentos:
         if seg.dia > mold_last_day[seg.molde]:
             mold_last_day[seg.molde] = seg.dia
 
+    ref_date = data.data_referencia if hasattr(data, "data_referencia") else ""
     for molde in data.moldes:
         if not molde.deadline:
             continue
-        deadline_day = _parse_deadline_to_days(molde.deadline)
+        deadline_day = _deadline_to_working_days(molde.deadline, ref_date)
         if deadline_day is None:
             continue
         last_day = mold_last_day.get(molde.id, 0)

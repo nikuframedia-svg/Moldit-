@@ -50,7 +50,7 @@ async def get_console(day_idx: int = 0):
         machines = compute_machines_today(state.segments, state.engine_data, state.config, day_idx)
         machines_list = [
             {
-                "machine_id": m.get("id", m.get("machine_id", "?")),
+                "machine_id": m.get("id", "?"),
                 "utilization_pct": round(m.get("util", 0) * 100, 1) if m.get("util", 0) <= 1 else round(m.get("util", 0), 1),
                 "setup_count": m.get("setup_count", 0),
             }

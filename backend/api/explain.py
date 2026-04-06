@@ -31,7 +31,7 @@ router = APIRouter(prefix="/api/explain", tags=["explain"])
 
 
 def _require_data():
-    if not state.engine_data or not state.schedule_result:
+    if not state.engine_data or not state.segments:
         raise HTTPException(400, "Sem projecto carregado.")
 
 
@@ -40,8 +40,8 @@ async def explain_inicio() -> dict:
     """All phrases needed for the INICIO page."""
     _require_data()
 
-    score = state.schedule_result.score if state.schedule_result else {}
-    segmentos = state.schedule_result.segmentos if state.schedule_result else []
+    score = state.score or {}
+    segmentos = state.segments or []
 
     # Build stress list from schedule
     stress = _build_stress(segmentos)
@@ -51,7 +51,7 @@ async def explain_inicio() -> dict:
     try:
         from backend.console.action_items import compute_action_items
         actions_raw = compute_action_items(
-            state.engine_data, state.schedule_result, None,
+            state.segments, state.engine_data, state.config,
         )
         actions = [_action_to_dict(a) for a in actions_raw]
     except Exception:
@@ -200,10 +200,10 @@ def _build_stress(segmentos) -> list[dict]:
 
 def _build_deadlines() -> list[dict]:
     """Build deadline list from state."""
-    if not state.schedule_result:
+    if not state.score:
         return []
 
-    score = state.schedule_result.score
+    score = state.score
     violations = score.get("deadline_violations", [])
     violation_moldes = {v["molde"] for v in violations}
 

@@ -456,6 +456,11 @@ def parse_mpp(filepath: str) -> MolditEngineData:
     # ── Phase 8: Compute critical path ───────────────────────────────
     caminho_critico = _compute_critical_path(operacoes, dag, dag_reverso)
 
+    # ── Phase 9: Extract project start date (data_referencia) ─────────
+    all_starts = [op.data_inicio for op in operacoes if op.data_inicio]
+    data_ref = min(all_starts) if all_starts else ""
+    logger.info("MPP: data_referencia = %s (from %d operation start dates)", data_ref, len(all_starts))
+
     return MolditEngineData(
         operacoes=operacoes,
         maquinas=maquinas,
@@ -465,6 +470,7 @@ def parse_mpp(filepath: str) -> MolditEngineData:
         dag=dict(dag),
         dag_reverso=dict(dag_reverso),
         caminho_critico=caminho_critico,
+        data_referencia=data_ref,
     )
 
 

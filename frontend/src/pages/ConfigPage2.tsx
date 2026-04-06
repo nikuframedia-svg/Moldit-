@@ -106,7 +106,7 @@ function MaquinasTab({ config, onSave }: { config: MolditConfig | null; onSave: 
           {machines.map(([id, m]: [string, any]) => (
             <tr key={id}>
               <td style={tdStyle}>{id}</td>
-              <td style={tdStyle}>{m.grupo || "-"}</td>
+              <td style={tdStyle}>{m.group || "-"}</td>
               <td style={tdStyle}>{m.regime_h || 16}</td>
               <td style={tdStyle}>
                 <input defaultValue={m.setup_h ?? 1} type="number" step="0.5"

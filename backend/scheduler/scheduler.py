@@ -89,6 +89,7 @@ def schedule_all(
         moldes=cleaned.moldes,
         caminho_critico=cleaned.caminho_critico,
         config=config,
+        ref_date=cleaned.data_referencia,
     )
 
     # 4. Assign machines

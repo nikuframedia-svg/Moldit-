@@ -219,9 +219,10 @@ async def get_bottlenecks():
 @router.get("/coverage")
 async def get_coverage():
     _require_data()
-    if state.coverage is None:
-        raise HTTPException(503, "Cobertura nao calculada.")
-    return asdict(state.coverage)
+    from backend.analytics.coverage_audit import compute_coverage_audit
+    from dataclasses import asdict as _asdict
+    result = compute_coverage_audit(state.segments, state.engine_data)
+    return _asdict(result)
 
 
 @router.get("/risk")

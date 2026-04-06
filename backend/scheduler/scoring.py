@@ -7,20 +7,56 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
+from datetime import date as _date, timedelta as _td
 
 from backend.config.types import FactoryConfig
 from backend.scheduler.types import SegmentoMoldit
 from backend.types import MolditEngineData
 
 
-def _parse_deadline_to_days(deadline: str) -> int | None:
-    """Parse 'S15' -> ~75 working days (15*5). Returns None if empty."""
-    if not deadline:
+def _deadline_to_working_days(deadline: str, ref_date_str: str) -> int | None:
+    """Convert 'S15' to working days from project start date.
+
+    Uses the project start date (extracted from .mpp) to calculate
+    how many working days (Mon-Fri) exist between project start
+    and the Friday of the deadline week.
+
+    Args:
+        deadline: Week string like "S15", "S22".
+        ref_date_str: Project start date ISO format (e.g. "2026-01-05").
+
+    Returns:
+        Number of working days from project start to deadline, or None.
+    """
+    if not deadline or not ref_date_str:
         return None
     d = deadline.strip().upper()
-    if d.startswith("S") and d[1:].isdigit():
-        return int(d[1:]) * 5
-    return None
+    if not (d.startswith("S") and d[1:].isdigit()):
+        return None
+    week = int(d[1:])
+    try:
+        ref = _date.fromisoformat(ref_date_str)
+    except ValueError:
+        return None
+    # Target: Friday (day 5) of the deadline week.
+    # If target falls before ref_date, try next year.
+    try:
+        target = _date.fromisocalendar(ref.year, week, 5)
+    except ValueError:
+        return None
+    if target < ref:
+        try:
+            target = _date.fromisocalendar(ref.year + 1, week, 5)
+        except ValueError:
+            return None
+    # Count working days (Mon-Fri) between ref and target inclusive
+    working_days = 0
+    current = ref
+    while current <= target:
+        if current.weekday() < 5:
+            working_days += 1
+        current += _td(days=1)
+    return working_days
 
 
 def compute_score(
@@ -63,10 +99,11 @@ def compute_score(
             mold_max_day[s.molde] = s.dia
     makespan_por_molde = dict(mold_max_day)
 
-    # Deadline compliance
+    # Deadline compliance (using project start date from .mpp)
+    ref_date = data.data_referencia
     molde_deadline: dict[str, int | None] = {}
     for m in data.moldes:
-        molde_deadline[m.id] = _parse_deadline_to_days(m.deadline)
+        molde_deadline[m.id] = _deadline_to_working_days(m.deadline, ref_date)
 
     on_time = 0
     total_with_deadline = 0

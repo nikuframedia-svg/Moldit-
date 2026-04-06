@@ -96,7 +96,7 @@ export default function SimuladorPage() {
         </div>
 
         {mutations.map((m, i) => (
-          <Card key={m.key ?? i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
+          <Card key={m._key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: T.primary, minWidth: 140 }}>
               {MUTATION_TYPES.find((mt) => mt.type === m.type)?.label || m.type}
             </span>
@@ -214,10 +214,14 @@ export default function SimuladorPage() {
                 setShowConfirm(false);
                 setStatus("warning", "A aplicar simulacao...");
                 try {
-                  const { recalculate } = await import("../api/endpoints");
-                  await recalculate();
+                  const { simulateApply } = await import("../api/endpoints");
+                  const muts = useSimulatorStore.getState().mutations;
+                  await simulateApply(muts.map(m => ({ type: m.type, params: m.params })));
+                  const { useDataStore } = await import("../stores/useDataStore");
+                  await useDataStore.getState().refreshAll();
                   setStatus("ok", "Simulacao aplicada ao plano real.");
                   setResult(null);
+                  clear();
                 } catch (e: any) {
                   setStatus("error", e.message ?? "Erro ao aplicar.");
                 }
