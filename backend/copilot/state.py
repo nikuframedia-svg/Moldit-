@@ -5,6 +5,7 @@ Singleton holding the current schedule, engine data, config, and rules.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
@@ -21,7 +22,11 @@ _STATE_PATH = "data/copilot_state.json"
 
 @dataclass
 class CopilotState:
-    """Mutable copilot session state."""
+    """Mutable copilot session state.
+
+    Thread-safety: use `async with state.lock:` around write operations
+    when called from concurrent FastAPI endpoints.
+    """
 
     # Core data (populated via load or externally)
     engine_data: object | None = None  # MolditEngineData (avoid circular import)
@@ -189,3 +194,4 @@ class CopilotState:
 
 # Singleton instance
 state = CopilotState()
+state.lock = asyncio.Lock()  # Thread-safety for concurrent FastAPI requests

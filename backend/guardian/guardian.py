@@ -74,7 +74,8 @@ def validate_input(
         if not machines_for_code and op.recurso is None and not op.e_condicional:
             issues.append(GuardianIssue(
                 op.id, "compatibilidade", "drop",
-                f"Sem maquina compativel para codigo {op.codigo!r}",
+                f"Sem maquina compativel para codigo {op.codigo!r}. "
+                f"Verifique se o codigo esta mapeado em factory.yaml ou compatibilidade.",
             ))
             drop_ids.add(op.id)
             continue

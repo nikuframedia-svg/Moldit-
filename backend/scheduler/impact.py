@@ -151,15 +151,17 @@ def compute_timing_window(
             "atual": {"dia": current_dia, "hora": current_hora},
         }
 
-    # Convert absolute hours to (dia, hora) assuming 24h days
+    # Convert absolute hours to (dia, hora) using 16h working day
+    _DAY_H = 16  # working hours per day (matches CNC regime)
+    _DAY_START = 7.0  # day starts at 7:00
     es_h = slack_info.earliest_start_h
     ls_h = slack_info.latest_start_h
 
-    earliest_dia = int(es_h // 24)
-    earliest_hora = round(es_h % 24, 1)
+    earliest_dia = int(es_h // _DAY_H)
+    earliest_hora = round(es_h % _DAY_H + _DAY_START, 1)
 
-    latest_dia = int(ls_h // 24)
-    latest_hora = round(ls_h % 24, 1)
+    latest_dia = int(ls_h // _DAY_H)
+    latest_hora = round(ls_h % _DAY_H + _DAY_START, 1)
 
     return {
         "earliest": {"dia": earliest_dia, "hora": earliest_hora},

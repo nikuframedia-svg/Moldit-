@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 
 from backend.api.console import router as console_router
 from backend.api.data import router as data_router
+from backend.api.data_sim import router as sim_router
+from backend.api.data_exec import router as exec_router
+from backend.api.data_config import router as config_router
 from backend.api.explorer import router as explorer_router
 from backend.api.reports import router as reports_router
 
@@ -58,6 +61,9 @@ app.add_middleware(
 )
 app.include_router(console_router)
 app.include_router(data_router)
+app.include_router(sim_router)
+app.include_router(exec_router)
+app.include_router(config_router)
 app.include_router(explorer_router)
 app.include_router(reports_router)
 if alerts_router:
@@ -147,9 +153,13 @@ async def copilot_chat(request: ChatRequest):
 
 
 @app.post("/api/copilot/load")
-async def load_project(request: LoadRequest):
-    """Load a project plan file and initialize the copilot state."""
-    raise NotImplementedError("Moldit project loading — Phase 2")
+async def load_project(request: LoadRequest):  # noqa: ARG001
+    """Load a project plan file. Use POST /api/data/load with file upload instead."""
+    return {
+        "status": "redirect",
+        "message": "Use POST /api/data/load with file upload (multipart/form-data).",
+        "endpoint": "/api/data/load",
+    }
 
 
 @app.get("/api/copilot/health")

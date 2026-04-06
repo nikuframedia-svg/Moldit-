@@ -110,6 +110,21 @@ class AlertEngine:
             )
         )
 
+        # ── Auto-resolve stale alerts ────────────────────────────────
+        new_keys = {_dedup_key(a) for a in deduped}
+        try:
+            active = self.store.get_alerts(estado="ativo")
+            for old_alert in active:
+                key = _dedup_key(old_alert)
+                if key not in new_keys:
+                    self.store.resolve(
+                        old_alert.id,
+                        note="Auto-resolvido: condicao ja nao se verifica",
+                    )
+                    logger.info("Auto-resolved alert %s (%s)", old_alert.id, old_alert.regra)
+        except Exception:
+            logger.exception("Auto-resolve failed")
+
         # ── Persist ──────────────────────────────────────────────────
         for alert in deduped:
             try:
