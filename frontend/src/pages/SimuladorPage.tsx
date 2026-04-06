@@ -25,10 +25,10 @@ import type { MutationType, SimulateResponse, CTPMolde } from "../api/types";
 const MAIN_MUTATIONS: { type: MutationType; label: string; icon: string }[] = [
   { type: "machine_down", label: "Maquina avariada", icon: "\u26A0" },
   { type: "overtime", label: "Turno extra", icon: "\u23F0" },
-  { type: "deadline_change", label: "Mudar prazo", icon: "\uD83D\uDCC5" },
+  { type: "deadline_change", label: "Mudar prazo", icon: "\u2195" },
   { type: "priority_boost", label: "Subir prioridade", icon: "\u2B06" },
-  { type: "add_holiday", label: "Adicionar feriado", icon: "\uD83C\uDF34" },
-  { type: "remove_holiday", label: "Tirar feriado", icon: "\u2716" },
+  { type: "add_holiday", label: "Adicionar feriado", icon: "+" },
+  { type: "remove_holiday", label: "Tirar feriado", icon: "\u2212" },
   { type: "force_machine", label: "Forcar maquina", icon: "\u21C4" },
   { type: "op_done", label: "Operacao concluida", icon: "\u2714" },
 ];

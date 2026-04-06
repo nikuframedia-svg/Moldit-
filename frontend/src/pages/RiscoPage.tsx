@@ -105,19 +105,17 @@ export default function RiscoPage() {
   const [risk, setRisk] = useState<RiskResult | null>(null);
   const [lateReport, setLateReport] = useState<LateDeliveryReport | null>(null);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getRisk()
-      .then(setRisk)
-      .catch((e) => setStatus("error", e.message ?? "Erro ao carregar risco"));
-
-    getLateDeliveries()
-      .then((data) => setLateReport(data as LateDeliveryReport))
-      .catch(() => setLateReport(null));
-
-    getCoverage()
-      .then((data) => setCoverage(data as CoverageReport))
-      .catch(() => setCoverage(null));
+    setLoading(true);
+    Promise.allSettled([
+      getRisk().then(setRisk),
+      getLateDeliveries().then(setLateReport).catch(() => setLateReport(null)),
+      getCoverage().then(setCoverage).catch(() => setCoverage(null)),
+    ])
+      .catch((e) => setStatus("error", e.message ?? "Erro ao carregar risco"))
+      .finally(() => setLoading(false));
   }, [setStatus, deadlines.length, stress.length]);
 
   const score = risk?.health_score ?? 0;
@@ -128,6 +126,10 @@ export default function RiscoPage() {
 
   // Late delivery analyses
   const analyses: TardyAnalysis[] = lateReport?.analyses ?? [];
+
+  if (loading) {
+    return <div style={{ fontSize: 14, color: T.secondary, padding: 32 }}>A carregar analise de risco...</div>;
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1200 }}>

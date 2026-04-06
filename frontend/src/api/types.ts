@@ -69,10 +69,11 @@ export interface MaquinaStatus {
 export interface DeadlineStatus {
   molde: string;
   deadline: string;
-  conclusao_prevista: number;
+  conclusao_prevista: string;
   dias_atraso: number;
   operacoes_pendentes: number;
   on_time: boolean;
+  progresso: number;
 }
 
 export interface MolditConfig {
@@ -114,7 +115,6 @@ export interface DeltaReport {
   setups_after: number;
   balance_before: number;
   balance_after: number;
-  summary: string;
 }
 
 export interface SimulateResponse {
@@ -391,6 +391,36 @@ export interface AnomalyResult {
   desvio_pct: number;
   acao_sugerida: string;
   timestamp: string;
+}
+
+export interface PatternAlert {
+  maquina_id: string;
+  tipo: string;
+  descricao: string;
+  n_ocorrencias: number;
+  acao_sugerida: string;
+}
+
+export type AnomalyOrPattern = AnomalyResult | PatternAlert;
+
+// ── Analytics: Proposals ────────────────────────────────────────
+
+export interface Proposal {
+  id: string;
+  type: string;
+  description: string;
+  estimated_impact: string;
+  affected_ops: number[];
+  machine_from: string | null;
+  machine_to: string | null;
+  priority: number;
+}
+
+export interface ProposalsResponse {
+  proposals: Proposal[];
+  current_makespan: number;
+  current_setups: number;
+  summary: string;
 }
 
 export interface MLModelStatus {

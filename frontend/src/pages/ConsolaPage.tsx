@@ -24,7 +24,7 @@ import { Divider } from "../components/ui/Divider";
 import { Num } from "../components/ui/Num";
 import { Label } from "../components/ui/Label";
 import { ExplainBox } from "../components/ExplainBox";
-import type { MolditAlert, AnomalyResult } from "../api/types";
+import type { MolditAlert, Proposal, AnomalyOrPattern } from "../api/types";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -53,16 +53,6 @@ const COLOR_MAP: Record<string, string> = {
   blue: T.blue,
 };
 
-// ── Proposal type ────────────────────────────────────────────────
-
-interface Proposal {
-  id: string;
-  type: string;
-  description: string;
-  estimated_impact: string;
-  priority: number;
-}
-
 // ── Component ───────────────────────────────────────────────────
 
 export default function ConsolaPage() {
@@ -81,11 +71,13 @@ export default function ConsolaPage() {
   const [alertas, setAlertas] = useState<MolditAlert[]>([]);
   const [alertasLoading, setAlertasLoading] = useState(true);
 
-  // Anomalies
-  const [anomalias, setAnomalias] = useState<AnomalyResult[]>([]);
+  // Anomalies (can be AnomalyResult or PatternAlert)
+  const [anomalias, setAnomalias] = useState<AnomalyOrPattern[]>([]);
+  const [anomaliasLoading, setAnomaliasLoading] = useState(true);
 
   // Proposals
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [proposalsLoading, setProposalsLoading] = useState(true);
 
   // ── Fetch banner + alertas + anomalias + proposals ──────────
 
@@ -113,21 +105,24 @@ export default function ConsolaPage() {
       .finally(() => setAlertasLoading(false));
 
     // Anomalias (array can contain AnomalyResult + PatternAlert objects)
+    setAnomaliasLoading(true);
     getAnomalies()
       .then((data) => {
         const all = Array.isArray(data) ? data : [];
-        // Filter: AnomalyResult has desvio_pct, PatternAlert has n_ocorrencias
         const significant = all.filter(
           (a: any) => (a.desvio_pct != null && Math.abs(a.desvio_pct) > 30) || a.n_ocorrencias != null,
         );
         setAnomalias(significant);
       })
-      .catch(() => setAnomalias([]));
+      .catch(() => setAnomalias([]))
+      .finally(() => setAnomaliasLoading(false));
 
     // Proposals
+    setProposalsLoading(true);
     getProposals()
       .then((data) => setProposals(data.proposals ?? []))
-      .catch(() => setProposals([]));
+      .catch(() => setProposals([]))
+      .finally(() => setProposalsLoading(false));
   }, [moldes.length, deadlines.length]);
 
   // ── Alert actions ───────────────────────────────────────────
@@ -468,7 +463,10 @@ export default function ConsolaPage() {
           ))}
 
           {/* ── Anomalias ML ── */}
-          {anomalias.length > 0 && (
+          {anomaliasLoading && (
+            <div style={{ marginTop: 16, fontSize: 12, color: T.tertiary }}>A verificar padroes...</div>
+          )}
+          {!anomaliasLoading && anomalias.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <Label style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
                 Padroes estranhos detectados ({anomalias.length})
@@ -490,7 +488,10 @@ export default function ConsolaPage() {
           )}
 
           {/* ── Propostas de re-planeamento ── */}
-          {proposals.length > 0 && (
+          {proposalsLoading && (
+            <div style={{ marginTop: 16, fontSize: 12, color: T.tertiary }}>A verificar sugestoes...</div>
+          )}
+          {!proposalsLoading && proposals.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <Label style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
                 O sistema sugere

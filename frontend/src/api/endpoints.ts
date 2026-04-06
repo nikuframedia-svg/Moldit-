@@ -41,6 +41,7 @@ import type {
   MutationMoldit,
   Operacao,
   Operador,
+  ProposalsResponse,
   OpOptions,
   RankingMatrix,
   RevertResponse,
@@ -74,7 +75,7 @@ export const getTimeline = () => get<TimelineData>("/api/data/timeline");
 export const getBottlenecks = () => get<BottlenecksData>("/api/data/bottlenecks");
 export const getCoverage = () => get<CoverageReport>("/api/data/coverage");
 export const getLateDeliveries = () => get<LateDeliveryReport>("/api/data/late");
-export const getProposals = () => get<{ proposals: Array<{ id: string; type: string; description: string; estimated_impact: string; priority: number }>; current_makespan: number; current_setups: number; summary: string }>("/api/data/proposals");
+export const getProposals = () => get<ProposalsResponse>("/api/data/proposals");
 export const getRules = () => get<Record<string, unknown>[]>("/api/data/rules");
 export const getLearning = () => get<Record<string, unknown> | null>("/api/data/learning");
 export const getMoldeDetail = (moldeId: string) =>

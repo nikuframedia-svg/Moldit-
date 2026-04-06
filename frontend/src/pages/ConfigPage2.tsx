@@ -15,6 +15,7 @@ import {
 import type { MolditConfig, JournalEntry, EvolutionPoint } from "../api/types";
 import { Card } from "../components/ui/Card";
 import { Pill } from "../components/ui/Pill";
+import { Modal } from "../components/ui/Modal";
 import { ExplainBox } from "../components/ExplainBox";
 import { useAppStore } from "../stores/useAppStore";
 import { useDataStore } from "../stores/useDataStore";
@@ -181,12 +182,19 @@ function OperadoresTab() {
   const [formNome, setFormNome] = useState("");
   const [formTurno, setFormTurno] = useState("manha");
   const [formZona, setFormZona] = useState("CNC");
+  const [confirmRemove, setConfirmRemove] = useState<{ id: string; nome: string } | null>(null);
   const setStatus = useAppStore((s) => s.setStatus);
   useEffect(() => { getOperadores().then(setOps).catch((e: any) => setStatus("error", e.message ?? "Erro ao carregar operadores")); }, []);
   const handleAdd = async () => {
     if (!formNome) return;
     await addOperador({ nome: formNome, turno: formTurno, zona: formZona, competencias: [formZona], disponivel: true });
     setFormNome("");
+    getOperadores().then(setOps);
+  };
+  const handleRemove = async () => {
+    if (!confirmRemove) return;
+    await deleteOperador(confirmRemove.id);
+    setConfirmRemove(null);
     getOperadores().then(setOps);
   };
   return (
@@ -212,29 +220,66 @@ function OperadoresTab() {
           <tbody>{ops.map((o: any) => (
             <tr key={o.id}><td style={tdStyle}>{o.nome}</td><td style={tdStyle}>{o.turno}</td><td style={tdStyle}>{o.zona}</td>
               <td style={tdStyle}>{(o.competencias || []).join(", ")}</td>
-              <td style={tdStyle}><button onClick={() => { if (confirm(`Remover ${o.nome}?`)) deleteOperador(o.id).then(() => getOperadores().then(setOps)); }}
+              <td style={tdStyle}><button onClick={() => setConfirmRemove({ id: o.id, nome: o.nome })}
                 style={{ background: "transparent", border: "none", color: T.red, cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Remover</button></td></tr>
           ))}</tbody>
         </table>
       </Card>
+      {confirmRemove && (
+        <Modal title="Confirmar remocao" onClose={() => setConfirmRemove(null)}>
+          <p style={{ fontSize: 13, color: T.secondary, marginBottom: 16 }}>
+            Tem a certeza que quer remover {confirmRemove.nome}?
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleRemove}
+              style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: T.red, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Sim, remover
+            </button>
+            <button onClick={() => setConfirmRemove(null)}
+              style={{ padding: "8px 18px", borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", color: T.secondary, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              Cancelar
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
 /* ── Presets ──────────────────────────────────────── */
 function PresetsTab({ onApply }: { onApply: (name: string) => void }) {
+  const [confirmPreset, setConfirmPreset] = useState<{ id: string; label: string } | null>(null);
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
-      {PRESETS.map((p) => (
-        <Card key={p.id}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: T.primary, marginBottom: 4 }}>{p.label}</div>
-          <div style={{ fontSize: 13, color: T.secondary, marginBottom: 12, lineHeight: 1.5 }}>{p.desc}</div>
-          <button onClick={() => { if (confirm(`Aplicar preset '${p.label}'?`)) onApply(p.id); }}
-            style={{ padding: "6px 16px", borderRadius: 6, border: "none", background: p.color, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-            Aplicar</button>
-        </Card>
-      ))}
-    </div>
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+        {PRESETS.map((p) => (
+          <Card key={p.id}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.primary, marginBottom: 4 }}>{p.label}</div>
+            <div style={{ fontSize: 13, color: T.secondary, marginBottom: 12, lineHeight: 1.5 }}>{p.desc}</div>
+            <button onClick={() => setConfirmPreset({ id: p.id, label: p.label })}
+              style={{ padding: "6px 16px", borderRadius: 6, border: "none", background: p.color, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Aplicar</button>
+          </Card>
+        ))}
+      </div>
+      {confirmPreset && (
+        <Modal title="Confirmar preset" onClose={() => setConfirmPreset(null)}>
+          <p style={{ fontSize: 13, color: T.secondary, marginBottom: 16 }}>
+            Aplicar o preset &ldquo;{confirmPreset.label}&rdquo;? O plano vai ser recalculado.
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { onApply(confirmPreset.id); setConfirmPreset(null); }}
+              style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: T.blue, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Sim, aplicar
+            </button>
+            <button onClick={() => setConfirmPreset(null)}
+              style={{ padding: "8px 18px", borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", color: T.secondary, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              Cancelar
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 
