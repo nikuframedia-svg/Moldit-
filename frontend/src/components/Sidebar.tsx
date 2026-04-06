@@ -14,6 +14,7 @@ const NAV = [
   { id: "producao", label: "Producao", sub: "Gantt global", key: "F2" },
   { id: "moldes", label: "Moldes", sub: "Explorador de molde", key: "F3" },
   { id: "risco", label: "Risco", sub: "O que pode correr mal", key: "F4" },
+  { id: "alertas", label: "Alertas", sub: "Problemas activos", key: "" },
   { id: "simulador", label: "Simulador", sub: "E se...?", key: "F5" },
   { id: "equipa", label: "Equipa", sub: "Quem faz o que", key: "F6" },
   { id: "config", label: "Config", sub: "Parametros", key: "F7" },
@@ -26,6 +27,7 @@ export function Sidebar() {
   const hasData = useAppStore((s) => s.hasData);
   const deadlines = useDataStore((s) => s.deadlines);
   const [trustScore, setTrustScore] = useState<number | null>(null);
+  const [alertCriticoCount, setAlertCriticoCount] = useState(0);
 
   // Fetch trust index
   useEffect(() => {
@@ -33,6 +35,15 @@ export function Sidebar() {
     fetch("/api/data/trust")
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d?.score != null) setTrustScore(d.score); })
+      .catch(() => {});
+  }, [hasData]);
+
+  // Fetch alert stats for badge
+  useEffect(() => {
+    if (!hasData) return;
+    fetch("/api/alerts/stats")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.por_severidade?.critico != null) setAlertCriticoCount(d.por_severidade.critico); })
       .catch(() => {});
   }, [hasData]);
 
@@ -54,6 +65,7 @@ export function Sidebar() {
   const badges: Record<string, { count: number; color: string }> = {};
   if (lateCount > 0) badges.producao = { count: lateCount, color: T.orange };
   if (lateCount > 0) badges.risco = { count: lateCount, color: T.red };
+  if (alertCriticoCount > 0) badges.alertas = { count: alertCriticoCount, color: T.red };
 
   return (
     <nav

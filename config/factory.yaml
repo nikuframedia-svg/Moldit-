@@ -97,14 +97,17 @@ bancada_dedicacao:
 
 electrodos_default_h: 4.0
 
+# Feriados nacionais PT — actualizar ano conforme necessario.
+# Feriados moveis (Carnaval, Pascoa, Corpo de Deus) mudam de ano para ano.
+holidays_year: 2026
 holidays:
   - "2026-01-01"  # Ano Novo
-  - "2026-02-17"  # Carnaval
-  - "2026-04-03"  # Sexta-feira Santa
-  - "2026-04-05"  # Pascoa
+  - "2026-02-17"  # Carnaval (movel)
+  - "2026-04-03"  # Sexta-feira Santa (movel)
+  - "2026-04-05"  # Pascoa (movel)
   - "2026-04-25"  # Dia da Liberdade
   - "2026-05-01"  # Dia do Trabalhador
-  - "2026-06-04"  # Corpo de Deus
+  - "2026-06-04"  # Corpo de Deus (movel)
   - "2026-06-10"  # Dia de Portugal
   - "2026-08-15"  # Assuncao
   - "2026-10-05"  # Implantacao da Republica

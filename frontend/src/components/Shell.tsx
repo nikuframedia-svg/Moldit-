@@ -21,6 +21,7 @@ const SimuladorPage = lazy(() => import("../pages/SimuladorPage"));
 const EquipaPage = lazy(() => import("../pages/EquipaPage"));
 const ConfigPage2 = lazy(() => import("../pages/ConfigPage2"));
 const RegrasPage = lazy(() => import("../pages/RegrasPage"));
+const AlertasPage = lazy(() => import("../pages/AlertasPage"));
 
 function PageContent() {
   const page = useAppStore((s) => s.activePage);
@@ -32,6 +33,7 @@ function PageContent() {
           case "producao": return <ProducaoPage />;
           case "moldes": return <MoldesPage />;
           case "risco": return <RiscoPage />;
+          case "alertas": return <AlertasPage />;
           case "simulador": return <SimuladorPage />;
           case "equipa": return <EquipaPage />;
           case "config": return <ConfigPage2 />;

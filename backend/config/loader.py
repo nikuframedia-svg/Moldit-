@@ -102,6 +102,18 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> FactoryConfig:
     holidays_raw = raw.get("holidays", [])
     if holidays_raw:
         config.holidays = holidays_raw
+    # Warn if holidays year doesn't match current year
+    holidays_year = raw.get("holidays_year")
+    if holidays_year:
+        import datetime
+        current_year = datetime.date.today().year
+        if int(holidays_year) != current_year:
+            import logging
+            logging.getLogger(__name__).warning(
+                "factory.yaml holidays_year=%s mas ano actual=%s. "
+                "Feriados moveis (Carnaval, Pascoa, Corpo de Deus) podem estar errados.",
+                holidays_year, current_year,
+            )
 
     # Scoring
     scoring = raw.get("scoring", {})
