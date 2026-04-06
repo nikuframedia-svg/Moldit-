@@ -10,7 +10,7 @@ interface SimulatorState {
   setMutations: (m: (MutationMoldit & { _key: number })[]) => void;
   setResult: (r: SimulateResponse | null) => void;
   setCtpResult: (r: CTPMolde | null) => void;
-  addMutation: () => void;
+  addMutation: () => number;
   removeMutation: (key: number) => void;
   updateMutationType: (key: number, type: MutationType) => void;
   updateMutationParam: (key: number, paramKey: string, value: string) => void;
@@ -33,6 +33,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
       mutations: [...mutations, { type: "machine_down" as MutationType, params: {}, _key: nextKey }],
       nextKey: nextKey + 1,
     });
+    return nextKey;
   },
 
   removeMutation: (key) => set((s) => ({

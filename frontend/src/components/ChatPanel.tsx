@@ -36,7 +36,10 @@ export function ChatPanel() {
     setLoading(true);
 
     try {
-      const res = await chatCopilot(updated.map((m) => ({ role: m.role, content: m.content })));
+      const page = useAppStore.getState().activePage;
+      const ctx = useAppStore.getState().pageContext;
+      const contextMsg = { role: "system" as const, content: `Pagina: ${page}. Contexto: ${JSON.stringify(ctx)}` };
+      const res = await chatCopilot([contextMsg, ...updated.map((m) => ({ role: m.role, content: m.content }))]);
       setMessages((prev) => [...prev, {
         role: "assistant" as const,
         content: res.response,

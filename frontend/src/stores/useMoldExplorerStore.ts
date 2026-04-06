@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { getExplorerData, getOpOptions, applyOpChange } from "../api/endpoints";
+import { useDataStore } from "./useDataStore";
 import type { MoldExplorerData, OpOptions, MachineOption } from "../api/types";
 
 interface MoldExplorerState {
@@ -62,6 +63,8 @@ export const useMoldExplorerStore = create<MoldExplorerState>((set) => ({
     try {
       const data = await applyOpChange(opId, { target_machine: targetMachine });
       set({ explorerData: data, loadingExplorer: false, selectedOpId: null, opcoes: null, hoveredOption: null });
+      // Sync global data after local change
+      useDataStore.getState().refreshAll();
     } catch (e: unknown) {
       set({ error: e instanceof Error ? e.message : String(e), loadingExplorer: false });
     }

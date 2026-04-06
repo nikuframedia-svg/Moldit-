@@ -46,16 +46,17 @@ export default function ConsolaPage() {
   const stress = useDataStore((s) => s.stress);
   const segmentos = useDataStore((s) => s.segmentos);
   const config = useDataStore((s) => s.config);
-  const setPage = useAppStore((s) => s.setPage);
+  const navigateTo = useAppStore((s) => s.navigateTo);
   const setStatus = useAppStore((s) => s.setStatus);
 
   const [consoleData, setConsoleData] = useState<ConsoleData | null>(null);
+  const [dayIdx] = useState(0);
 
   useEffect(() => {
-    getConsole(0)
+    getConsole(dayIdx)
       .then(setConsoleData)
       .catch((e) => setStatus("error", e.message ?? "Erro ao carregar consola"));
-  }, [setStatus]);
+  }, [dayIdx, setStatus, moldes.length, deadlines.length]);
 
   // ── Merge moldes + deadlines ────────────────────────────────
 
@@ -210,7 +211,7 @@ export default function ConsolaPage() {
               return (
                 <tr
                   key={row.molde.id}
-                  onClick={() => setPage("moldes")}
+                  onClick={() => navigateTo("moldes", { moldeId: row.molde.id })}
                   style={{ cursor: "pointer", transition: "background 0.15s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = T.hover)}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -254,7 +255,7 @@ export default function ConsolaPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setPage("simulador");
+                        navigateTo("simulador", { moldeId: row.molde.id });
                       }}
                       style={{
                         padding: "5px 12px",
@@ -346,7 +347,7 @@ export default function ConsolaPage() {
               return (
                 <div
                   key={m.maquina_id}
-                  onClick={() => setPage("producao")}
+                  onClick={() => navigateTo("producao", { machineId: m.maquina_id })}
                   style={{
                     display: "flex",
                     alignItems: "center",

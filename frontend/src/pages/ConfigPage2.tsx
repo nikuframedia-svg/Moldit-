@@ -16,6 +16,7 @@ import type { MolditConfig, Operacao, JournalEntry, EvolutionPoint } from "../ap
 import { Card } from "../components/ui/Card";
 import { Pill } from "../components/ui/Pill";
 import { ExplainBox } from "../components/ExplainBox";
+import { useAppStore } from "../stores/useAppStore";
 import { useDataStore } from "../stores/useDataStore";
 import LineChart from "../components/ml/LineChart";
 
@@ -55,7 +56,7 @@ export default function ConfigPage2() {
   const [msg, setMsg] = useState("");
   const refreshAll = useDataStore((s) => s.refreshAll);
 
-  useEffect(() => { getConfig().then(setConfig).catch(() => {}); }, []);
+  useEffect(() => { getConfig().then(setConfig).catch((e: any) => setMsg(e.message ?? "Erro ao carregar configuracao")); }, []);
 
   const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 3000); };
   const reloadConfig = () => { getConfig().then(setConfig); refreshAll(); };
@@ -178,7 +179,8 @@ function OperadoresTab() {
   const [formNome, setFormNome] = useState("");
   const [formTurno, setFormTurno] = useState("manha");
   const [formZona, setFormZona] = useState("CNC");
-  useEffect(() => { getOperadores().then(setOps).catch(() => {}); }, []);
+  const setStatus = useAppStore((s) => s.setStatus);
+  useEffect(() => { getOperadores().then(setOps).catch((e: any) => setStatus("error", e.message ?? "Erro ao carregar operadores")); }, []);
   const handleAdd = async () => {
     if (!formNome) return;
     await addOperador({ nome: formNome, turno: formTurno, zona: formZona, competencias: [formZona], disponivel: true });
@@ -278,11 +280,12 @@ function AprendizagemTab() {
   const [evolution, setEvolution] = useState<EvolutionPoint[]>([]);
   const [training, setTraining] = useState(false);
   const [trainMsg, setTrainMsg] = useState("");
+  const setStatus = useAppStore((s) => s.setStatus);
 
   useEffect(() => {
-    getMLStatus().then(setMlStatus).catch(() => {});
-    getCalibration().then(setCalibration).catch(() => {});
-    getMLEvolution().then(setEvolution).catch(() => {});
+    getMLStatus().then(setMlStatus).catch((e: any) => setStatus("error", e.message ?? "Erro ao carregar estado ML"));
+    getCalibration().then(setCalibration).catch((e: any) => setStatus("error", e.message ?? "Erro ao carregar calibracao"));
+    getMLEvolution().then(setEvolution).catch((e: any) => setStatus("error", e.message ?? "Erro ao carregar evolucao ML"));
   }, []);
 
   const handleTrain = async () => {
@@ -372,7 +375,8 @@ function AprendizagemTab() {
 /* ── Journal ──────────────────────────────────────── */
 function JournalTab() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
-  useEffect(() => { getJournal().then(setEntries).catch(() => {}); }, []);
+  const setStatus = useAppStore((s) => s.setStatus);
+  useEffect(() => { getJournal().then(setEntries).catch((e: any) => setStatus("error", e.message ?? "Erro ao carregar historico")); }, []);
   if (entries.length === 0) return <ExplainBox headline="Sem registos de actividade." color="blue" />;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

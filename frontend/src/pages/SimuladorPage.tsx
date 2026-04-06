@@ -6,12 +6,12 @@
  * 4. CTP section (bottom)
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { T } from "../theme/tokens";
 import { useSimulatorStore } from "../stores/useSimulatorStore";
 import { useDataStore } from "../stores/useDataStore";
 import { useAppStore } from "../stores/useAppStore";
-import { simulate, checkCTP, simulateApply } from "../api/endpoints";
+import { simulate, checkCTP, simulateApply, canRevert, revertSimulation } from "../api/endpoints";
 import { Card } from "../components/ui/Card";
 import { Num } from "../components/ui/Num";
 import { Pill } from "../components/ui/Pill";
@@ -44,6 +44,7 @@ export default function SimuladorPage() {
   const moldes = useDataStore((s) => s.moldes);
   const stress = useDataStore((s) => s.stress);
   const setStatus = useAppStore((s) => s.setStatus);
+  const pageContext = useAppStore((s) => s.pageContext);
 
   const [selectedType, setSelectedType] = useState<MutationType>("machine_down");
   const [selectedMachine, setSelectedMachine] = useState("");
@@ -52,11 +53,25 @@ export default function SimuladorPage() {
   const [simulating, setSimulating] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // Revert state
+  const [canRev, setCanRev] = useState(false);
+
   // CTP state
   const [ctpMolde, setCtpMolde] = useState("");
+
+  // Apply pageContext (navigate from other pages)
+  useEffect(() => {
+    if (pageContext?.moldeId) setCtpMolde(pageContext.moldeId);
+    if (pageContext?.mutationType) setSelectedType(pageContext.mutationType as MutationType);
+  }, [pageContext]);
   const [ctpWeek, setCtpWeek] = useState("");
   const [ctpResult, setCtpResult] = useState<CTPMolde | null>(null);
   const [ctpLoading, setCtpLoading] = useState(false);
+
+  // Check revert availability
+  useEffect(() => {
+    canRevert().then((r) => setCanRev(r.can_revert)).catch(() => setCanRev(false));
+  }, [result]);
 
   /* ── Handlers ───────────────────────────────────────────── */
 
@@ -337,6 +352,35 @@ export default function SimuladorPage() {
             >
               Descartar
             </button>
+            {canRev && (
+              <button
+                onClick={async () => {
+                  setStatus("warning", "A reverter...");
+                  try {
+                    await revertSimulation();
+                    await useDataStore.getState().refreshAll();
+                    setCanRev(false);
+                    setStatus("ok", "Plano revertido.");
+                  } catch (e: unknown) {
+                    const msg = e instanceof Error ? e.message : "Erro ao reverter";
+                    setStatus("error", msg);
+                  }
+                }}
+                style={{
+                  padding: "12px 28px",
+                  borderRadius: 10,
+                  border: `1px solid ${T.orange}`,
+                  background: "transparent",
+                  color: T.orange,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Desfazer ultima aplicacao
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -440,14 +484,32 @@ export default function SimuladorPage() {
                   <RecoveryOption
                     text="Activar regime de pico (16h/24h) nas maquinas criticas"
                     impact={`Pode recuperar ~${Math.min(ctpResult.dias_extra, 5)} dias`}
+                    onClick={() => {
+                      const key = addMutation();
+                      updateMutationType(key, "overtime");
+                      setSelectedType("overtime");
+                      setStatus("ok", "Mutacao 'turno extra' adicionada. Configure e simule.");
+                    }}
                   />
                   <RecoveryOption
                     text="Redistribuir carga para maquinas alternativas"
                     impact="Reduz bottleneck e paraleliza trabalho"
+                    onClick={() => {
+                      const key = addMutation();
+                      updateMutationType(key, "force_machine");
+                      setSelectedType("force_machine");
+                      setStatus("ok", "Mutacao 'mover operacao' adicionada. Configure e simule.");
+                    }}
                   />
                   <RecoveryOption
                     text="Repriorizar: adiar moldes menos urgentes"
                     impact="Liberta capacidade para este molde"
+                    onClick={() => {
+                      const key = addMutation();
+                      updateMutationType(key, "priority_boost");
+                      setSelectedType("priority_boost");
+                      setStatus("ok", "Mutacao 'mudar prioridade' adicionada. Configure e simule.");
+                    }}
                   />
                 </div>
               </Card>
@@ -518,9 +580,12 @@ function buildParams(type: MutationType, machine: string, days: number): Record<
   }
 }
 
-function RecoveryOption({ text, impact }: { text: string; impact: string }) {
+function RecoveryOption({ text, impact, onClick }: { text: string; impact: string; onClick?: () => void }) {
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+    <div
+      style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: onClick ? "pointer" : "default" }}
+      onClick={onClick}
+    >
       <span style={{ color: T.orange, fontSize: 14, flexShrink: 0, lineHeight: 1.4 }}>{"\u25B8"}</span>
       <div>
         <div style={{ fontSize: 12, color: T.primary, lineHeight: 1.4 }}>{text}</div>

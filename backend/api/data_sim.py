@@ -74,9 +74,10 @@ async def simulate_and_apply(request: SimulateRequest):
     state.save_current()
 
     mutations = [Mutation(type=m.type, params=m.params) for m in request.mutations]
-    result = simulate(state.engine_data, old_score, mutations, config=state.config)
 
-    state.update_schedule(result)
+    async with state.lock:
+        result = simulate(state.engine_data, old_score, mutations, config=state.config)
+        state.update_schedule(result)
 
     return {
         "status": "applied",

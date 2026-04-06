@@ -4,7 +4,7 @@
  * TODO: Expandir com drag-and-drop, tabela alternativa, navegador, relatorios.
  */
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { T, moldeColor } from "../theme/tokens";
 import { useDataStore } from "../stores/useDataStore";
 import { useAppStore } from "../stores/useAppStore";
@@ -15,9 +15,14 @@ export default function ProducaoPage() {
   const segmentos = useDataStore((s) => s.segmentos);
   const stress = useDataStore((s) => s.stress);
   const score = useDataStore((s) => s.score);
-  const setPage = useAppStore((s) => s.setPage);
+  const navigateTo = useAppStore((s) => s.navigateTo);
+  const pageContext = useAppStore((s) => s.pageContext);
   const [view, setView] = useState<"gantt" | "tabela">("gantt");
   const [filter, setFilter] = useState("");
+
+  useEffect(() => {
+    if (pageContext?.machineId) setFilter(pageContext.machineId);
+  }, [pageContext?.machineId]);
 
   // Group segments by machine
   const byMachine = new Map<string, typeof segmentos>();
@@ -89,7 +94,7 @@ export default function ProducaoPage() {
                     {segs.map((seg, i) => (
                       <div
                         key={i}
-                        onClick={() => setPage("moldes")}
+                        onClick={() => navigateTo("moldes", { moldeId: seg.molde })}
                         title={`${seg.molde} | Op ${seg.op_id} | ${seg.duracao_h}h`}
                         style={{
                           position: "absolute",
@@ -134,7 +139,7 @@ export default function ProducaoPage() {
               </thead>
               <tbody>
                 {segmentos.filter((s) => !filter || s.maquina_id.includes(filter) || s.molde.includes(filter)).map((seg, i) => (
-                  <tr key={i} onClick={() => setPage("moldes")} style={{ cursor: "pointer" }}>
+                  <tr key={i} onClick={() => navigateTo("moldes", { moldeId: seg.molde })} style={{ cursor: "pointer" }}>
                     <td style={{ padding: "6px 10px", fontSize: 12, fontFamily: T.mono, borderBottom: `1px solid ${T.border}20` }}>{seg.op_id}</td>
                     <td style={{ padding: "6px 10px", fontSize: 12, borderBottom: `1px solid ${T.border}20` }}>
                       <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: moldeColor(seg.molde), marginRight: 6 }} />

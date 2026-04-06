@@ -15,6 +15,7 @@ import {
   autoAllocate,
 } from "../api/endpoints";
 import { useAppStore } from "../stores/useAppStore";
+import { useDataStore } from "../stores/useDataStore";
 import type { Operador, WorkforceConflict, ForecastEntry } from "../api/types";
 
 type DaySel = "hoje" | "amanha" | "semana";
@@ -78,6 +79,7 @@ export default function EquipaPage() {
       setStatus("ok", `Distribuicao concluida. ${count} alocacoes.`);
       const newConflicts = await getWorkforceConflicts(dayIdx);
       setConflicts(newConflicts);
+      useDataStore.getState().refreshAll();
     } catch (e: any) {
       setAllocMsg("Erro na distribuicao automatica.");
       setStatus("error", e.message ?? "Erro na distribuicao automatica.");

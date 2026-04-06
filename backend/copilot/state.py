@@ -111,6 +111,8 @@ class CopilotState:
             ("late_deliveries", lambda: analyze_late_deliveries(
                 self.segments, self.engine_data, self.config,
             )),
+            ("stress_map", lambda: self._compute_stress()),
+            ("trust_index", lambda: self._compute_trust()),
         ]
 
         for name, fn in analytics:
@@ -118,6 +120,27 @@ class CopilotState:
                 setattr(self, name, fn())
             except Exception:
                 logger.exception("Failed to compute %s", name)
+
+        # Auto-evaluate alerts
+        try:
+            from backend.alerts.engine import AlertEngine
+            engine = AlertEngine()
+            alerts = engine.evaluate(self.segments, self.engine_data, self.config)
+            self.operator_alerts = alerts
+        except Exception:
+            logger.exception("Failed to auto-evaluate alerts")
+
+    def _compute_stress(self):
+        from backend.scheduler.stress import compute_stress
+        machines = {m.id: m for m in self.engine_data.maquinas}
+        return compute_stress(self.segments, machines, self.config)
+
+    def _compute_trust(self):
+        try:
+            from backend.dqa import compute_trust_index
+            return compute_trust_index(self.engine_data, self.segments)
+        except Exception:
+            return None
 
     def _save_snapshot(self) -> None:
         """Persist current schedule to JSON for restart survival (P4)."""

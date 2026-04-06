@@ -94,7 +94,7 @@ export default function RiscoPage() {
   const stress = useDataStore((s) => s.stress);
   const deadlines = useDataStore((s) => s.deadlines);
   const moldes = useDataStore((s) => s.moldes);
-  const setPage = useAppStore((s) => s.setPage);
+  const navigateTo = useAppStore((s) => s.navigateTo);
   const setStatus = useAppStore((s) => s.setStatus);
   const [risk, setRisk] = useState<RiskResult | null>(null);
 
@@ -102,7 +102,7 @@ export default function RiscoPage() {
     getRisk()
       .then(setRisk)
       .catch((e) => setStatus("error", e.message ?? "Erro ao carregar risco"));
-  }, [setStatus]);
+  }, [setStatus, deadlines.length, stress.length]);
 
   const score = risk?.health_score ?? 0;
   const lateCount = deadlines.filter((d) => !d.on_time).length;
@@ -254,7 +254,7 @@ export default function RiscoPage() {
             return (
               <div
                 key={d.molde}
-                onClick={() => setPage("moldes")}
+                onClick={() => navigateTo("moldes", { moldeId: d.molde })}
                 style={{
                   display: "grid",
                   gridTemplateColumns: "24px 1fr 1fr 80px 100px 80px",
@@ -314,7 +314,7 @@ export default function RiscoPage() {
               color="blue"
               action={{
                 label: "Simular",
-                onClick: () => setPage("simulador"),
+                onClick: () => navigateTo("simulador", { mutationType: "machine_down" }),
               }}
             />
           ))}

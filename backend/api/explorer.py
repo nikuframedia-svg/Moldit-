@@ -286,8 +286,9 @@ async def apply_change(op_id: int, request: ApplyRequest):
     # Re-schedule
     from backend.scheduler.scheduler import schedule_all
 
-    result = schedule_all(data, audit=True, config=state.config)
-    state.update_schedule(result)
+    async with state.lock:
+        result = schedule_all(data, audit=True, config=state.config)
+        state.update_schedule(result)
 
     # Return new explorer data
     return await get_explorer_data(op.molde)
@@ -346,8 +347,9 @@ async def complete_operation(op_id: int, request: CompleteOpRequest):
     # Re-schedule
     from backend.scheduler.scheduler import schedule_all
 
-    result = schedule_all(data, audit=True, config=state.config)
-    state.update_schedule(result)
+    async with state.lock:
+        result = schedule_all(data, audit=True, config=state.config)
+        state.update_schedule(result)
 
     return {
         "status": "ok",

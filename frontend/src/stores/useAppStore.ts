@@ -2,8 +2,15 @@ import { create } from "zustand";
 
 export type StatusLevel = "idle" | "ok" | "warning" | "error";
 
+interface PageContext {
+  moldeId?: string;
+  machineId?: string;
+  mutationType?: string;
+}
+
 interface AppState {
   activePage: string;
+  pageContext: PageContext | null;
   chatOpen: boolean;
   hasData: boolean;
   isUploading: boolean;
@@ -14,6 +21,7 @@ interface AppState {
   statusTime: string;
 
   setPage: (page: string) => void;
+  navigateTo: (page: string, context?: PageContext) => void;
   toggleChat: () => void;
   setHasData: (v: boolean) => void;
   setUploading: (v: boolean) => void;
@@ -26,6 +34,7 @@ function now() {
 
 export const useAppStore = create<AppState>((set) => ({
   activePage: "consola",
+  pageContext: null,
   chatOpen: false,
   hasData: false,
   isUploading: false,
@@ -34,6 +43,7 @@ export const useAppStore = create<AppState>((set) => ({
   statusTime: "",
 
   setPage: (page) => set({ activePage: page }),
+  navigateTo: (page, context) => set({ activePage: page, pageContext: context ?? null }),
   toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
   setHasData: (v) => set({ hasData: v }),
   setUploading: (v) => set({ isUploading: v }),

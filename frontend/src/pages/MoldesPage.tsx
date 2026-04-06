@@ -14,14 +14,16 @@ import { ExplainBox } from "../components/ExplainBox";
 import { MoldGantt } from "../components/mold-explorer/MoldGantt";
 import { OpTable } from "../components/mold-explorer/OpTable";
 import { OptionsPanel } from "../components/mold-explorer/OptionsPanel";
-import { getAnalogues, predictBulk } from "../api/endpoints";
+import { getAnalogues, predictBulk, feedbackAnalogy } from "../api/endpoints";
 import type { DurationPrediction, AnalogoResult } from "../api/types";
 
 export default function MoldesPage() {
   const moldes = useDataStore((s) => s.moldes);
   const deadlines = useDataStore((s) => s.deadlines);
   const { selectedMoldeId, explorerData, selectMolde, selectedOpId, loadingExplorer } = useMoldExplorerStore();
-  const setPage = useAppStore((s) => s.setPage);
+  const navigateTo = useAppStore((s) => s.navigateTo);
+  const setStatus = useAppStore((s) => s.setStatus);
+  const pageContext = useAppStore((s) => s.pageContext);
   const [mlPredictions, setMlPredictions] = useState<DurationPrediction[]>([]);
   const [topAnalogue, setTopAnalogue] = useState<AnalogoResult | null>(null);
 
@@ -32,6 +34,13 @@ export default function MoldesPage() {
     }
   }, [moldes, selectedMoldeId]);
 
+  // Navigate to specific mold from pageContext
+  useEffect(() => {
+    if (pageContext?.moldeId && moldes.length > 0) {
+      selectMolde(pageContext.moldeId);
+    }
+  }, [pageContext?.moldeId, moldes.length]);
+
   // Fetch ML predictions + top analogue for selected mold
   useEffect(() => {
     if (!selectedMoldeId) return;
@@ -41,7 +50,7 @@ export default function MoldesPage() {
       .then((preds) => {
         setMlPredictions(preds);
       })
-      .catch(() => setMlPredictions([]));
+      .catch(() => { setMlPredictions([]); setStatus("warning", "Previsoes ML indisponiveis"); });
 
     // Top analogue
     getAnalogues(selectedMoldeId)
@@ -117,6 +126,24 @@ export default function MoldesPage() {
           />
         )}
 
+        {/* Analogue feedback buttons */}
+        {topAnalogue && selectedMoldeId && (
+          <div style={{ display: "flex", gap: 6, marginTop: -8, paddingLeft: 4 }}>
+            <button
+              onClick={() => feedbackAnalogy({ molde_id: selectedMoldeId, analogo_id: topAnalogue.molde_id, util: true })}
+              style={{ background: "transparent", border: `1px solid ${T.border}`, color: T.green, fontSize: 10, padding: "2px 8px", borderRadius: 4, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Util
+            </button>
+            <button
+              onClick={() => feedbackAnalogy({ molde_id: selectedMoldeId, analogo_id: topAnalogue.molde_id, util: false })}
+              style={{ background: "transparent", border: `1px solid ${T.border}`, color: T.tertiary, fontSize: 10, padding: "2px 8px", borderRadius: 4, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Nao util
+            </button>
+          </div>
+        )}
+
         {/* ML predictions summary (if available) */}
         {moldePredictions.length > 0 && (
           <div style={{ padding: "0 4px" }}>
@@ -150,8 +177,8 @@ export default function MoldesPage() {
 
         {/* Navigation shortcuts */}
         <div style={{ display: "flex", gap: 10, paddingTop: 8, flexWrap: "wrap" }}>
-          <NavButton label="Simular este molde" onClick={() => setPage("simulador")} />
-          <NavButton label="Ver risco" onClick={() => setPage("risco")} />
+          <NavButton label="Simular este molde" onClick={() => navigateTo("simulador", { moldeId: selectedMoldeId ?? undefined })} />
+          <NavButton label="Ver risco" onClick={() => navigateTo("risco")} />
           <NavButton
             label="Relatorio cliente"
             onClick={() => window.open(`/api/reports/client?molde_id=${selectedMoldeId}`, "_blank")}

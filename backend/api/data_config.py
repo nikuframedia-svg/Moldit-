@@ -118,8 +118,9 @@ async def update_config(updates: dict):
     if state.engine_data:
         from backend.cpo import optimize
 
-        result = optimize(state.engine_data, mode="quick", audit=True, config=c)
-        state.update_schedule(result)
+        async with state.lock:
+            result = optimize(state.engine_data, mode="quick", audit=True, config=c)
+            state.update_schedule(result)
 
     return {"status": "ok", "changed": changed, "score": state.score}
 
