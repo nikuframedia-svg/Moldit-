@@ -25,7 +25,7 @@ function now() {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  activePage: "inicio",
+  activePage: "consola",
   chatOpen: false,
   hasData: false,
   isUploading: false,

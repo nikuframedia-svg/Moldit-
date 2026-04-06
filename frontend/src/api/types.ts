@@ -432,3 +432,367 @@ export interface RankingMatrix {
   maquinas: string[];
   data: Record<string, MachineScoreML[]>;
 }
+
+// ── Today / Trust / Coverage / Late / Learning ──────────────────
+
+export interface TodayInfo {
+  today: string;
+  data_referencia: string;
+}
+
+export interface TrustDimension {
+  name: string;
+  score: number;
+  details: string[];
+}
+
+export interface TrustIndex {
+  score: number;
+  gate: string;
+  n_ops: number;
+  n_issues: number;
+  dimensions: TrustDimension[];
+}
+
+export interface TimelineData {
+  timeline: Record<string, TimelineSegment[]>;
+}
+
+export interface TimelineSegment {
+  op_id: number;
+  molde: string;
+  dia: number;
+  inicio_h: number;
+  fim_h: number;
+  duracao_h: number;
+  setup_h: number;
+  e_2a_placa: boolean;
+  e_continuacao: boolean;
+}
+
+export interface BottleneckEntry {
+  maquina_id: string;
+  stress_pct: number;
+  total_horas: number;
+  capacidade: number;
+}
+
+export interface BottlenecksData {
+  bottlenecks: BottleneckEntry[];
+}
+
+export interface MoldeDetail {
+  molde: Record<string, unknown>;
+  operacoes: Operacao[];
+  segmentos: SegmentoMoldit[];
+  caminho_critico: number[];
+}
+
+export interface SimulateApplyResponse {
+  status: string;
+  score: ScoreMoldit;
+  score_previous: ScoreMoldit;
+  summary: string;
+  n_segments_before: number;
+  n_segments_after: number;
+  time_ms: number;
+  can_revert: boolean;
+}
+
+export interface RevertResponse {
+  status: string;
+  score: ScoreMoldit;
+}
+
+export interface CanRevertResponse {
+  can_revert: boolean;
+}
+
+export interface MachineEventInput {
+  maquina_id: string;
+  tipo: string;
+  inicio: string;
+  fim?: string;
+  duracao_h?: number;
+  planeado?: boolean;
+  notas?: string;
+}
+
+export interface MachineEvent {
+  id: number;
+  maquina_id: string;
+  tipo: string;
+  inicio: string;
+  fim: string | null;
+  duracao_h: number;
+  planeado: boolean;
+  notas: string;
+  created_at: string;
+}
+
+// ── Alerts (full lifecycle) ──────────────────────────────────────
+
+export interface AlertSuggestion {
+  acao: string;
+  impacto: string;
+  esforco: string;      // "baixo" | "medio" | "alto"
+  mutation_type: string | null;
+  mutation_params: Record<string, unknown>;
+}
+
+export interface MolditAlert {
+  id: string;
+  regra: string;        // "R1", "R2", ...
+  severidade: string;   // "critico" | "aviso" | "info"
+  titulo: string;
+  mensagem: string;
+  timestamp: string;    // ISO 8601
+  moldes_afetados: string[];
+  maquinas_afetadas: string[];
+  operacoes: number[];
+  impacto_dias: number;
+  sugestoes: AlertSuggestion[];
+  estado: string;       // "ativo" | "reconhecido" | "resolvido" | "ignorado"
+}
+
+/** @deprecated Use MolditAlert instead — kept for backward compat */
+export interface Alert {
+  id: string;
+  tipo: string;
+  severidade: string;
+  estado: string;
+  titulo: string;
+  descricao: string;
+  molde: string;
+  maquina_id: string;
+  created_at: string;
+  acknowledged_at: string | null;
+  resolved_at: string | null;
+  note: string;
+}
+
+export interface AlertStats {
+  total: number;
+  por_severidade: Record<string, number>;
+  por_estado: Record<string, number>;
+}
+
+export interface AlertEvaluateResult {
+  total: number;
+  critico: number;
+  aviso: number;
+  info: number;
+  alerts: MolditAlert[];
+}
+
+// ── Reports ─────────────────────────────────────────────────────
+
+export interface SendReportRequest {
+  tipo: string;
+  destinatarios: string[];
+  molde_id?: string;
+  date?: string;
+  notas?: string;
+}
+
+// ── Explain ─────────────────────────────────────────────────────
+
+export interface ExplainCard {
+  id: string;
+  frase: string;
+  cor: string;
+  valor?: string;
+}
+
+export interface ExplainInicio {
+  frase_resumo: string;
+  cartoes: ExplainCard[];
+  alertas: Record<string, unknown>[];
+}
+
+export interface ExplainMolde {
+  frase_resumo: string;
+  deadline: { frase: string; cor: string };
+  analogo: string | null;
+  operacoes_ml: { op_id: number; frase_ml: string }[];
+}
+
+export interface ExplainEquipa {
+  frase_resumo: string;
+  pessoas: { nome: string; frase: string }[];
+  problemas: string[];
+}
+
+// ── Workforce Gaps ──────────────────────────────────────────────
+
+export interface CompetencyGap {
+  competencia: string;
+  maquinas_que_exigem: number;
+  nivel_minimo_max: number;
+  zonas: string[];
+  operadores_qualificados_A: number;
+  operadores_qualificados_B: number;
+  total_qualificados: number;
+  deficit: number;
+  cobertura_pct: number;
+}
+
+export interface CompetencyGapsData {
+  total_competencias: number;
+  gaps_criticos: number;
+  gaps: CompetencyGap[];
+}
+
+// ── Copilot Health ──────────────────────────────────────────────
+
+export interface CopilotHealth {
+  status: string;
+  has_data: boolean;
+  n_segments: number;
+}
+
+// ── ML Ingest / Bootstrap / Config ──────────────────────────────
+
+export interface MLIngestRequest {
+  molde_id: string;
+  cliente?: string;
+  data_inicio: string;
+  data_conclusao: string;
+  data_deadline: string;
+  n_operacoes?: number;
+  work_total_h?: number;
+  makespan_planeado_dias?: number;
+  makespan_real_dias?: number;
+  operacoes?: Record<string, unknown>[];
+}
+
+export interface MLConfigUpdate {
+  usar_previsoes_ml?: boolean;
+  min_confianca?: number;
+}
+
+// ── Analytics: Coverage ─────────────────────────────────────────
+
+export interface MoldCoverage {
+  molde_id: string;
+  total_ops: number;
+  ops_agendadas: number;
+  cobertura_pct: number;
+  ops_sem_maquina: number;
+  dag_gaps: number;
+}
+
+export interface CoverageReport {
+  overall_coverage_pct: number;
+  molds: MoldCoverage[];
+  uncovered_ops: number[];
+  summary: string;
+}
+
+// ── Analytics: Late Delivery ────────────────────────────────────
+
+export interface TardyAnalysis {
+  molde_id: string;
+  op_id: number;
+  maquina_id: string;
+  deadline_dia: number;
+  completion_dia: number;
+  delay_dias: number;
+  root_cause: string;   // "capacity" | "setup_overhead" | "priority_conflict" | "dependency_chain"
+  explanation: string;
+  capacity_gap_h: number;
+  competing_moldes: string[];
+}
+
+export interface LateDeliveryReport {
+  tardy_count: number;
+  by_cause: Record<string, number>;
+  analyses: TardyAnalysis[];
+  worst_machine: string | null;
+  suggestion: string;
+}
+
+// ── Risk (full typed structures) ────────────────────────────────
+
+export interface OpRisk {
+  op_id: number;
+  molde: string;
+  machine_id: string;
+  edd: number;
+  completion_day: number;
+  slack_days: number;
+  slack_min: number;
+  risk_score: number;   // 0.0 to 1.0
+  risk_level: string;   // "low" | "medium" | "high" | "critical"
+  binding_constraint: string;  // "capacity" | "crew" | "none"
+}
+
+export interface MachineRiskDetail {
+  machine_id: string;
+  peak_utilization: number;
+  avg_utilization: number;
+  critical_op_count: number;
+  bottleneck_score: number;
+}
+
+export interface HeatmapCell {
+  machine_id: string;
+  day_idx: number;
+  utilization: number;
+  min_slack_min: number;
+  risk_level: string;   // "low" | "medium" | "high" | "critical"
+}
+
+export interface RiskResultFull {
+  health_score: number;
+  op_risks: OpRisk[];
+  machine_risks: MachineRiskDetail[];
+  heatmap: HeatmapCell[];
+  critical_count: number;
+  top_risks: OpRisk[];
+  bottleneck: string;
+  surrogate_otd_prob: number | null;
+  surrogate_confidence: string | null;
+  mc_otd_p50: number | null;
+  mc_otd_p80: number | null;
+  mc_otd_p95: number | null;
+  mc_tardy_expected: number | null;
+  mc_runs: number | null;
+}
+
+// ── Rules ───────────────────────────────────────────────────────
+
+export interface SchedulerRule {
+  id: string;
+  [key: string]: unknown;
+}
+
+export type RulesData = SchedulerRule[];
+
+// ── Reports ─────────────────────────────────────────────────────
+
+export interface ReportMeta {
+  tipo: string;         // "diario" | "semanal" | "cliente"
+  destinatarios: string[];
+  molde_id: string;
+  date: string;
+  notas: string;
+}
+
+// ── Learning ────────────────────────────────────────────────────
+
+export interface LearningData {
+  [key: string]: unknown;
+}
+
+// ── Deadline Status (full response shape) ───────────────────────
+
+export interface DeadlineStatusFull {
+  molde: string;
+  deadline: string;
+  conclusao_prevista: string | number;
+  dias_atraso: number;
+  on_time: boolean;
+  operacoes_pendentes: number;
+  progresso: number;
+}

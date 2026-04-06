@@ -8,10 +8,8 @@ import { useEffect, useState } from "react";
 import { T, moldeColor } from "../theme/tokens";
 import { useDataStore } from "../stores/useDataStore";
 import { useMoldExplorerStore } from "../stores/useMoldExplorerStore";
+import { useAppStore } from "../stores/useAppStore";
 import { MoldHeader } from "../components/MoldHeader";
-import { SimulatorPanel } from "../components/SimulatorPanel";
-import { RiskPanel } from "../components/RiskPanel";
-import { AnalogyPanel } from "../components/AnalogyPanel";
 import { ExplainBox } from "../components/ExplainBox";
 import { MoldGantt } from "../components/mold-explorer/MoldGantt";
 import { OpTable } from "../components/mold-explorer/OpTable";
@@ -19,13 +17,11 @@ import { OptionsPanel } from "../components/mold-explorer/OptionsPanel";
 import { getAnalogues, predictBulk } from "../api/endpoints";
 import type { DurationPrediction, AnalogoResult } from "../api/types";
 
-type Panel = "simulator" | "risk" | "analogues" | null;
-
 export default function MoldesPage() {
   const moldes = useDataStore((s) => s.moldes);
   const deadlines = useDataStore((s) => s.deadlines);
   const { selectedMoldeId, explorerData, selectMolde, selectedOpId, loadingExplorer } = useMoldExplorerStore();
-  const [activePanel, setActivePanel] = useState<Panel>(null);
+  const setPage = useAppStore((s) => s.setPage);
   const [mlPredictions, setMlPredictions] = useState<DurationPrediction[]>([]);
   const [topAnalogue, setTopAnalogue] = useState<AnalogoResult | null>(null);
 
@@ -57,10 +53,6 @@ export default function MoldesPage() {
 
   const currentMolde = moldes.find((m) => m.id === selectedMoldeId);
   const currentDeadline = deadlines.find((d) => d.molde === selectedMoldeId);
-
-  const togglePanel = (panel: Panel) => {
-    setActivePanel((prev) => (prev === panel ? null : panel));
-  };
 
   // Build analogue phrase
   const analogoFrase = topAnalogue
@@ -156,37 +148,30 @@ export default function MoldesPage() {
           </>
         )}
 
-        {/* Action bar */}
+        {/* Navigation shortcuts */}
         <div style={{ display: "flex", gap: 10, paddingTop: 8, flexWrap: "wrap" }}>
-          <ActionButton label="E se...?" active={activePanel === "simulator"} onClick={() => togglePanel("simulator")} />
-          <ActionButton label="Qual o risco?" active={activePanel === "risk"} onClick={() => togglePanel("risk")} />
-          <ActionButton label="Moldes semelhantes" active={activePanel === "analogues"} onClick={() => togglePanel("analogues")} />
-          <ActionButton
+          <NavButton label="Simular este molde" onClick={() => setPage("simulador")} />
+          <NavButton label="Ver risco" onClick={() => setPage("risco")} />
+          <NavButton
             label="Relatorio cliente"
-            active={false}
             onClick={() => window.open(`/api/reports/client?molde_id=${selectedMoldeId}`, "_blank")}
           />
         </div>
       </div>
-
-      {/* Lateral panels */}
-      {activePanel === "simulator" && <SimulatorPanel onClose={() => setActivePanel(null)} />}
-      {activePanel === "risk" && selectedMoldeId && <RiskPanel moldeId={selectedMoldeId} onClose={() => setActivePanel(null)} />}
-      {activePanel === "analogues" && selectedMoldeId && <AnalogyPanel moldeId={selectedMoldeId} onClose={() => setActivePanel(null)} />}
     </div>
   );
 }
 
-function ActionButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function NavButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       style={{
         padding: "8px 18px", borderRadius: 8,
-        border: active ? `1px solid ${T.blue}` : `1px solid ${T.border}`,
-        background: active ? `${T.blue}15` : "transparent",
-        color: active ? T.blue : T.secondary,
-        fontSize: 13, fontWeight: active ? 600 : 400,
+        border: `1px solid ${T.border}`,
+        background: "transparent",
+        color: T.secondary,
+        fontSize: 13, fontWeight: 400,
         cursor: "pointer", fontFamily: "inherit",
       }}
     >
