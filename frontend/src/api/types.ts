@@ -606,7 +606,7 @@ export interface ExplainCard {
 }
 
 export interface ExplainInicio {
-  frase_resumo: string;
+  frase_resumo: { text: string; color: string };
   cartoes: ExplainCard[];
   alertas: Record<string, unknown>[];
 }

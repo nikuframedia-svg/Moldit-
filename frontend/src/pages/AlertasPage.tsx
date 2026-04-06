@@ -9,7 +9,7 @@ import { useAppStore } from "../stores/useAppStore";
 import { getAlerts, getAlertStats, acknowledgeAlert, resolveAlert, ignoreAlert, evaluateAlerts } from "../api/endpoints";
 import { Card } from "../components/ui/Card";
 import { Pill } from "../components/ui/Pill";
-import type { Alert, AlertStats } from "../api/types";
+import type { MolditAlert, AlertStats } from "../api/types";
 
 type Filter = "todos" | "critico" | "aviso" | "info";
 
@@ -19,7 +19,7 @@ const SEV_COLOR: Record<string, string> = {
 
 export default function AlertasPage() {
   const setStatus = useAppStore((s) => s.setStatus);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<MolditAlert[]>([]);
   const [stats, setStats] = useState<AlertStats | null>(null);
   const [filter, setFilter] = useState<Filter>("todos");
   const [loading, setLoading] = useState(true);
@@ -67,9 +67,9 @@ export default function AlertasPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 900 }}>
       {stats && (
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <StatBadge label="Criticos" count={stats.critico} color={T.red} />
-          <StatBadge label="Avisos" count={stats.aviso} color={T.orange} />
-          <StatBadge label="Info" count={stats.info} color={T.blue} />
+          <StatBadge label="Criticos" count={stats.por_severidade?.critico ?? 0} color={T.red} />
+          <StatBadge label="Avisos" count={stats.por_severidade?.aviso ?? 0} color={T.orange} />
+          <StatBadge label="Info" count={stats.por_severidade?.info ?? 0} color={T.blue} />
           <StatBadge label="Total" count={stats.total} color={T.secondary} />
           <div style={{ flex: 1 }} />
           <button onClick={handleEvaluate}

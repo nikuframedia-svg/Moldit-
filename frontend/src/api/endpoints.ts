@@ -1,8 +1,7 @@
 /** Typed endpoint functions — one per backend route. */
 
-import { get, post, put, del, upload } from "./client";
+import { get, getText, post, put, del, upload } from "./client";
 import type {
-  Alert,
   AlertEvaluateResult,
   AlertStats,
   AnalogoResult,
@@ -14,6 +13,7 @@ import type {
   CompetencyGapsData,
   ConsoleData,
   CopilotHealth,
+  CoverageReport,
   CTPMolde,
   DeadlineStatus,
   DurationPrediction,
@@ -24,6 +24,7 @@ import type {
   ExplainMolde,
   ForecastEntry,
   JournalEntry,
+  LateDeliveryReport,
   LoadResponse,
   MachineEvent,
   MachineEventInput,
@@ -35,6 +36,7 @@ import type {
   MoldeDetail,
   MoldExplorerData,
   Molde,
+  MolditAlert,
   MolditConfig,
   MutationMoldit,
   Operacao,
@@ -70,8 +72,9 @@ export const getToday = () => get<TodayInfo>("/api/data/today");
 export const getTrust = () => get<TrustIndex>("/api/data/trust");
 export const getTimeline = () => get<TimelineData>("/api/data/timeline");
 export const getBottlenecks = () => get<BottlenecksData>("/api/data/bottlenecks");
-export const getCoverage = () => get<Record<string, unknown>>("/api/data/coverage");
-export const getLateDeliveries = () => get<Record<string, unknown>>("/api/data/late");
+export const getCoverage = () => get<CoverageReport>("/api/data/coverage");
+export const getLateDeliveries = () => get<LateDeliveryReport>("/api/data/late");
+export const getProposals = () => get<{ proposals: Array<{ id: string; type: string; description: string; estimated_impact: string; priority: number }>; current_makespan: number; current_setups: number; summary: string }>("/api/data/proposals");
 export const getRules = () => get<Record<string, unknown>[]>("/api/data/rules");
 export const getLearning = () => get<Record<string, unknown> | null>("/api/data/learning");
 export const getMoldeDetail = (moldeId: string) =>
@@ -269,14 +272,14 @@ export const getAlerts = (params?: { severidade?: string; estado?: string }) => 
   if (params?.severidade) q.set("severidade", params.severidade);
   if (params?.estado) q.set("estado", params.estado);
   const qs = q.toString();
-  return get<Alert[]>(`/api/alerts${qs ? `?${qs}` : ""}`);
+  return get<MolditAlert[]>(`/api/alerts${qs ? `?${qs}` : ""}`);
 };
 
 export const getAlertStats = () =>
   get<AlertStats>("/api/alerts/stats");
 
 export const getAlertDetail = (id: string) =>
-  get<Alert>(`/api/alerts/${encodeURIComponent(id)}`);
+  get<MolditAlert>(`/api/alerts/${encodeURIComponent(id)}`);
 
 export const acknowledgeAlert = (id: string) =>
   put<{ status: string; id: string }>(`/api/alerts/${encodeURIComponent(id)}/acknowledge`, {});
@@ -335,7 +338,7 @@ export const getReportPreview = (tipo = "diario", moldeId?: string, date?: strin
   const q = new URLSearchParams({ tipo });
   if (moldeId) q.set("molde_id", moldeId);
   if (date) q.set("date", date);
-  return get<string>(`/api/reports/preview?${q.toString()}`);
+  return getText(`/api/reports/preview?${q.toString()}`);
 };
 
 export const sendReport = (body: SendReportRequest) =>

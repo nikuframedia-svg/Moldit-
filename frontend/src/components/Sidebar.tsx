@@ -89,7 +89,7 @@ export function Sidebar() {
 
       {/* 8 nav items */}
       <div style={{ flex: 1, padding: "0 8px", display: "flex", flexDirection: "column", gap: 1, overflow: "auto" }}>
-        {NAV.map((n, i) => {
+        {NAV.map((n) => {
           const active = page === n.id;
           const badge = badges[n.id];
           return (

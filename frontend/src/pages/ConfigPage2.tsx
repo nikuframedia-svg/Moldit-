@@ -4,15 +4,15 @@
  * Each tab has explanation at the top.
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { T } from "../theme/tokens";
 import {
   getConfig, updateConfig, editMachine, addHoliday, removeHoliday,
-  applyPreset, getOps, getCalibration, getMLStatus, getMLEvolution,
+  applyPreset, getCalibration, getMLStatus, getMLEvolution,
   getOperadores, addOperador, deleteOperador, getJournal,
-  trainML,
+  trainML, bootstrapML, getReportPreview,
 } from "../api/endpoints";
-import type { MolditConfig, Operacao, JournalEntry, EvolutionPoint } from "../api/types";
+import type { MolditConfig, JournalEntry, EvolutionPoint } from "../api/types";
 import { Card } from "../components/ui/Card";
 import { Pill } from "../components/ui/Pill";
 import { ExplainBox } from "../components/ExplainBox";
@@ -30,6 +30,7 @@ const TABS: { id: Tab; label: string; desc: string }[] = [
   { id: "presets", label: "Preferencias", desc: "Escolher como o sistema planeia. 4 opcoes disponiveis." },
   { id: "pesos", label: "Pesos", desc: "Ajustar a importancia de cada criterio no planeamento." },
   { id: "aprendizagem", label: "Aprendizagem", desc: "Como o sistema esta a aprender com os moldes concluidos." },
+  { id: "relatorios", label: "Relatorios", desc: "Gerar relatorios de producao para consulta ou envio ao cliente." },
   { id: "journal", label: "Historico", desc: "Registo de actividades e eventos do sistema." },
 ];
 
@@ -90,6 +91,7 @@ export default function ConfigPage2() {
       {tab === "presets" && <PresetsTab onApply={(name) => { applyPreset(name).then(() => { reloadConfig(); showMsg(`Preset '${name}' aplicado.`); }); }} />}
       {tab === "pesos" && <PesosTab config={config} onSave={(updates) => { updateConfig(updates).then(() => { reloadConfig(); showMsg("Pesos actualizados."); }); }} />}
       {tab === "aprendizagem" && <AprendizagemTab />}
+      {tab === "relatorios" && <RelatoriosTab />}
       {tab === "journal" && <JournalTab />}
     </div>
   );
@@ -150,7 +152,7 @@ function FeriadosTab({ config, onSave }: { config: MolditConfig | null; onSave: 
 }
 
 /* ── Turnos ──────────────────────────────────────── */
-function TurnosTab({ config }: { config: MolditConfig | null }) {
+function TurnosTab(_props: { config: MolditConfig | null }) {
   const turnos = [
     { nome: "Manha", inicio: "08:00", fim: "16:00" },
     { nome: "Tarde", inicio: "16:00", fim: "00:00" },
@@ -368,6 +370,168 @@ function AprendizagemTab() {
         </button>
         {trainMsg && <span style={{ fontSize: 12, color: T.green }}>{trainMsg}</span>}
       </div>
+
+      {/* Bootstrap ML — import historical data */}
+      <BootstrapSection />
+    </div>
+  );
+}
+
+/* ── Bootstrap ML ────────────────────────────────────── */
+function BootstrapSection() {
+  const [json, setJson] = useState("");
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleImport = async () => {
+    if (!json.trim()) return;
+    setLoading(true);
+    setMsg("");
+    try {
+      const projetos = JSON.parse(json);
+      await bootstrapML(Array.isArray(projetos) ? projetos : [projetos]);
+      setMsg("Importacao concluida. Os modelos vao melhorar com estes dados.");
+      setJson("");
+    } catch (e: any) {
+      setMsg(e.message ?? "Erro na importacao. Verifique o formato JSON.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.secondary }}>Importar historico</div>
+      <div style={{ fontSize: 12, color: T.tertiary }}>
+        Cole aqui os dados de projectos concluidos (JSON) para melhorar as previsoes.
+      </div>
+      <textarea
+        value={json}
+        onChange={(e) => setJson(e.target.value)}
+        placeholder='[{"molde_id": "M100", "cliente": "BMW", "n_operacoes": 45, ...}]'
+        rows={4}
+        style={{
+          padding: "10px 12px", borderRadius: 8,
+          border: `1px solid ${T.border}`, background: T.elevated,
+          color: T.primary, fontSize: 12, fontFamily: T.mono,
+          resize: "vertical",
+        }}
+      />
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          onClick={handleImport}
+          disabled={loading || !json.trim()}
+          style={{
+            padding: "6px 16px", borderRadius: 6, border: "none",
+            background: loading || !json.trim() ? T.tertiary : T.blue,
+            color: "#fff", fontSize: 12, fontWeight: 600,
+            cursor: loading || !json.trim() ? "not-allowed" : "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          {loading ? "A importar..." : "Importar"}
+        </button>
+        {msg && <span style={{ fontSize: 12, color: msg.includes("Erro") ? T.red : T.green }}>{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Relatorios ──────────────────────────────────────── */
+function RelatoriosTab() {
+  const moldes = useDataStore((s) => s.moldes);
+  const [selectedMolde, setSelectedMolde] = useState("");
+  const [preview, setPreview] = useState("");
+  const [loading, setLoading] = useState(false);
+  const setStatus = useAppStore((s) => s.setStatus);
+
+  const handlePreview = async (tipo: string) => {
+    setLoading(true);
+    setPreview("");
+    try {
+      const html = await getReportPreview(tipo, selectedMolde || undefined);
+      setPreview(typeof html === "string" ? html : JSON.stringify(html));
+    } catch (e: any) {
+      setStatus("error", e.message ?? "Erro ao gerar relatorio");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Report type buttons */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <Card
+          style={{ cursor: "pointer", textAlign: "center", padding: "20px 16px" }}
+          onClick={() => handlePreview("diario")}
+        >
+          <div style={{ fontSize: 24, marginBottom: 8 }}>{"\uD83D\uDCCB"}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.primary }}>Relatorio do dia</div>
+          <div style={{ fontSize: 12, color: T.secondary, marginTop: 4 }}>Resumo da producao de hoje</div>
+        </Card>
+
+        <Card
+          style={{ cursor: "pointer", textAlign: "center", padding: "20px 16px" }}
+          onClick={() => handlePreview("semanal")}
+        >
+          <div style={{ fontSize: 24, marginBottom: 8 }}>{"\uD83D\uDCC6"}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.primary }}>Relatorio da semana</div>
+          <div style={{ fontSize: 12, color: T.secondary, marginTop: 4 }}>Resumo semanal completo</div>
+        </Card>
+
+        <Card
+          style={{ cursor: "pointer", textAlign: "center", padding: "20px 16px" }}
+          onClick={() => {
+            if (!selectedMolde) {
+              setStatus("warning", "Seleccione um molde primeiro.");
+              return;
+            }
+            handlePreview("cliente");
+          }}
+        >
+          <div style={{ fontSize: 24, marginBottom: 8 }}>{"\uD83D\uDCE7"}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.primary }}>Relatorio para cliente</div>
+          <div style={{ fontSize: 12, color: T.secondary, marginTop: 4 }}>Para enviar ao cliente</div>
+        </Card>
+      </div>
+
+      {/* Molde selector for client report */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <label style={{ fontSize: 11, color: T.tertiary }}>Molde (para relatorio de cliente)</label>
+        <select
+          value={selectedMolde}
+          onChange={(e) => setSelectedMolde(e.target.value)}
+          style={{
+            padding: "8px 12px", borderRadius: 6,
+            border: `1px solid ${T.border}`, background: T.elevated,
+            color: T.primary, fontSize: 13, fontFamily: "inherit",
+            maxWidth: 300,
+          }}
+        >
+          <option value="">Todos os moldes</option>
+          {moldes.map((m) => (
+            <option key={m.id} value={m.id}>{m.id} — {m.cliente}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ fontSize: 13, color: T.secondary, padding: 16 }}>A gerar relatorio...</div>
+      )}
+
+      {/* Preview */}
+      {preview && !loading && (
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          <div
+            style={{
+              padding: 16, fontSize: 13,
+              lineHeight: 1.6, maxHeight: 500, overflow: "auto",
+              background: "#fff", color: "#000",
+            }}
+            dangerouslySetInnerHTML={{ __html: preview }}
+          />
+        </Card>
+      )}
     </div>
   );
 }

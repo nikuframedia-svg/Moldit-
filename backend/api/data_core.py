@@ -294,6 +294,25 @@ async def get_ops():
     ]
 
 
+@router.get("/proposals")
+async def get_proposals():
+    """Replan proposals from analytics engine."""
+    _require_data()
+    from dataclasses import asdict
+
+    from backend.analytics.replan_proposals import generate_proposals
+
+    report = generate_proposals(
+        state.segments, state.engine_data, state.score, state.config,
+    )
+    return {
+        "proposals": [asdict(p) for p in report.proposals],
+        "current_makespan": report.current_makespan,
+        "current_setups": report.current_setups,
+        "summary": report.summary,
+    }
+
+
 @router.get("/rules")
 async def get_rules():
     return state.rules

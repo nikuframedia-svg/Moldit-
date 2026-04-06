@@ -24,6 +24,15 @@ export async function get<T>(url: string): Promise<T> {
   return request<T>(url);
 }
 
+export async function getText(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, text);
+  }
+  return res.text();
+}
+
 export async function post<T>(url: string, body: unknown): Promise<T> {
   return request<T>(url, {
     method: "POST",

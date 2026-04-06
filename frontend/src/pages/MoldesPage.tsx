@@ -133,13 +133,13 @@ export default function MoldesPage() {
               onClick={() => feedbackAnalogy({ molde_id: selectedMoldeId, analogo_id: topAnalogue.molde_id, util: true })}
               style={{ background: "transparent", border: `1px solid ${T.border}`, color: T.green, fontSize: 10, padding: "2px 8px", borderRadius: 4, cursor: "pointer", fontFamily: "inherit" }}
             >
-              Util
+              Acertou
             </button>
             <button
               onClick={() => feedbackAnalogy({ molde_id: selectedMoldeId, analogo_id: topAnalogue.molde_id, util: false })}
               style={{ background: "transparent", border: `1px solid ${T.border}`, color: T.tertiary, fontSize: 10, padding: "2px 8px", borderRadius: 4, cursor: "pointer", fontFamily: "inherit" }}
             >
-              Nao util
+              Falhou
             </button>
           </div>
         )}

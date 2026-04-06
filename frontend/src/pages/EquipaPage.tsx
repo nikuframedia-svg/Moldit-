@@ -7,16 +7,16 @@
 import { useEffect, useState } from "react";
 import { T } from "../theme/tokens";
 import { Card } from "../components/ui/Card";
-import { ExplainBox } from "../components/ExplainBox";
 import {
   getOperadores,
   getWorkforceConflicts,
   getWorkforceForecast,
   autoAllocate,
+  getCompetencyGaps,
 } from "../api/endpoints";
 import { useAppStore } from "../stores/useAppStore";
 import { useDataStore } from "../stores/useDataStore";
-import type { Operador, WorkforceConflict, ForecastEntry } from "../api/types";
+import type { Operador, WorkforceConflict, ForecastEntry, CompetencyGap } from "../api/types";
 
 type DaySel = "hoje" | "amanha" | "semana";
 type Turno = "manha" | "tarde" | "noite";
@@ -27,6 +27,7 @@ export default function EquipaPage() {
   const [operadores, setOperadores] = useState<Operador[]>([]);
   const [conflicts, setConflicts] = useState<WorkforceConflict[]>([]);
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
+  const [gaps, setGaps] = useState<CompetencyGap[]>([]);
   const [loading, setLoading] = useState(true);
   const [allocMsg, setAllocMsg] = useState("");
   const setStatus = useAppStore((s) => s.setStatus);
@@ -53,6 +54,14 @@ export default function EquipaPage() {
       if (results[2]?.status === "fulfilled") setForecast(results[2].value as ForecastEntry[]);
       setLoading(false);
     });
+
+    // Competency gaps (independent fetch)
+    getCompetencyGaps()
+      .then((data) => {
+        const withDeficit = (data.gaps ?? []).filter((g) => g.deficit > 0);
+        setGaps(withDeficit);
+      })
+      .catch(() => setGaps([]));
   }, [day]);
 
   const dayLabel = day === "hoje" ? "Hoje" : day === "amanha" ? "Amanha" : "Esta semana";
@@ -254,6 +263,26 @@ export default function EquipaPage() {
               </tbody>
             </table>
           </Card>
+        </div>
+      )}
+
+      {/* Competency gaps */}
+      {gaps.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.secondary }}>
+            Faltam competencias ({gaps.length})
+          </div>
+          {gaps.map((g, i) => (
+            <Card key={i} style={{ borderLeft: `3px solid ${T.orange}`, padding: "12px 16px" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: T.primary }}>
+                {g.competencia}
+              </div>
+              <div style={{ fontSize: 12, color: T.secondary, marginTop: 4 }}>
+                Precisas de {g.total_qualificados + g.deficit}, tens {g.total_qualificados}. Faltam {g.deficit}.
+                {g.zonas && g.zonas.length > 0 && ` Zonas: ${g.zonas.join(", ")}.`}
+              </div>
+            </Card>
+          ))}
         </div>
       )}
 

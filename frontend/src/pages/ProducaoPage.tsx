@@ -9,12 +9,10 @@ import { T, moldeColor } from "../theme/tokens";
 import { useDataStore } from "../stores/useDataStore";
 import { useAppStore } from "../stores/useAppStore";
 import { Card } from "../components/ui/Card";
-import { ProgressBar } from "../components/ui/ProgressBar";
 
 export default function ProducaoPage() {
   const segmentos = useDataStore((s) => s.segmentos);
   const stress = useDataStore((s) => s.stress);
-  const score = useDataStore((s) => s.score);
   const navigateTo = useAppStore((s) => s.navigateTo);
   const pageContext = useAppStore((s) => s.pageContext);
   const [view, setView] = useState<"gantt" | "tabela">("gantt");

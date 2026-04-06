@@ -1,8 +1,8 @@
 /** SIMULADOR — Cockpit de simulacao e CTP.
  *
- * 1. Mutation type buttons (4 main)
- * 2. Parameters card (machine, days, simulate button)
- * 3. Results (OTD before/after, moldes afectados, sugestoes, apply/discard)
+ * 1. Mutation type buttons (8 cenarios)
+ * 2. Parameters card (adapts to mutation type)
+ * 3. Results (human-readable before/after + phrase)
  * 4. CTP section (bottom)
  */
 
@@ -20,23 +20,89 @@ import { Label } from "../components/ui/Label";
 import { Modal } from "../components/ui/Modal";
 import type { MutationType, SimulateResponse, CTPMolde } from "../api/types";
 
-/* ── Mutation presets ─────────────────────────────────────── */
+/* ── All 8 mutation presets ──────────────────────────────── */
 
 const MAIN_MUTATIONS: { type: MutationType; label: string; icon: string }[] = [
   { type: "machine_down", label: "Maquina avariada", icon: "\u26A0" },
   { type: "overtime", label: "Turno extra", icon: "\u23F0" },
-  { type: "priority_boost", label: "Mudar prioridade", icon: "\u2B06" },
-  { type: "force_machine", label: "Mover operacao", icon: "\u21C4" },
+  { type: "deadline_change", label: "Mudar prazo", icon: "\uD83D\uDCC5" },
+  { type: "priority_boost", label: "Subir prioridade", icon: "\u2B06" },
+  { type: "add_holiday", label: "Adicionar feriado", icon: "\uD83C\uDF34" },
+  { type: "remove_holiday", label: "Tirar feriado", icon: "\u2716" },
+  { type: "force_machine", label: "Forcar maquina", icon: "\u21C4" },
+  { type: "op_done", label: "Operacao concluida", icon: "\u2714" },
 ];
+
+/* ── Human-readable mutation descriptions ────────────────── */
+
+function describeMutation(type: MutationType, machine: string, days: number, moldeId: string): string {
+  switch (type) {
+    case "machine_down":
+      return `${machine || "Maquina"} parada durante ${days} dia${days > 1 ? "s" : ""}`;
+    case "overtime":
+      return `Turno extra de 8h na ${machine || "maquina"} durante ${days} dia${days > 1 ? "s" : ""}`;
+    case "deadline_change":
+      return `Alterar prazo do ${moldeId || "molde"} em ${days} dia${days > 1 ? "s" : ""}`;
+    case "priority_boost":
+      return `Subir prioridade do ${moldeId || "molde"}`;
+    case "add_holiday":
+      return `Adicionar ${days} dia${days > 1 ? "s" : ""} de feriado`;
+    case "remove_holiday":
+      return `Trabalhar em ${days} dia${days > 1 ? "s" : ""} de feriado`;
+    case "force_machine":
+      return `Forcar operacao para a ${machine || "maquina"}`;
+    case "op_done":
+      return `Marcar operacao como concluida`;
+    default:
+      return `Cenario: ${type}`;
+  }
+}
+
+function describeImpact(delta: SimulateResponse["delta"]): string {
+  const parts: string[] = [];
+
+  const compBefore = Math.round(delta.compliance_before * 100);
+  const compAfter = Math.round(delta.compliance_after * 100);
+  if (compAfter < compBefore) {
+    parts.push(`A percentagem de entregas a tempo desce de ${compBefore}% para ${compAfter}%.`);
+  } else if (compAfter > compBefore) {
+    parts.push(`A pontualidade melhora de ${compBefore}% para ${compAfter}%.`);
+  }
+
+  const mkBefore = Math.round(delta.makespan_before);
+  const mkAfter = Math.round(delta.makespan_after);
+  if (mkAfter > mkBefore) {
+    parts.push(`A producao total demora mais ${mkAfter - mkBefore} dia${mkAfter - mkBefore > 1 ? "s" : ""}.`);
+  } else if (mkAfter < mkBefore) {
+    parts.push(`A producao total encurta ${mkBefore - mkAfter} dia${mkBefore - mkAfter > 1 ? "s" : ""}.`);
+  }
+
+  if (parts.length === 0) {
+    return "Sem impacto significativo no plano.";
+  }
+  return parts.join(" ");
+}
+
+/* ── Which params each mutation needs ────────────────────── */
+
+function needsMachine(type: MutationType): boolean {
+  return ["machine_down", "overtime", "force_machine"].includes(type);
+}
+
+function needsDays(type: MutationType): boolean {
+  return ["machine_down", "overtime", "deadline_change", "add_holiday", "remove_holiday"].includes(type);
+}
+
+function needsMolde(type: MutationType): boolean {
+  return ["deadline_change", "priority_boost", "op_done"].includes(type);
+}
 
 /* ── Component ────────────────────────────────────────────── */
 
 export default function SimuladorPage() {
   const {
-    mutations,
     addMutation,
     updateMutationType,
-    updateMutationParam,
     setResult: storeSetResult,
     clear,
   } = useSimulatorStore();
@@ -48,6 +114,7 @@ export default function SimuladorPage() {
 
   const [selectedType, setSelectedType] = useState<MutationType>("machine_down");
   const [selectedMachine, setSelectedMachine] = useState("");
+  const [selectedMolde, setSelectedMolde] = useState("");
   const [days, setDays] = useState(1);
   const [result, setResult] = useState<SimulateResponse | null>(null);
   const [simulating, setSimulating] = useState(false);
@@ -58,15 +125,18 @@ export default function SimuladorPage() {
 
   // CTP state
   const [ctpMolde, setCtpMolde] = useState("");
-
-  // Apply pageContext (navigate from other pages)
-  useEffect(() => {
-    if (pageContext?.moldeId) setCtpMolde(pageContext.moldeId);
-    if (pageContext?.mutationType) setSelectedType(pageContext.mutationType as MutationType);
-  }, [pageContext]);
   const [ctpWeek, setCtpWeek] = useState("");
   const [ctpResult, setCtpResult] = useState<CTPMolde | null>(null);
   const [ctpLoading, setCtpLoading] = useState(false);
+
+  // Apply pageContext (navigate from other pages)
+  useEffect(() => {
+    if (pageContext?.moldeId) {
+      setCtpMolde(pageContext.moldeId);
+      setSelectedMolde(pageContext.moldeId);
+    }
+    if (pageContext?.mutationType) setSelectedType(pageContext.mutationType as MutationType);
+  }, [pageContext]);
 
   // Check revert availability
   useEffect(() => {
@@ -76,15 +146,18 @@ export default function SimuladorPage() {
   /* ── Handlers ───────────────────────────────────────────── */
 
   const handleSimulate = async () => {
-    if (!selectedMachine) {
+    if (needsMachine(selectedType) && !selectedMachine) {
       setStatus("warning", "Seleccione uma maquina.");
       return;
     }
+    if (needsMolde(selectedType) && !selectedMolde) {
+      setStatus("warning", "Seleccione um molde.");
+      return;
+    }
 
-    // Build mutation from current selection
     const mutation = {
       type: selectedType,
-      params: buildParams(selectedType, selectedMachine, days),
+      params: buildParams(selectedType, selectedMachine, days, selectedMolde),
     };
 
     setSimulating(true);
@@ -107,7 +180,7 @@ export default function SimuladorPage() {
     try {
       const mutation = {
         type: selectedType,
-        params: buildParams(selectedType, selectedMachine, days),
+        params: buildParams(selectedType, selectedMachine, days, selectedMolde),
       };
       await simulateApply([mutation]);
       await useDataStore.getState().refreshAll();
@@ -146,10 +219,13 @@ export default function SimuladorPage() {
   const otdAfter = result ? Math.round(result.delta.compliance_after * 100) : null;
   const otdImproved = otdBefore !== null && otdAfter !== null && otdAfter >= otdBefore;
 
-  // Extract affected moldes from result segments
   const affectedMoldes = result
     ? [...new Set(result.segmentos.map((s) => s.molde))]
     : [];
+
+  const canSimulate =
+    (!needsMachine(selectedType) || selectedMachine) &&
+    (!needsMolde(selectedType) || selectedMolde);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 900 }}>
@@ -164,12 +240,12 @@ export default function SimuladorPage() {
               data-testid={`btn-mutation-${mt.type}`}
               onClick={() => setSelectedType(mt.type)}
               style={{
-                padding: "10px 20px",
+                padding: "10px 16px",
                 borderRadius: T.radiusSm,
                 border: `1.5px solid ${active ? T.blue : T.border}`,
                 background: active ? `${T.blue}20` : "transparent",
                 color: active ? T.blue : T.secondary,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: "inherit",
@@ -179,7 +255,7 @@ export default function SimuladorPage() {
                 gap: 6,
               }}
             >
-              <span style={{ fontSize: 15 }}>{mt.icon}</span>
+              <span style={{ fontSize: 14 }}>{mt.icon}</span>
               {mt.label}
             </button>
           );
@@ -190,73 +266,90 @@ export default function SimuladorPage() {
       <Card style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <Label>Parametros do cenario</Label>
 
-        {/* Machine selector */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: 11, color: T.tertiary }}>Maquina</label>
-          <select
-            value={selectedMachine}
-            onChange={(e) => setSelectedMachine(e.target.value)}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: `1px solid ${T.border}`,
-              background: T.elevated,
-              color: T.primary,
-              fontSize: 13,
-              fontFamily: T.mono,
-            }}
-          >
-            <option value="">Seleccionar maquina...</option>
-            {[...stress]
-              .sort((a, b) => b.stress_pct - a.stress_pct)
-              .map((m) => (
-                <option key={m.maquina_id} value={m.maquina_id}>
-                  {m.maquina_id} — {Math.round(m.stress_pct)}% stress
+        {/* Machine selector (only if needed) */}
+        {needsMachine(selectedType) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11, color: T.tertiary }}>Maquina</label>
+            <select
+              value={selectedMachine}
+              onChange={(e) => setSelectedMachine(e.target.value)}
+              style={{
+                padding: "10px 14px", borderRadius: 8,
+                border: `1px solid ${T.border}`, background: T.elevated,
+                color: T.primary, fontSize: 13, fontFamily: T.mono,
+              }}
+            >
+              <option value="">Seleccionar maquina...</option>
+              {[...stress]
+                .sort((a, b) => b.stress_pct - a.stress_pct)
+                .map((m) => (
+                  <option key={m.maquina_id} value={m.maquina_id}>
+                    {m.maquina_id} — {Math.round(m.stress_pct)}% carga
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
+
+        {/* Molde selector (only if needed) */}
+        {needsMolde(selectedType) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11, color: T.tertiary }}>Molde</label>
+            <select
+              value={selectedMolde}
+              onChange={(e) => setSelectedMolde(e.target.value)}
+              style={{
+                padding: "10px 14px", borderRadius: 8,
+                border: `1px solid ${T.border}`, background: T.elevated,
+                color: T.primary, fontSize: 13, fontFamily: "inherit",
+              }}
+            >
+              <option value="">Seleccionar molde...</option>
+              {moldes.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.id} — {m.cliente}
                 </option>
               ))}
-          </select>
-        </div>
+            </select>
+          </div>
+        )}
 
-        {/* Days input */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: 11, color: T.tertiary }}>Dias (1-14)</label>
-          <input
-            type="number"
-            min={1}
-            max={14}
-            value={days}
-            onChange={(e) => setDays(Math.min(14, Math.max(1, Number(e.target.value))))}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: `1px solid ${T.border}`,
-              background: T.elevated,
-              color: T.primary,
-              fontSize: 13,
-              fontFamily: T.mono,
-              width: 120,
-            }}
-          />
+        {/* Days input (only if needed) */}
+        {needsDays(selectedType) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11, color: T.tertiary }}>Dias (1-14)</label>
+            <input
+              type="number"
+              min={1}
+              max={14}
+              value={days}
+              onChange={(e) => setDays(Math.min(14, Math.max(1, Number(e.target.value))))}
+              style={{
+                padding: "10px 14px", borderRadius: 8,
+                border: `1px solid ${T.border}`, background: T.elevated,
+                color: T.primary, fontSize: 13, fontFamily: T.mono, width: 120,
+              }}
+            />
+          </div>
+        )}
+
+        {/* Scenario description */}
+        <div style={{ fontSize: 12, color: T.secondary, fontStyle: "italic" }}>
+          {describeMutation(selectedType, selectedMachine, days, selectedMolde)}
         </div>
 
         {/* BIG Simulate button */}
         <button
           onClick={handleSimulate}
-          disabled={simulating || !selectedMachine}
+          disabled={simulating || !canSimulate}
           data-testid="btn-simulate"
           style={{
-            padding: "14px 0",
-            borderRadius: 10,
-            border: "none",
-            background: simulating || !selectedMachine ? T.tertiary : T.blue,
-            color: "#fff",
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: simulating || !selectedMachine ? "not-allowed" : "pointer",
-            fontFamily: "inherit",
-            width: "100%",
-            transition: "all 0.15s",
-            opacity: simulating ? 0.7 : 1,
+            padding: "14px 0", borderRadius: 10, border: "none",
+            background: simulating || !canSimulate ? T.tertiary : T.blue,
+            color: "#fff", fontSize: 16, fontWeight: 700,
+            cursor: simulating || !canSimulate ? "not-allowed" : "pointer",
+            fontFamily: "inherit", width: "100%",
+            transition: "all 0.15s", opacity: simulating ? 0.7 : 1,
           }}
         >
           {simulating ? "A simular..." : "Simular"}
@@ -267,10 +360,17 @@ export default function SimuladorPage() {
       {result && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
+          {/* Human-readable impact phrase */}
+          <Card style={{ padding: "14px 18px", borderLeft: `3px solid ${otdImproved ? T.green : T.red}` }}>
+            <div style={{ fontSize: 14, color: T.primary, lineHeight: 1.5 }}>
+              {describeImpact(result.delta)}
+            </div>
+          </Card>
+
           {/* OTD Before -> After */}
           <div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "center" }}>
             <Card style={{ flex: 1, textAlign: "center", padding: 20 }}>
-              <Label>OTD antes</Label>
+              <Label>Entregas a tempo antes</Label>
               <div style={{ marginTop: 6 }}>
                 <Num size={40} color={T.secondary}>{otdBefore}%</Num>
               </div>
@@ -280,13 +380,11 @@ export default function SimuladorPage() {
 
             <Card
               style={{
-                flex: 1,
-                textAlign: "center",
-                padding: 20,
+                flex: 1, textAlign: "center", padding: 20,
                 borderColor: otdImproved ? `${T.green}40` : `${T.red}40`,
               }}
             >
-              <Label>OTD depois</Label>
+              <Label>Entregas a tempo depois</Label>
               <div style={{ marginTop: 6 }}>
                 <Num size={40} color={otdImproved ? T.green : T.red}>{otdAfter}%</Num>
               </div>
@@ -323,15 +421,9 @@ export default function SimuladorPage() {
             <button
               onClick={() => setShowConfirm(true)}
               style={{
-                padding: "12px 28px",
-                borderRadius: 10,
-                border: "none",
-                background: T.blue,
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "inherit",
+                padding: "12px 28px", borderRadius: 10, border: "none",
+                background: T.blue, color: "#fff", fontSize: 14, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit",
               }}
             >
               Aplicar ao plano real
@@ -339,15 +431,10 @@ export default function SimuladorPage() {
             <button
               onClick={handleDiscard}
               style={{
-                padding: "12px 28px",
-                borderRadius: 10,
-                border: `1px solid ${T.border}`,
-                background: "transparent",
-                color: T.secondary,
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: "pointer",
-                fontFamily: "inherit",
+                padding: "12px 28px", borderRadius: 10,
+                border: `1px solid ${T.border}`, background: "transparent",
+                color: T.secondary, fontSize: 14, fontWeight: 500,
+                cursor: "pointer", fontFamily: "inherit",
               }}
             >
               Descartar
@@ -367,15 +454,10 @@ export default function SimuladorPage() {
                   }
                 }}
                 style={{
-                  padding: "12px 28px",
-                  borderRadius: 10,
-                  border: `1px solid ${T.orange}`,
-                  background: "transparent",
-                  color: T.orange,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
+                  padding: "12px 28px", borderRadius: 10,
+                  border: `1px solid ${T.orange}`, background: "transparent",
+                  color: T.orange, fontSize: 14, fontWeight: 500,
+                  cursor: "pointer", fontFamily: "inherit",
                 }}
               >
                 Desfazer ultima aplicacao
@@ -389,7 +471,7 @@ export default function SimuladorPage() {
       <Divider />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: T.primary }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: T.primary }}>
           Consigo entregar a tempo?
         </div>
 
@@ -401,13 +483,9 @@ export default function SimuladorPage() {
               value={ctpMolde}
               onChange={(e) => { setCtpMolde(e.target.value); setCtpResult(null); }}
               style={{
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: `1px solid ${T.border}`,
-                background: T.elevated,
-                color: T.primary,
-                fontSize: 13,
-                fontFamily: "inherit",
+                padding: "10px 14px", borderRadius: 8,
+                border: `1px solid ${T.border}`, background: T.elevated,
+                color: T.primary, fontSize: 13, fontFamily: "inherit",
               }}
             >
               <option value="">Seleccionar molde...</option>
@@ -427,13 +505,9 @@ export default function SimuladorPage() {
               onChange={(e) => { setCtpWeek(e.target.value); setCtpResult(null); }}
               placeholder="S20"
               style={{
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: `1px solid ${T.border}`,
-                background: T.elevated,
-                color: T.primary,
-                fontSize: 13,
-                fontFamily: T.mono,
+                padding: "10px 14px", borderRadius: 8,
+                border: `1px solid ${T.border}`, background: T.elevated,
+                color: T.primary, fontSize: 13, fontFamily: T.mono,
               }}
             />
           </div>
@@ -444,16 +518,11 @@ export default function SimuladorPage() {
             disabled={!ctpMolde || !ctpWeek || ctpLoading}
             data-testid="btn-ctp"
             style={{
-              padding: "10px 24px",
-              borderRadius: 8,
-              border: "none",
+              padding: "10px 24px", borderRadius: 8, border: "none",
               background: ctpMolde && ctpWeek && !ctpLoading ? T.blue : T.tertiary,
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 600,
+              color: "#fff", fontSize: 13, fontWeight: 600,
               cursor: ctpMolde && ctpWeek && !ctpLoading ? "pointer" : "not-allowed",
-              fontFamily: "inherit",
-              height: 42,
+              fontFamily: "inherit", height: 42,
             }}
           >
             {ctpLoading ? "A verificar..." : "Verificar"}
@@ -462,19 +531,29 @@ export default function SimuladorPage() {
 
         {/* CTP Result */}
         {ctpResult && (
-          <Card style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <Card
+            style={{
+              display: "flex", flexDirection: "column", gap: 12,
+              borderLeft: `4px solid ${ctpResult.feasible ? T.green : T.red}`,
+            }}
+          >
             <div style={{ textAlign: "center" }}>
               <Num size={56} color={ctpResult.feasible ? T.green : T.red}>
                 {ctpResult.feasible ? "SIM" : "NAO"}
               </Num>
             </div>
 
-            <div style={{ fontSize: 13, color: T.secondary, textAlign: "center", lineHeight: 1.6 }}>
-              {ctpResult.reason}
+            <div style={{ fontSize: 15, color: T.primary, textAlign: "center", lineHeight: 1.6, fontWeight: 500 }}>
               {ctpResult.feasible
-                ? ` Margem de ${ctpResult.slack_dias} dias.`
-                : ` Deficit de ${ctpResult.dias_extra} dias.`}
+                ? `Entrega viavel na semana ${ctpWeek} com ${ctpResult.slack_dias} dias de folga.`
+                : `Nao e possivel. Faltam ${ctpResult.dias_extra} dias.`}
             </div>
+
+            {ctpResult.reason && (
+              <div style={{ fontSize: 13, color: T.secondary, textAlign: "center" }}>
+                {ctpResult.reason}
+              </div>
+            )}
 
             {/* Recovery options if NAO */}
             {!ctpResult.feasible && (
@@ -488,7 +567,7 @@ export default function SimuladorPage() {
                       const key = addMutation();
                       updateMutationType(key, "overtime");
                       setSelectedType("overtime");
-                      setStatus("ok", "Mutacao 'turno extra' adicionada. Configure e simule.");
+                      setStatus("ok", "Cenario 'turno extra' adicionado. Configure e simule.");
                     }}
                   />
                   <RecoveryOption
@@ -498,7 +577,7 @@ export default function SimuladorPage() {
                       const key = addMutation();
                       updateMutationType(key, "force_machine");
                       setSelectedType("force_machine");
-                      setStatus("ok", "Mutacao 'mover operacao' adicionada. Configure e simule.");
+                      setStatus("ok", "Cenario 'forcar maquina' adicionado. Configure e simule.");
                     }}
                   />
                   <RecoveryOption
@@ -508,7 +587,7 @@ export default function SimuladorPage() {
                       const key = addMutation();
                       updateMutationType(key, "priority_boost");
                       setSelectedType("priority_boost");
-                      setStatus("ok", "Mutacao 'mudar prioridade' adicionada. Configure e simule.");
+                      setStatus("ok", "Cenario 'subir prioridade' adicionado. Configure e simule.");
                     }}
                   />
                 </div>
@@ -528,15 +607,9 @@ export default function SimuladorPage() {
             <button
               onClick={handleApply}
               style={{
-                padding: "8px 18px",
-                borderRadius: 8,
-                border: "none",
-                background: T.red,
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "inherit",
+                padding: "8px 18px", borderRadius: 8, border: "none",
+                background: T.red, color: "#fff", fontSize: 13, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit",
               }}
             >
               Sim, aplicar
@@ -544,13 +617,9 @@ export default function SimuladorPage() {
             <button
               onClick={() => setShowConfirm(false)}
               style={{
-                padding: "8px 18px",
-                borderRadius: 8,
-                border: `1px solid ${T.border}`,
-                background: "transparent",
-                color: T.secondary,
-                fontSize: 13,
-                cursor: "pointer",
+                padding: "8px 18px", borderRadius: 8,
+                border: `1px solid ${T.border}`, background: "transparent",
+                color: T.secondary, fontSize: 13, cursor: "pointer",
                 fontFamily: "inherit",
               }}
             >
@@ -565,16 +634,24 @@ export default function SimuladorPage() {
 
 /* ── Helpers ──────────────────────────────────────────────── */
 
-function buildParams(type: MutationType, machine: string, days: number): Record<string, unknown> {
+function buildParams(type: MutationType, machine: string, days: number, moldeId: string): Record<string, unknown> {
   switch (type) {
     case "machine_down":
       return { maquina_id: machine, dias: days };
     case "overtime":
       return { maquina_id: machine, dias: days, horas_extra: 8 };
+    case "deadline_change":
+      return { molde_id: moldeId, dias: days };
     case "priority_boost":
-      return { maquina_id: machine };
+      return { molde_id: moldeId };
+    case "add_holiday":
+      return { dias: days };
+    case "remove_holiday":
+      return { dias: days };
     case "force_machine":
       return { maquina_id: machine };
+    case "op_done":
+      return { molde_id: moldeId };
     default:
       return { maquina_id: machine, dias: days };
   }
