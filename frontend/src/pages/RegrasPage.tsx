@@ -23,9 +23,13 @@ interface Categoria {
 }
 
 function buildRegras(cfg: MolditConfig): Categoria[] {
-  const s = cfg.scoring;
-  const nMachines = Object.keys(cfg.machines).length;
-  const nHolidays = cfg.holidays.length;
+  const c = cfg as any;
+  const wMakespan = c.weight_makespan ?? cfg.scoring?.weight_makespan ?? 5;
+  const wCompliance = c.weight_deadline_compliance ?? cfg.scoring?.weight_deadline_compliance ?? 8;
+  const wSetups = c.weight_setups ?? cfg.scoring?.weight_setups ?? 3;
+  const wBalance = c.weight_balance ?? cfg.scoring?.weight_utilization_balance ?? 4;
+  const nMachines = Object.keys(cfg.machines ?? c.machines ?? {}).length;
+  const nHolidays = (cfg.holidays ?? c.holidays ?? []).length;
 
   return [
     {
@@ -57,10 +61,10 @@ function buildRegras(cfg: MolditConfig): Categoria[] {
     {
       nome: "Pontuacao",
       regras: [
-        { regra: "Peso: dias totais", valor: `${s.weight_makespan} de 10`, descricao: "Importancia de acabar rapidamente" },
-        { regra: "Peso: cumprimento de prazos", valor: `${s.weight_deadline_compliance} de 10`, descricao: "Importancia de entregar no prazo" },
-        { regra: "Peso: trocas de trabalho", valor: `${s.weight_setups} de 10`, descricao: "Importancia de evitar mudancas" },
-        { regra: "Peso: equilibrio de carga", valor: `${s.weight_utilization_balance} de 10`, descricao: "Importancia de distribuir trabalho" },
+        { regra: "Peso: dias totais", valor: `${wMakespan} de 10`, descricao: "Importancia de acabar rapidamente" },
+        { regra: "Peso: cumprimento de prazos", valor: `${wCompliance} de 10`, descricao: "Importancia de entregar no prazo" },
+        { regra: "Peso: trocas de trabalho", valor: `${wSetups} de 10`, descricao: "Importancia de evitar mudancas" },
+        { regra: "Peso: equilibrio de carga", valor: `${wBalance} de 10`, descricao: "Importancia de distribuir trabalho" },
       ],
     },
     {
