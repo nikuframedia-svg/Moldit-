@@ -51,7 +51,10 @@ async def simulate_scenario(request: SimulateRequest):
     from backend.simulator.simulator import Mutation, simulate
 
     mutations = [Mutation(type=m.type, params=m.params) for m in request.mutations]
-    result = simulate(state.engine_data, state.score, mutations, config=state.config)
+    try:
+        result = simulate(state.engine_data, state.score, mutations, config=state.config)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(400, str(exc)) from exc
 
     return {
         "segmentos": [asdict(s) for s in result.segments],

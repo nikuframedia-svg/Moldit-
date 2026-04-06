@@ -35,6 +35,7 @@ function semaforoColor(folga: number): string {
 }
 
 function folgaLabel(folga: number): string {
+  if (folga >= 99) return "OK";
   if (folga > 0) return `+${folga}d`;
   if (folga === 0) return "0d";
   return `${folga}d`;
@@ -185,7 +186,10 @@ export default function ConsolaPage() {
         const dl = deadlineMap.get(m.id);
         const diasAtraso = dl?.dias_atraso ?? 0;
         const onTime = dl?.on_time ?? true;
-        const folga = onTime ? Math.abs(diasAtraso) : -Math.abs(diasAtraso);
+        // on_time + atraso=0 means the mold is fine (no violation), treat as large slack
+        const folga = onTime
+          ? (diasAtraso === 0 ? 99 : Math.abs(diasAtraso))
+          : -Math.abs(diasAtraso);
         const activity = currentActivity.get(m.id);
         return {
           molde: m,
@@ -201,7 +205,8 @@ export default function ConsolaPage() {
   // ── Banner counters (fallback if Explain fails) ────────────
 
   const atrasados = deadlines.filter((d) => !d.on_time).length;
-  const emRisco = deadlines.filter((d) => d.on_time && d.dias_atraso >= 0 && d.dias_atraso <= 2).length;
+  // emRisco: on_time mas com folga curta (1-2 dias). dias_atraso=0 + on_time = sem risco.
+  const emRisco = deadlines.filter((d) => d.on_time && d.dias_atraso > 0 && d.dias_atraso <= 2).length;
   const ok = deadlines.length - atrasados - emRisco;
 
   const fallbackBannerColor = atrasados > 0 ? T.red : emRisco > 0 ? T.orange : T.green;
