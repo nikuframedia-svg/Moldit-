@@ -237,15 +237,19 @@ async def get_stress():
     _require_data()
     from backend.scheduler.stress import compute_stress
     machines = {m.id: m for m in state.engine_data.maquinas}
-    stress = compute_stress(state.segments, machines, state.config)
-    return {"stress": stress}
+    stress_map = compute_stress(state.segments, machines, state.config)
+    # Convert dict to list matching MaquinaStatus[]
+    return [
+        {"maquina_id": mid, **vals}
+        for mid, vals in stress_map.items()
+    ]
 
 
 @router.get("/deadlines")
 async def get_deadlines():
     """Compute deadline status for each mold."""
     _require_data()
-    score = state.schedule_result.score if state.schedule_result else {}
+    score = state.score or {}
     violations = {v["molde"]: v for v in score.get("deadline_violations", [])}
 
     result = []
