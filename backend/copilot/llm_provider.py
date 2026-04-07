@@ -144,9 +144,131 @@ class OllamaProvider(LLMProvider):
         )
 
 
+class AnthropicProvider(LLMProvider):
+    """Anthropic Claude provider with tool use."""
+
+    def __init__(self) -> None:
+        import anthropic
+
+        api_key = os.environ.get("MOLDIT_ANTHROPIC_API_KEY", "")
+        self.model = os.environ.get(
+            "MOLDIT_ANTHROPIC_MODEL", "claude-sonnet-4-20250514",
+        )
+        self.client = anthropic.Anthropic(api_key=api_key)
+
+    async def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        system_prompt: str,
+    ) -> LLMResponse:
+        # Convert OpenAI tool format to Anthropic format
+        anthropic_tools = []
+        for t in tools:
+            fn = t.get("function", t)
+            anthropic_tools.append({
+                "name": fn["name"],
+                "description": fn.get("description", ""),
+                "input_schema": fn.get("parameters", {"type": "object"}),
+            })
+
+        # Convert messages: Anthropic doesn't use "system" role in messages
+        # and tool_calls/tool results have different format
+        converted = []
+        for m in messages:
+            role = m.get("role", "user")
+            if role == "system":
+                # Skip system messages — they go in the system param
+                continue
+            if role == "tool":
+                # Anthropic: tool results are user messages with tool_result
+                converted.append({
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": m.get("tool_call_id", ""),
+                        "content": m.get("content", ""),
+                    }],
+                })
+                continue
+            if role == "assistant" and m.get("tool_calls"):
+                # Anthropic: tool calls are content blocks
+                content_blocks = []
+                if m.get("content"):
+                    content_blocks.append({
+                        "type": "text",
+                        "text": m["content"],
+                    })
+                for tc in m["tool_calls"]:
+                    fn = tc.get("function", {})
+                    args = fn.get("arguments", "{}")
+                    if isinstance(args, str):
+                        try:
+                            args = json.loads(args)
+                        except json.JSONDecodeError:
+                            args = {}
+                    content_blocks.append({
+                        "type": "tool_use",
+                        "id": tc.get("id", ""),
+                        "name": fn.get("name", ""),
+                        "input": args,
+                    })
+                converted.append({
+                    "role": "assistant",
+                    "content": content_blocks,
+                })
+                continue
+            # Regular user/assistant message
+            converted.append({
+                "role": role,
+                "content": m.get("content", ""),
+            })
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=4096,
+                system=system_prompt,
+                messages=converted,
+                tools=anthropic_tools,
+            )
+        except Exception as e:
+            logger.error("Anthropic API error: %s", e)
+            return LLMResponse(
+                content=f"Erro na API: {e}",
+                tool_calls=None,
+                finish_reason="stop",
+            )
+
+        # Parse response
+        content_text = ""
+        tool_calls = []
+        for block in response.content:
+            if block.type == "text":
+                content_text += block.text
+            elif block.type == "tool_use":
+                tool_calls.append(ToolCall(
+                    id=block.id,
+                    name=block.name,
+                    arguments=json.dumps(block.input),
+                ))
+
+        finish = (
+            "tool_calls" if tool_calls
+            else "stop"
+        )
+        return LLMResponse(
+            content=content_text or None,
+            tool_calls=tool_calls or None,
+            finish_reason=finish,
+        )
+
+
 def get_provider() -> LLMProvider:
     """Factory: select provider via MOLDIT_LLM_BACKEND env var."""
     backend = os.environ.get("MOLDIT_LLM_BACKEND", "openai").lower()
     if backend == "ollama":
         return OllamaProvider()
+    if backend == "anthropic":
+        return AnthropicProvider()
     return OpenAIProvider()
