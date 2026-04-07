@@ -99,6 +99,43 @@ export default function RegrasPage() {
         Todas as regras que o sistema segue para construir o plano de producao.
       </div>
 
+      {/* Horario de fabrica */}
+      <Card style={{ marginBottom: 16, padding: "16px 20px" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.primary, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
+          Horario de fabrica
+        </div>
+        <div style={{ fontSize: 12, color: T.secondary, marginBottom: 12 }}>
+          O regime de horas define a capacidade de cada maquina. Configuravel em Config &gt; Maquinas.
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {[
+            { label: "1 Turno (8h)", desc: "06:00 - 14:00", h: 8 },
+            { label: "2 Turnos (16h)", desc: "06:00 - 22:00", h: 16 },
+            { label: "3 Turnos (24h)", desc: "00:00 - 24:00", h: 24 },
+          ].map((t) => {
+            // Check which regime is most common
+            const machines = Object.values(cfg.machines ?? {}) as any[];
+            const count = machines.filter((m: any) => m.regime_h === t.h).length;
+            const isActive = count > machines.length / 2;
+            return (
+              <div
+                key={t.h}
+                style={{
+                  flex: 1, padding: "12px 14px", borderRadius: T.radiusSm,
+                  border: `1.5px solid ${isActive ? T.blue : T.border}`,
+                  background: isActive ? `${T.blue}15` : "transparent",
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? T.blue : T.primary }}>{t.label}</div>
+                <div style={{ fontSize: 11, color: T.tertiary, marginTop: 2 }}>{t.desc}</div>
+                <div style={{ fontSize: 10, color: T.secondary, marginTop: 4 }}>{count} maquinas</div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
       {categorias.map((cat) => (
         <Card key={cat.nome} style={{ marginBottom: 16, padding: 0, overflow: "hidden" }}>
           <div

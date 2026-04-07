@@ -9,6 +9,8 @@ import { T, moldeColor } from "../theme/tokens";
 import { useDataStore } from "../stores/useDataStore";
 import { useMoldExplorerStore } from "../stores/useMoldExplorerStore";
 import { useAppStore } from "../stores/useAppStore";
+import { Card } from "../components/ui/Card";
+import { Label } from "../components/ui/Label";
 import { MoldHeader } from "../components/MoldHeader";
 import { ExplainBox } from "../components/ExplainBox";
 import { MoldGantt } from "../components/mold-explorer/MoldGantt";
@@ -20,6 +22,8 @@ import type { DurationPrediction, AnalogoResult } from "../api/types";
 export default function MoldesPage() {
   const moldes = useDataStore((s) => s.moldes);
   const deadlines = useDataStore((s) => s.deadlines);
+  const operacoes = useDataStore((s) => s.operacoes);
+  const segmentos = useDataStore((s) => s.segmentos);
   const { selectedMoldeId, explorerData, selectMolde, selectedOpId, loadingExplorer } = useMoldExplorerStore();
   const navigateTo = useAppStore((s) => s.navigateTo);
   const setStatus = useAppStore((s) => s.setStatus);
@@ -163,6 +167,61 @@ export default function MoldesPage() {
           </div>
         )}
 
+        {/* Pipeline: sequencia de operacoes do molde */}
+        {selectedMoldeId && operacoes.length > 0 && (
+          <Card style={{ padding: "12px 16px", overflow: "auto" }}>
+            <Label style={{ marginBottom: 8 }}>Sequencia de operacoes</Label>
+            <div style={{ display: "flex", gap: 2, minWidth: "max-content" }}>
+              {operacoes
+                .filter((op) => op.molde === selectedMoldeId)
+                .sort((a, b) => a.op_id - b.op_id)
+                .map((op) => {
+                  const isDone = op.progresso >= 100;
+                  const isInProgress = op.progresso > 0 && op.progresso < 100;
+                  const isScheduled = segmentos.some((s) => s.op_id === op.op_id);
+                  const hasNoSlot = !isDone && !isScheduled;
+                  const bg = isDone ? `${T.green}30` : isInProgress ? `${T.blue}30` : hasNoSlot ? `${T.red}15` : T.elevated;
+                  const border = isDone ? T.green : isInProgress ? T.blue : hasNoSlot ? T.red : T.border;
+                  const nameShort = (op.nome || "").split(" \u00BB ").pop()?.trim() || `Op ${op.op_id}`;
+                  return (
+                    <div
+                      key={op.op_id}
+                      title={`${op.nome_completo || op.nome}\n${op.recurso || "Sem maquina"}\n${op.work_h}h`}
+                      style={{
+                        padding: "4px 8px", borderRadius: 4,
+                        background: bg, border: `1px ${hasNoSlot ? "dashed" : "solid"} ${border}`,
+                        fontSize: 9, color: T.primary, whiteSpace: "nowrap",
+                        minWidth: 60, textAlign: "center",
+                        opacity: isDone ? 0.6 : 1,
+                      }}
+                    >
+                      <div style={{ fontWeight: 600 }}>{nameShort.length > 12 ? nameShort.slice(0, 12) + "\u2026" : nameShort}</div>
+                      <div style={{ color: T.tertiary, fontSize: 8 }}>
+                        {isDone ? "Concluida" : isInProgress ? `${Math.round(op.progresso)}%` : hasNoSlot ? "Sem slot" : op.recurso || ""}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 8, fontSize: 10, color: T.tertiary }}>
+              <span><span style={{ display: "inline-block", width: 8, height: 8, background: `${T.green}30`, border: `1px solid ${T.green}`, borderRadius: 2, marginRight: 4 }} />Concluida</span>
+              <span><span style={{ display: "inline-block", width: 8, height: 8, background: `${T.blue}30`, border: `1px solid ${T.blue}`, borderRadius: 2, marginRight: 4 }} />Em curso</span>
+              <span><span style={{ display: "inline-block", width: 8, height: 8, background: T.elevated, border: `1px solid ${T.border}`, borderRadius: 2, marginRight: 4 }} />Agendada</span>
+              <span><span style={{ display: "inline-block", width: 8, height: 8, background: `${T.red}15`, border: `1px dashed ${T.red}`, borderRadius: 2, marginRight: 4 }} />Sem slot</span>
+            </div>
+          </Card>
+        )}
+
+        {/* Navigation shortcuts (ABOVE the table so user sees them) */}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <NavButton label="Simular este molde" onClick={() => navigateTo("simulador", { moldeId: selectedMoldeId ?? undefined })} />
+          <NavButton label="Ver risco" onClick={() => navigateTo("risco")} />
+          <NavButton
+            label="Relatorio cliente"
+            onClick={() => window.open(`/api/reports/client?molde_id=${selectedMoldeId}`, "_blank")}
+          />
+        </div>
+
         {/* Gantt + OpTable + OptionsPanel (reused intact) */}
         {loadingExplorer && (
           <div style={{ padding: 32, color: T.secondary }}>A carregar dados do molde...</div>
@@ -174,16 +233,6 @@ export default function MoldesPage() {
             {selectedOpId != null && <OptionsPanel />}
           </>
         )}
-
-        {/* Navigation shortcuts */}
-        <div style={{ display: "flex", gap: 10, paddingTop: 8, flexWrap: "wrap" }}>
-          <NavButton label="Simular este molde" onClick={() => navigateTo("simulador", { moldeId: selectedMoldeId ?? undefined })} />
-          <NavButton label="Ver risco" onClick={() => navigateTo("risco")} />
-          <NavButton
-            label="Relatorio cliente"
-            onClick={() => window.open(`/api/reports/client?molde_id=${selectedMoldeId}`, "_blank")}
-          />
-        </div>
       </div>
     </div>
   );

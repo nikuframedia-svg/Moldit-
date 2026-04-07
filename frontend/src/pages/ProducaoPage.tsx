@@ -4,23 +4,35 @@
  * TODO: Expandir com drag-and-drop, tabela alternativa, navegador, relatorios.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { T, moldeColor } from "../theme/tokens";
 import { useDataStore } from "../stores/useDataStore";
 import { useAppStore } from "../stores/useAppStore";
+import { getCoverage } from "../api/endpoints";
 import { Card } from "../components/ui/Card";
+import { Dot } from "../components/ui/Dot";
+import type { MoldCoverage } from "../api/types";
 
 export default function ProducaoPage() {
   const segmentos = useDataStore((s) => s.segmentos);
+  const moldes = useDataStore((s) => s.moldes);
   const stress = useDataStore((s) => s.stress);
   const navigateTo = useAppStore((s) => s.navigateTo);
   const pageContext = useAppStore((s) => s.pageContext);
   const [view, setView] = useState<"gantt" | "tabela">("gantt");
   const [filter, setFilter] = useState("");
+  const [coverageMolds, setCoverageMolds] = useState<MoldCoverage[]>([]);
 
   useEffect(() => {
     if (pageContext?.machineId) setFilter(pageContext.machineId);
   }, [pageContext?.machineId]);
+
+  useEffect(() => {
+    getCoverage().then((d) => setCoverageMolds(d.molds ?? [])).catch(() => {});
+  }, [segmentos.length]);
+
+  // Unique moldes in segments for legend
+  const moldeIds = useMemo(() => [...new Set(segmentos.map((s) => s.molde))].sort(), [segmentos]);
 
   // Group segments by machine
   const byMachine = new Map<string, typeof segmentos>();
@@ -58,6 +70,20 @@ export default function ProducaoPage() {
         <span style={{ fontSize: 12, color: T.tertiary }}>
           {segmentos.length} segmentos | {byMachine.size} maquinas | {maxDia} dias
         </span>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", padding: "4px 0" }}>
+        {moldeIds.map((id) => {
+          const m = moldes.find((mo) => mo.id === id);
+          return (
+            <div key={id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: moldeColor(id), flexShrink: 0 }} />
+              <span style={{ color: T.primary, fontFamily: T.mono }}>{id}</span>
+              {m?.cliente && <span style={{ color: T.tertiary }}>{m.cliente}</span>}
+            </div>
+          );
+        })}
       </div>
 
       {/* Gantt View */}
@@ -154,6 +180,29 @@ export default function ProducaoPage() {
             </table>
           </Card>
         </div>
+      )}
+
+      {/* Unscheduled ops */}
+      {coverageMolds.some((m) => m.ops_sem_maquina > 0) && (
+        <Card style={{ padding: "14px 18px" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.primary, marginBottom: 8 }}>
+            Operacoes sem slot ({coverageMolds.reduce((s, m) => s + m.ops_sem_maquina, 0)})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {coverageMolds.filter((m) => m.ops_sem_maquina > 0).map((m) => {
+              const mo = moldes.find((x) => x.id === m.molde_id);
+              return (
+                <div key={m.molde_id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                  <Dot color={moldeColor(m.molde_id)} size={8} />
+                  <span style={{ fontFamily: T.mono, color: T.primary }}>{m.molde_id}</span>
+                  {mo?.cliente && <span style={{ color: T.secondary }}>({mo.cliente})</span>}
+                  <span style={{ color: T.red }}>{m.ops_sem_maquina} sem maquina</span>
+                  <span style={{ color: T.tertiary }}>de {m.total_ops}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
     </div>
   );

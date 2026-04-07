@@ -171,6 +171,11 @@ export default function RiscoPage() {
               <Pill color={T.green}>Tudo dentro do prazo</Pill>
             )}
           </div>
+          {coverage && coverage.overall_coverage_pct < 80 && (
+            <div style={{ fontSize: 10, color: T.tertiary, textAlign: "center", marginTop: 4 }}>
+              Calculado com {Math.round(coverage.overall_coverage_pct)}% do plano
+            </div>
+          )}
         </Card>
 
         {/* Right 2/3 — Heatmap */}
