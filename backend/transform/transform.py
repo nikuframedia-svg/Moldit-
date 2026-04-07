@@ -186,14 +186,25 @@ def _apply_progress(data: MolditEngineData) -> MolditEngineData:
     If work_h is 0 but duracao_h > 0, use duracao_h as fallback.
     This happens when the .mpp has duration but no work (effort).
     """
+    n_fallback = 0
     for op in data.operacoes:
         if op.progresso >= 100.0:
             op.work_restante_h = 0.0
         else:
             effective_h = op.work_h if op.work_h > 0 else op.duracao_h
-            if effective_h > 0 and op.work_h <= 0:
-                op.work_h = effective_h  # fix the source too
+            # Safety: if both work_h and duracao_h are 0, use 1h minimum
+            if effective_h <= 0:
+                effective_h = 1.0
+                logger.warning(
+                    "Op %d (%s): work_h=0 e duracao_h=0, usando 1h minimo",
+                    op.id, op.codigo,
+                )
+            if op.work_h <= 0:
+                op.work_h = effective_h
+                n_fallback += 1
             op.work_restante_h = effective_h * (1.0 - op.progresso / 100.0)
+    if n_fallback:
+        logger.info("Corrigido work_h para %d operacoes (fallback duracao_h)", n_fallback)
     return data
 
 
