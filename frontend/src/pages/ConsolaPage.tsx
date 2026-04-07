@@ -319,13 +319,16 @@ export default function ConsolaPage() {
       {/* ═══ 1c. Operacoes sem planeamento ═══ */}
       {coverageMolds.length > 0 && coverageMolds.some((m) => m.ops_sem_maquina > 0) && (
         <Card style={{ padding: "16px 20px", borderLeft: `4px solid ${T.red}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <Num size={28} color={T.red}>
               {coverageMolds.reduce((s, m) => s + m.ops_sem_maquina, 0)}
             </Num>
             <div style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>
               operacoes sem maquina atribuida
             </div>
+          </div>
+          <div style={{ fontSize: 11, color: T.secondary, marginBottom: 10 }}>
+            Estas operacoes nao tinham maquina no ficheiro .mpp. Atribua maquinas no MS Project ou no explorador de moldes.
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {coverageMolds

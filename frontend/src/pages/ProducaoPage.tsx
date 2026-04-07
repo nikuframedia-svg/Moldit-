@@ -184,9 +184,12 @@ export default function ProducaoPage() {
 
       {/* Unscheduled ops */}
       {coverageMolds.some((m) => m.ops_sem_maquina > 0) && (
-        <Card style={{ padding: "14px 18px" }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: T.primary, marginBottom: 8 }}>
+        <Card style={{ padding: "14px 18px", borderLeft: `3px solid ${T.orange}` }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.primary, marginBottom: 4 }}>
             Operacoes sem slot ({coverageMolds.reduce((s, m) => s + m.ops_sem_maquina, 0)})
+          </div>
+          <div style={{ fontSize: 11, color: T.secondary, marginBottom: 10 }}>
+            Estas operacoes nao tinham maquina atribuida no ficheiro .mpp e o sistema nao conseguiu encontrar uma maquina compativel.
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {coverageMolds.filter((m) => m.ops_sem_maquina > 0).map((m) => {
@@ -196,7 +199,7 @@ export default function ProducaoPage() {
                   <Dot color={moldeColor(m.molde_id)} size={8} />
                   <span style={{ fontFamily: T.mono, color: T.primary }}>{m.molde_id}</span>
                   {mo?.cliente && <span style={{ color: T.secondary }}>({mo.cliente})</span>}
-                  <span style={{ color: T.red }}>{m.ops_sem_maquina} sem maquina</span>
+                  <span style={{ color: T.red, fontWeight: 600 }}>{m.ops_sem_maquina} sem maquina</span>
                   <span style={{ color: T.tertiary }}>de {m.total_ops}</span>
                 </div>
               );
