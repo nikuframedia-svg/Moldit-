@@ -128,6 +128,29 @@ export default function RiscoPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1200 }}>
 
+      {/* ── 0. Cobertura do plano (TOPO) ──────────────────────────── */}
+      {coverage && coverage.overall_coverage_pct < 100 && (
+        <Card style={{ padding: "14px 18px", borderLeft: `3px solid ${coverage.overall_coverage_pct < 70 ? T.red : T.orange}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+            <Label style={{ margin: 0 }}>Cobertura do plano</Label>
+            <span style={{
+              fontSize: 14, fontFamily: T.mono, fontWeight: 600,
+              color: coverage.overall_coverage_pct >= 90 ? T.orange : T.red,
+            }}>
+              {Math.round(coverage.overall_coverage_pct)}%
+            </span>
+          </div>
+          <ProgressBar
+            value={coverage.overall_coverage_pct}
+            color={coverage.overall_coverage_pct >= 90 ? T.orange : T.red}
+            height={6}
+          />
+          <div style={{ fontSize: 12, color: T.secondary, marginTop: 8 }}>
+            {coverage.summary}
+          </div>
+        </Card>
+      )}
+
       {/* ── 1. Health Score + Heatmap ───────────────────────────── */}
       <div style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
 
@@ -327,34 +350,7 @@ export default function RiscoPage() {
       )}
 
       {/* ── 4. Cobertura do plano ��───────────────────────────────── */}
-      {coverage && (
-        <Card style={{ padding: "14px 18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-            <Label style={{ margin: 0 }}>Cobertura do plano</Label>
-            <span style={{
-              fontSize: 14, fontFamily: T.mono, fontWeight: 600,
-              color: coverage.overall_coverage_pct >= 100 ? T.green : coverage.overall_coverage_pct >= 90 ? T.orange : T.red,
-            }}>
-              {Math.round(coverage.overall_coverage_pct)}%
-            </span>
-          </div>
-          <ProgressBar
-            value={coverage.overall_coverage_pct}
-            color={coverage.overall_coverage_pct >= 100 ? T.green : coverage.overall_coverage_pct >= 90 ? T.orange : T.red}
-            height={6}
-          />
-          {coverage.overall_coverage_pct >= 100 ? (
-            <div style={{ fontSize: 12, color: T.green, marginTop: 8 }}>
-              Todas as operacoes tem maquina atribuida.
-            </div>
-          ) : (
-            <div style={{ fontSize: 12, color: T.secondary, marginTop: 8 }}>
-              {coverage.uncovered_ops?.length ?? 0} operacoes sem maquina atribuida.
-              {coverage.summary && ` ${coverage.summary}`}
-            </div>
-          )}
-        </Card>
-      )}
+      {/* Coverage moved to top of page */}
 
       {/* ─��� 5. Sugestoes automaticas ──────────────────────────── */}
       {risk?.proposals && risk.proposals.length > 0 && (

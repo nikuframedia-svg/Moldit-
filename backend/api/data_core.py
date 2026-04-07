@@ -114,7 +114,7 @@ async def get_molde_detail(molde_id: str):
 
     ops = [
         {
-            "id": op.id,
+            "op_id": op.id,
             "componente": op.componente,
             "nome": op.nome,
             "codigo": op.codigo,
@@ -278,7 +278,7 @@ async def get_ops():
     _require_data()
     return [
         {
-            "id": op.id,
+            "op_id": op.id,
             "molde": op.molde,
             "componente": op.componente,
             "nome": op.nome,

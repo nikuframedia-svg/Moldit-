@@ -569,15 +569,17 @@ export default function ConsolaPage() {
         {/* ── Right: Maquinas (stress) ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           <Label style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
-            Maquinas ({sortedStress.length})
+            Maquinas (top 10 de {sortedStress.length})
           </Label>
           <Card style={{ padding: "8px 0" }}>
             {sortedStress.length === 0 && (
               <div style={{ padding: "12px 16px", fontSize: 12, color: T.tertiary }}>
-                Sem dados de maquinas.
+                {coveragePct != null && coveragePct < 80
+                  ? `Sem dados de ocupacao suficientes \u2014 cobertura do plano: ${Math.round(coveragePct)}%`
+                  : "Sem dados de maquinas."}
               </div>
             )}
-            {sortedStress.map((m, i) => {
+            {sortedStress.slice(0, 10).map((m, i) => {
               const stressColor = m.stress_pct > 95 ? T.red : m.stress_pct > 80 ? T.orange : T.green;
               const grupo = machineGroup(m.maquina_id);
               return (
@@ -615,6 +617,18 @@ export default function ConsolaPage() {
                 </div>
               );
             })}
+            {sortedStress.length > 10 && (
+              <button
+                onClick={() => navigateTo("producao")}
+                style={{
+                  padding: "6px 0", background: "transparent", border: "none",
+                  color: T.blue, fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+                  textAlign: "center", width: "100%",
+                }}
+              >
+                Ver todas as {sortedStress.length} maquinas
+              </button>
+            )}
           </Card>
         </div>
       </div>

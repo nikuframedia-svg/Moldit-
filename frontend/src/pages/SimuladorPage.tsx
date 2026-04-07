@@ -20,6 +20,30 @@ import { Label } from "../components/ui/Label";
 import { Modal } from "../components/ui/Modal";
 import type { MutationType, SimulateResponse, CTPMolde } from "../api/types";
 
+/* ── Week label helper: "S20" → "S20 (12-16 Mai)" ───────── */
+
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+function semanaLabel(s: string): string {
+  const match = s.match(/S(\d+)/i);
+  if (!match) return s;
+  const week = parseInt(match[1], 10);
+  const year = new Date().getFullYear();
+  // ISO week 1 starts on the Monday of the week containing Jan 4
+  const jan4 = new Date(year, 0, 4);
+  const dayOfWeek = jan4.getDay() || 7; // Mon=1..Sun=7
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - dayOfWeek + 1 + (week - 1) * 7);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  const d1 = monday.getDate();
+  const m1 = MESES[monday.getMonth()];
+  const d2 = friday.getDate();
+  const m2 = MESES[friday.getMonth()];
+  if (m1 === m2) return `${s} (${d1}-${d2} ${m1})`;
+  return `${s} (${d1} ${m1} - ${d2} ${m2})`;
+}
+
 /* ── All 8 mutation presets ──────────────────────────────── */
 
 const MAIN_MUTATIONS: { type: MutationType; label: string; icon: string }[] = [
@@ -579,7 +603,7 @@ export default function SimuladorPage() {
 
             <div style={{ fontSize: 15, color: T.primary, textAlign: "center", lineHeight: 1.6, fontWeight: 500 }}>
               {ctpResult.feasible
-                ? `Entrega viavel na semana ${ctpWeek} com ${ctpResult.slack_dias} dias de folga.`
+                ? `Entrega viavel na ${semanaLabel(ctpWeek)} com ${ctpResult.slack_dias} dias de folga.`
                 : `Nao e possivel. Faltam ${ctpResult.dias_extra} dias.`}
             </div>
 

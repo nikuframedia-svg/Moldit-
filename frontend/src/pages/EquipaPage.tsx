@@ -31,6 +31,7 @@ export default function EquipaPage() {
   const [loading, setLoading] = useState(true);
   const [allocMsg, setAllocMsg] = useState("");
   const setStatus = useAppStore((s) => s.setStatus);
+  const navigateTo = useAppStore((s) => s.navigateTo);
 
   useEffect(() => {
     setLoading(true);
@@ -137,10 +138,32 @@ export default function EquipaPage() {
         </div>
       </div>
 
+      {/* Empty state when no operators */}
+      {!loading && total === 0 ? (
+        <Card style={{ padding: "32px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: T.primary, marginBottom: 8 }}>
+            Nenhum operador configurado.
+          </div>
+          <div style={{ fontSize: 13, color: T.secondary, marginBottom: 16 }}>
+            Adicione operadores para ver a gestao de equipa, turnos e conflitos.
+          </div>
+          <button
+            onClick={() => navigateTo("config")}
+            style={{
+              padding: "8px 20px", borderRadius: T.radiusSm, border: "none",
+              background: T.blue, color: "#fff", fontSize: 13, fontWeight: 600,
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            Ir para Configuracao
+          </button>
+        </Card>
+      ) : null}
+
       {/* Frase-resumo */}
       {loading ? (
         <div style={{ color: T.secondary }}>A carregar...</div>
-      ) : (
+      ) : total > 0 ? (
         <div style={{ fontSize: 18, fontWeight: 600, color: deficit > 0 ? T.orange : T.green, lineHeight: 1.4 }}>
           {day === "semana"
             ? `Esta semana: ${total} operadores na equipa. ${deficit > 0 ? `${deficit} em falta.` : "Todos disponiveis."}`
@@ -149,10 +172,10 @@ export default function EquipaPage() {
               : `${dayLabel} temos todos os ${total} operadores disponiveis.`
           }
         </div>
-      )}
+      ) : null}
 
       {/* Zone blocks */}
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(zones.size, 4)}, 1fr)`, gap: 12 }}>
+      <div style={{ display: total > 0 ? "grid" : "none", gridTemplateColumns: `repeat(${Math.min(zones.size, 4)}, 1fr)`, gap: 12 }}>
         {Array.from(zones.entries()).map(([zona, ops]) => {
           const disp = ops.filter((o) => o.disponivel).length;
           const zoneDeficit = ops.length - disp;
@@ -173,7 +196,7 @@ export default function EquipaPage() {
       </div>
 
       {/* Conflicts with action buttons */}
-      {conflicts.length > 0 && (
+      {total > 0 && conflicts.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: T.secondary }}>
             Problemas ({conflicts.length})

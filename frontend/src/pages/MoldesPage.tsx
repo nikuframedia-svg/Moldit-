@@ -99,7 +99,7 @@ export default function MoldesPage() {
               >
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: isLate ? T.red : moldeColor(m.id) }} />
                 <span style={{ fontSize: 13, fontWeight: active ? 700 : 400, color: active ? T.primary : T.secondary }}>
-                  {m.id}
+                  {m.id}{m.cliente ? ` (${m.cliente})` : ""}
                 </span>
               </button>
             );
