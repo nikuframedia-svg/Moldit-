@@ -25,7 +25,7 @@ import { Divider } from "../components/ui/Divider";
 import { Num } from "../components/ui/Num";
 import { Label } from "../components/ui/Label";
 import { ExplainBox } from "../components/ExplainBox";
-import type { MolditAlert, Proposal, AnomalyOrPattern, MoldCoverage } from "../api/types";
+import type { MolditAlert, Proposal, AnomalyOrPattern } from "../api/types";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -85,7 +85,6 @@ export default function ConsolaPage() {
   // Coverage warning
   const [coveragePct, setCoveragePct] = useState<number | null>(null);
   const [coverageSummary, setCoverageSummary] = useState("");
-  const [coverageMolds, setCoverageMolds] = useState<MoldCoverage[]>([]);
 
   // ── Fetch banner + alertas + anomalias + proposals ──────────
 
@@ -137,7 +136,6 @@ export default function ConsolaPage() {
       .then((data) => {
         setCoveragePct(data.overall_coverage_pct);
         setCoverageSummary(data.summary ?? "");
-        setCoverageMolds(data.molds ?? []);
       })
       .catch(() => {});
   }, [moldes.length, deadlines.length]);
@@ -317,39 +315,50 @@ export default function ConsolaPage() {
       )}
 
       {/* ═══ 1c. Operacoes sem planeamento ═══ */}
-      {coverageMolds.length > 0 && coverageMolds.some((m) => m.ops_sem_maquina > 0) && (
-        <Card style={{ padding: "16px 20px", borderLeft: `4px solid ${T.red}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-            <Num size={28} color={T.red}>
-              {coverageMolds.reduce((s, m) => s + m.ops_sem_maquina, 0)}
-            </Num>
-            <div style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>
-              operacoes sem maquina atribuida
+      {(() => {
+        // Count truly lost ops: not scheduled AND not done
+        const scheduledOps = new Set(segmentos.map((s) => s.op_id));
+        const lostOps = operacoes.filter(
+          (o) => o.progresso < 100 && !scheduledOps.has(o.op_id),
+        );
+        if (lostOps.length === 0) return null;
+        // Group by molde
+        const byMolde = new Map<string, number>();
+        for (const o of lostOps) {
+          byMolde.set(o.molde, (byMolde.get(o.molde) ?? 0) + 1);
+        }
+        return (
+          <Card style={{ padding: "16px 20px", borderLeft: `4px solid ${T.red}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <Num size={28} color={T.red}>{lostOps.length}</Num>
+              <div style={{ fontSize: 15, fontWeight: 600, color: T.primary }}>
+                operacoes sem planeamento
+              </div>
             </div>
-          </div>
-          <div style={{ fontSize: 11, color: T.secondary, marginBottom: 10 }}>
-            Estas operacoes nao tinham maquina no ficheiro .mpp. Atribua maquinas no MS Project ou no explorador de moldes.
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {coverageMolds
-              .filter((m) => m.ops_sem_maquina > 0)
-              .sort((a, b) => b.ops_sem_maquina - a.ops_sem_maquina)
-              .map((m) => {
-                const molde = moldes.find((mo) => mo.id === m.molde_id);
-                return (
-                  <div key={m.molde_id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                    <Dot color={T.red} size={6} />
-                    <span style={{ fontFamily: T.mono, fontWeight: 600, color: T.primary }}>{m.molde_id}</span>
-                    {molde?.cliente && <span style={{ color: T.secondary }}>({molde.cliente})</span>}
-                    <span style={{ color: T.tertiary }}>\u2014</span>
-                    <span style={{ color: T.red, fontWeight: 600 }}>{m.ops_sem_maquina} sem maquina</span>
-                    <span style={{ color: T.tertiary }}>de {m.total_ops} operacoes</span>
-                  </div>
-                );
-              })}
-          </div>
-        </Card>
-      )}
+            <div style={{ fontSize: 11, color: T.secondary, marginBottom: 10 }}>
+              Estas operacoes nao foram agendadas pelo sistema. Verifique se tem maquina compativel.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {[...byMolde.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .map(([moldeId, count]) => {
+                  const molde = moldes.find((mo) => mo.id === moldeId);
+                  const total = molde?.total_ops ?? 0;
+                  return (
+                    <div key={moldeId} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                      <Dot color={T.red} size={6} />
+                      <span style={{ fontFamily: T.mono, fontWeight: 600, color: T.primary }}>{moldeId}</span>
+                      {molde?.cliente && <span style={{ color: T.secondary }}>({molde.cliente})</span>}
+                      <span style={{ color: T.tertiary }}>{"\u2014"}</span>
+                      <span style={{ color: T.red, fontWeight: 600 }}>{count} sem agendar</span>
+                      <span style={{ color: T.tertiary }}>de {total}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* ═══ 2. Tabela de Moldes ═══ */}
       <Card style={{ padding: 0, overflow: "hidden" }} data-testid="tabela-moldes">
