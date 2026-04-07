@@ -35,6 +35,7 @@ def transform(
     data = _apply_progress(data)
     data = _fix_electrodes(data, config)
     data = _link_electrodes_to_erosion(data)
+    _infer_compatibility(data)  # learn compat from existing assignments
     _add_missing_machines(data, config)  # after all compat changes
     data.feriados = _resolve_holidays(config)
     return data
@@ -69,6 +70,33 @@ def _enrich_from_config(
             data.compatibilidade[code] = existing
 
     return data
+
+
+def _infer_compatibility(data: MolditEngineData) -> None:
+    """Infer compatibility map from ops that already have a machine assigned.
+
+    If op code FE010 is assigned to FE18-Rambaudi, then FE010 can run on
+    FE18-Rambaudi. This lets the scheduler assign unassigned ops of the
+    same code to known-compatible machines.
+    """
+    machine_ids = {m.id for m in data.maquinas}
+    inferred = 0
+
+    for op in data.operacoes:
+        if not op.recurso or op.recurso not in machine_ids:
+            continue
+        code = op.codigo
+        existing = data.compatibilidade.get(code, [])
+        if op.recurso not in existing:
+            existing.append(op.recurso)
+            data.compatibilidade[code] = existing
+            inferred += 1
+
+    if inferred:
+        logger.info(
+            "Inferred %d compatibility entries from %d operation codes",
+            inferred, len(data.compatibilidade),
+        )
 
 
 def _validate_dag(dag: dict[int, list[int]]) -> None:
@@ -153,12 +181,19 @@ def _relax_alternative_phases(data: MolditEngineData) -> None:
 
 
 def _apply_progress(data: MolditEngineData) -> MolditEngineData:
-    """Recalculate work_restante_h based on progress percentage."""
+    """Recalculate work_restante_h based on progress percentage.
+
+    If work_h is 0 but duracao_h > 0, use duracao_h as fallback.
+    This happens when the .mpp has duration but no work (effort).
+    """
     for op in data.operacoes:
         if op.progresso >= 100.0:
             op.work_restante_h = 0.0
         else:
-            op.work_restante_h = op.work_h * (1.0 - op.progresso / 100.0)
+            effective_h = op.work_h if op.work_h > 0 else op.duracao_h
+            if effective_h > 0 and op.work_h <= 0:
+                op.work_h = effective_h  # fix the source too
+            op.work_restante_h = effective_h * (1.0 - op.progresso / 100.0)
     return data
 
 
