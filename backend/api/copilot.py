@@ -99,7 +99,7 @@ async def copilot_chat(request: ChatRequest):
     widgets = []
     tools_used = 0
 
-    for iteration in range(5):  # max 5 tool-call rounds
+    for iteration in range(8):  # max 8 tool-call rounds
         response = await provider.chat_with_tools(messages, TOOLS, system_prompt)
 
         if response.tool_calls:
@@ -145,8 +145,12 @@ async def copilot_chat(request: ChatRequest):
             "tools_used": tools_used,
         }
 
+    # If we have content from the last response, use it
+    last_content = ""
+    if response and response.content:
+        last_content = response.content
     return {
-        "response": "Limite de iterações atingido.",
+        "response": last_content or "Analise complexa — tente uma pergunta mais simples.",
         "widgets": widgets,
         "tools_used": tools_used,
     }

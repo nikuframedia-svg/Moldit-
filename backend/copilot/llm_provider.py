@@ -172,13 +172,13 @@ class AnthropicProvider(LLMProvider):
                 "input_schema": fn.get("parameters", {"type": "object"}),
             })
 
-        # Convert messages: Anthropic doesn't use "system" role in messages
-        # and tool_calls/tool results have different format
+        # Collect system messages and append to system_prompt
+        extra_system = []
         converted = []
         for m in messages:
             role = m.get("role", "user")
             if role == "system":
-                # Skip system messages — they go in the system param
+                extra_system.append(m.get("content", ""))
                 continue
             if role == "tool":
                 # Anthropic: tool results are user messages with tool_result
@@ -224,13 +224,18 @@ class AnthropicProvider(LLMProvider):
                 "content": m.get("content", ""),
             })
 
+        full_system = system_prompt
+        if extra_system:
+            full_system += "\n\n" + "\n".join(extra_system)
+
         try:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=4096,
-                system=system_prompt,
+                system=full_system,
                 messages=converted,
                 tools=anthropic_tools,
+                timeout=120.0,
             )
         except Exception as e:
             logger.error("Anthropic API error: %s", e)
