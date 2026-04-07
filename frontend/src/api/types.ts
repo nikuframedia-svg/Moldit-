@@ -145,7 +145,7 @@ export interface ConsoleData {
 export interface RiskResult {
   health_score: number;
   bottleneck_machines: MaquinaStatus[];
-  heatmap: { maquina_id: string; dia: number; stress_pct: number }[];
+  heatmap: HeatmapCell[];
   proposals: { titulo: string; descricao: string; impacto: string }[];
 }
 

@@ -16,6 +16,7 @@ import {
   ignoreAlert,
   getAnomalies,
   getProposals,
+  getCoverage,
 } from "../api/endpoints";
 import { Card } from "../components/ui/Card";
 import { Dot } from "../components/ui/Dot";
@@ -61,6 +62,7 @@ export default function ConsolaPage() {
   const deadlines = useDataStore((s) => s.deadlines);
   const stress = useDataStore((s) => s.stress);
   const segmentos = useDataStore((s) => s.segmentos);
+  const operacoes = useDataStore((s) => s.operacoes);
   const config = useDataStore((s) => s.config);
   const navigateTo = useAppStore((s) => s.navigateTo);
 
@@ -79,6 +81,10 @@ export default function ConsolaPage() {
   // Proposals
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [proposalsLoading, setProposalsLoading] = useState(true);
+
+  // Coverage warning
+  const [coveragePct, setCoveragePct] = useState<number | null>(null);
+  const [coverageSummary, setCoverageSummary] = useState("");
 
   // ── Fetch banner + alertas + anomalias + proposals ──────────
 
@@ -124,6 +130,14 @@ export default function ConsolaPage() {
       .then((data) => setProposals(data.proposals ?? []))
       .catch(() => setProposals([]))
       .finally(() => setProposalsLoading(false));
+
+    // Coverage
+    getCoverage()
+      .then((data) => {
+        setCoveragePct(data.overall_coverage_pct);
+        setCoverageSummary(data.summary ?? "");
+      })
+      .catch(() => {});
   }, [moldes.length, deadlines.length]);
 
   // ── Alert actions ───────────────────────────────────────────
@@ -179,6 +193,17 @@ export default function ConsolaPage() {
     for (const [k, v] of best) result.set(k, { opId: v.opId, maquina: v.maquina });
     return result;
   }, [segmentos]);
+
+  // Op ID → short name (extract after " » " if present)
+  const opName = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const op of operacoes) {
+      const raw = op.nome || op.nome_completo || "";
+      const parts = raw.split(" \u00BB ");
+      m.set(op.op_id, parts.length > 1 ? parts[1].trim() : raw);
+    }
+    return m;
+  }, [operacoes]);
 
   const rows = useMemo(() => {
     return moldes
@@ -280,6 +305,15 @@ export default function ConsolaPage() {
         </div>
       </Card>
 
+      {/* ═══ 1b. Aviso de cobertura ═══ */}
+      {coveragePct != null && coveragePct < 90 && (
+        <ExplainBox
+          headline={`Atencao: o plano so cobre ${Math.round(coveragePct)}% das operacoes. Os valores podem nao reflectir a realidade completa.`}
+          detail={coverageSummary}
+          color="orange"
+        />
+      )}
+
       {/* ═══ 2. Tabela de Moldes ═══ */}
       <Card style={{ padding: 0, overflow: "hidden" }} data-testid="tabela-moldes">
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -321,7 +355,7 @@ export default function ConsolaPage() {
                     {row.deadline?.deadline ?? row.molde.deadline}
                   </td>
                   <td style={{ ...tdStyle, fontSize: 12, color: T.secondary }}>
-                    {row.opId != null ? `Op #${row.opId}` : "\u2014"}
+                    {row.opId != null ? (opName.get(row.opId) || `Op #${row.opId}`) : "\u2014"}
                   </td>
                   <td style={{ ...tdStyle, fontFamily: T.mono, fontSize: 12 }}>
                     {row.maquina ?? "\u2014"}

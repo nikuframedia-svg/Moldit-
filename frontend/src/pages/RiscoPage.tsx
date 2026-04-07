@@ -20,7 +20,7 @@ import { ProgressBar } from "../components/ui/ProgressBar";
 import { Divider } from "../components/ui/Divider";
 import { Label } from "../components/ui/Label";
 import { ExplainBox } from "../components/ExplainBox";
-import type { RiskResult, LateDeliveryReport, TardyAnalysis, CoverageReport } from "../api/types";
+import type { RiskResult, LateDeliveryReport, TardyAnalysis, CoverageReport, HeatmapCell } from "../api/types";
 
 /* ── helpers ─────────────────────────────────────────────── */
 
@@ -52,12 +52,6 @@ const ROOT_CAUSE_LABELS: Record<string, { label: string; color: string }> = {
 
 /* ── Heatmap types ────────────���───────────────────────────── */
 
-interface HeatCell {
-  maquina_id: string;
-  dia: number;
-  stress_pct: number;
-}
-
 function buildHeatmap(
   risk: RiskResult | null,
   stress: { maquina_id: string; stress_pct: number; pico_dia: number }[],
@@ -67,13 +61,13 @@ function buildHeatmap(
   let days: number[] = [];
 
   if (risk?.heatmap && risk.heatmap.length > 0) {
-    const hm = risk.heatmap as HeatCell[];
+    const hm = risk.heatmap as HeatmapCell[];
     const machSet = new Set<string>();
     const daySet = new Set<number>();
     for (const c of hm) {
-      machSet.add(c.maquina_id);
-      daySet.add(c.dia);
-      cells.set(`${c.maquina_id}|${c.dia}`, c.stress_pct);
+      machSet.add(c.machine_id);
+      daySet.add(c.day_idx);
+      cells.set(`${c.machine_id}|${c.day_idx}`, c.utilization * 100);
     }
     machines = [...machSet].sort();
     days = [...daySet].sort((a, b) => a - b);
@@ -89,7 +83,7 @@ function buildHeatmap(
     }
   }
 
-  if (days.length > 14) days = days.slice(0, 14);
+  if (days.length > 21) days = days.slice(0, 21);
   return { machines, days, cells };
 }
 
@@ -120,8 +114,8 @@ export default function RiscoPage() {
 
   const score = risk?.health_score ?? 0;
   const lateCount = deadlines.filter((d) => !d.on_time).length;
-  const atRiskCount = deadlines.filter((d) => d.on_time && d.dias_atraso >= -3).length;
-  const riskMoldes = deadlines.filter((d) => !d.on_time || d.dias_atraso >= -3);
+  const atRiskCount = deadlines.filter((d) => d.on_time && d.dias_atraso > 0 && d.dias_atraso <= 5).length;
+  const riskMoldes = deadlines.filter((d) => !d.on_time || (d.on_time && d.dias_atraso > 0 && d.dias_atraso <= 5));
   const { machines, days, cells } = buildHeatmap(risk, stress);
 
   // Late delivery analyses

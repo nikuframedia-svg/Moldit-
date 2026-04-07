@@ -3,7 +3,7 @@
  * Lista de alertas activos com ciclo de vida: reconhecer, resolver, ignorar.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { T } from "../theme/tokens";
 import { useAppStore } from "../stores/useAppStore";
 import { getAlerts, getAlertStats, acknowledgeAlert, resolveAlert, ignoreAlert, evaluateAlerts } from "../api/endpoints";
@@ -63,6 +63,26 @@ export default function AlertasPage() {
 
   const filtered = filter === "todos" ? alerts : alerts.filter((a) => a.severidade === filter);
 
+  // Group repeated alerts by regra (e.g. 104x R8 "setup evitavel")
+  const grouped = useMemo(() => {
+    const byRule = new Map<string, MolditAlert[]>();
+    for (const a of filtered) {
+      const key = a.regra;
+      if (!byRule.has(key)) byRule.set(key, []);
+      byRule.get(key)!.push(a);
+    }
+    // Sort: critical first, then by count descending
+    return [...byRule.entries()].sort((a, b) => {
+      const sevOrder: Record<string, number> = { critico: 0, aviso: 1, info: 2 };
+      const sa = sevOrder[a[1][0].severidade] ?? 3;
+      const sb = sevOrder[b[1][0].severidade] ?? 3;
+      if (sa !== sb) return sa - sb;
+      return b[1].length - a[1].length;
+    });
+  }, [filtered]);
+
+  const [expandedRules, setExpandedRules] = useState<Set<string>>(new Set());
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 900 }}>
       {stats && (
@@ -95,51 +115,84 @@ export default function AlertasPage() {
           Nenhum alerta {filter !== "todos" ? `de tipo "${filter}"` : "activo"}.
         </div>
       ) : (
-        filtered.map((a) => (
-          <Card key={a.id} style={{ borderLeft: `3px solid ${SEV_COLOR[a.severidade] || T.border}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <Pill color={SEV_COLOR[a.severidade] || T.secondary}>{a.severidade}</Pill>
-                  <span style={{ fontSize: 10, color: T.tertiary }}>{a.regra}</span>
+        grouped.map(([regra, group]) => {
+          const first = group[0];
+          const isExpanded = expandedRules.has(regra) || group.length <= 3;
+          const shown = isExpanded ? group : [first];
+
+          return (
+            <div key={regra}>
+              {/* Group header when >3 alerts of same rule */}
+              {group.length > 3 && (
+                <div
+                  onClick={() => setExpandedRules((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(regra)) next.delete(regra); else next.add(regra);
+                    return next;
+                  })}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 12px", cursor: "pointer",
+                    fontSize: 13, fontWeight: 600, color: T.secondary,
+                  }}
+                >
+                  <Pill color={SEV_COLOR[first.severidade] || T.secondary}>{first.severidade}</Pill>
+                  <span>{first.titulo} ({group.length}x)</span>
+                  <span style={{ fontSize: 11, color: T.tertiary, marginLeft: "auto" }}>
+                    {isExpanded ? "Fechar" : "Expandir"}
+                  </span>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: T.primary, marginBottom: 4 }}>{a.titulo}</div>
-                <div style={{ fontSize: 12, color: T.secondary, marginBottom: 6 }}>{a.mensagem}</div>
-                {(a.moldes_afetados?.length > 0 || a.maquinas_afetadas?.length > 0) && (
-                  <div style={{ fontSize: 11, color: T.tertiary, marginBottom: 4 }}>
-                    {a.moldes_afetados?.length > 0 && `Moldes: ${a.moldes_afetados.join(", ")}. `}
-                    {a.maquinas_afetadas?.length > 0 && `Maquinas: ${a.maquinas_afetadas.join(", ")}.`}
+              )}
+
+              {shown.map((a) => (
+                <Card key={a.id} style={{ borderLeft: `3px solid ${SEV_COLOR[a.severidade] || T.border}`, marginBottom: 4 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      {group.length <= 3 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <Pill color={SEV_COLOR[a.severidade] || T.secondary}>{a.severidade}</Pill>
+                          <span style={{ fontSize: 10, color: T.tertiary }}>{a.regra}</span>
+                        </div>
+                      )}
+                      <div style={{ fontSize: 14, fontWeight: 600, color: T.primary, marginBottom: 4 }}>{a.titulo}</div>
+                      <div style={{ fontSize: 12, color: T.secondary, marginBottom: 6 }}>{a.mensagem}</div>
+                      {(a.moldes_afetados?.length > 0 || a.maquinas_afetadas?.length > 0) && (
+                        <div style={{ fontSize: 11, color: T.tertiary, marginBottom: 4 }}>
+                          {a.moldes_afetados?.length > 0 && `Moldes: ${a.moldes_afetados.join(", ")}. `}
+                          {a.maquinas_afetadas?.length > 0 && `Maquinas: ${a.maquinas_afetadas.join(", ")}.`}
+                        </div>
+                      )}
+                      {a.impacto_dias > 0 && (
+                        <div style={{ fontSize: 11, color: T.orange }}>Impacto: {a.impacto_dias} dia{a.impacto_dias > 1 ? "s" : ""}</div>
+                      )}
+                      {a.sugestoes?.length > 0 && (
+                        <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {a.sugestoes.map((s: any, i: number) => (
+                            <button key={i}
+                              onClick={() => setStatus("ok", `Accao simulada: ${s.acao}`)}
+                              style={{
+                                background: T.elevated, border: `0.5px solid ${T.border}`,
+                                color: T.blue, fontSize: 11, fontWeight: 500, padding: "6px 12px",
+                                borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
+                              }}
+                            >
+                              {s.acao} <span style={{ color: T.green, marginLeft: 4 }}>({s.impacto})</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+                      <ActionBtn label="Reconhecer" onClick={() => handleAction(a.id, "ack")} />
+                      <ActionBtn label="Resolver" onClick={() => handleAction(a.id, "resolve")} color={T.green} />
+                      <ActionBtn label="Ignorar" onClick={() => handleAction(a.id, "ignore")} color={T.tertiary} />
+                    </div>
                   </div>
-                )}
-                {a.impacto_dias > 0 && (
-                  <div style={{ fontSize: 11, color: T.orange }}>Impacto: {a.impacto_dias} dia{a.impacto_dias > 1 ? "s" : ""}</div>
-                )}
-                {a.sugestoes?.length > 0 && (
-                  <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {a.sugestoes.map((s: any, i: number) => (
-                      <button key={i}
-                        onClick={() => setStatus("ok", `Accao simulada: ${s.acao}`)}
-                        style={{
-                          background: T.elevated, border: `0.5px solid ${T.border}`,
-                          color: T.blue, fontSize: 11, fontWeight: 500, padding: "6px 12px",
-                          borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
-                          transition: "all 0.15s",
-                        }}
-                      >
-                        {s.acao} <span style={{ color: T.green, marginLeft: 4 }}>({s.impacto})</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
-                <ActionBtn label="Reconhecer" onClick={() => handleAction(a.id, "ack")} />
-                <ActionBtn label="Resolver" onClick={() => handleAction(a.id, "resolve")} color={T.green} />
-                <ActionBtn label="Ignorar" onClick={() => handleAction(a.id, "ignore")} color={T.tertiary} />
-              </div>
+                </Card>
+              ))}
             </div>
-          </Card>
-        ))
+          );
+        })
       )}
     </div>
   );

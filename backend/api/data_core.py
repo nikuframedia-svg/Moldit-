@@ -234,6 +234,8 @@ async def get_deadlines():
     score = state.score or {}
     violations = {v["molde"]: v for v in score.get("deadline_violations", [])}
 
+    makespan_molde = score.get("makespan_por_molde", {})
+
     result = []
     for m in state.engine_data.moldes:
         v = violations.get(m.id)
@@ -248,9 +250,12 @@ async def get_deadlines():
                 "progresso": m.progresso,
             })
         else:
+            # For on-time molds, compute conclusao from makespan_por_molde
+            dias = makespan_molde.get(m.id, 0)
+            conclusao = f"Dia {dias}" if dias > 0 else ""
             result.append({
                 "molde": m.id, "deadline": m.deadline,
-                "conclusao_prevista": "",
+                "conclusao_prevista": conclusao,
                 "dias_atraso": 0,
                 "on_time": True,
                 "operacoes_pendentes": pendentes,
